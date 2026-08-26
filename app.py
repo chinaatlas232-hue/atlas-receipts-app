@@ -135,7 +135,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم HTML مع شعار صافي ودائري بدون مربعات خلفية
+        # تصميم HTML مع إضافة علامة الصندوق بجانب عدد الطرود
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -179,7 +179,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                         </tr>
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
-                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> {packages} طرد</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> 📦 {packages} طرد</td>
                         </tr>
                         <tr style="background-color: #f0f4f8;">
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>تفاصيل الشحنة:</strong> {shipment}</td>
