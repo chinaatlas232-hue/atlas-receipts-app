@@ -294,18 +294,26 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(master_button_component, height=65)
     st.markdown("---")
 
-    # عرض الوصولات الفردية مباشرة باستخدام st.markdown و st.download_button و st.columns لضمان ظهور الأزرار بوضوح
+    # عرض كل وصل مع أزراره داخل حاوية HTML متكاملة وواضحة
     for item in receipts_data_list:
       index = item["index"]
       shipment = item["shipment"]
       file_name_id = item["file_name_id"]
+      single_html_content = item["single_html"]
+
+      # تهريب النصوص بأمان تام لتعمل داخل JavaScript للطباعة
+      clean_js_html = (
+          single_html_content.replace("`", "\\`")
+          .replace("$", "\\$")
+          .replace('"', '\\"')
+      )
 
       with st.expander(
           f"📄 وصل العميل: {item['name']} | كود العميل: {item['code']} | الشحنة:"
           f" {shipment} | الإجمالي: {item['total_sales']:,.0f} $",
           expanded=False,
       ):
-        # 1. عرض زر تنزيل الإكسل
+        # زر تنزيل الإكسل الرسمي من Streamlit
         st.download_button(
             label=f"📥 تنزيل إكسل الوصل (الشحنة: {shipment})",
             data=item["output"],
@@ -318,60 +326,48 @@ if active_data_file is not None and active_template_file is not None:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # 2. عرض الوصل عبر Markdown (يتأقلم مع طول الصفحة تلقائياً دون اقتطاع)
-        st.markdown(item["single_html"], unsafe_allow_html=True)
+        # دمج الوصل مع أزرار الطباعة والحفظ داخل مكون HTML واحد بارتفاع كافٍ (730 بكسل) لمنع أي اقتطاع نهائياً
+        combined_component_html = f"""
+            <div style="direction: rtl; font-family: Tahoma, sans-serif; width: 100%;">
+                {single_html_content}
+                <div style="display: flex; gap: 12px; margin-top: 15px; margin-bottom: 10px;">
+                    <button onclick="
+                        var printWin = window.open('', '', 'height=800,width=800');
+                        printWin.document.write('<html><head><title>طباعة الشحنة {shipment}</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
+                        printWin.document.write(`{clean_js_html}`);
+                        printWin.document.write('</body></html>');
+                        printWin.document.close();
+                        printWin.focus();
+                        setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
+                    " style="
+                        background-color: #102a43; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; flex: 1; text-align: center;
+                    ">
+                        🖨️ طباعة الوصل (ورقيّاً)
+                    </button>
 
-        st.markdown("<br>", unsafe_allow_html=True)
+                    <button onclick="
+                        var printWin = window.open('', '', 'height=800,width=800');
+                        printWin.document.write('<html><head><title>{file_name_id}</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
+                        printWin.document.write(`{clean_js_html}`);
+                        printWin.document.write('</body></html>');
+                        printWin.document.close();
+                        printWin.focus();
+                        setTimeout(function(){{ 
+                            printWin.document.title = '{file_name_id}';
+                            printWin.print(); 
+                        }}, 600);
+                    " style="
+                        background-color: #b45309; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; flex: 1; text-align: center;
+                    ">
+                        📑 حفظ PDF (مقاس A5)
+                    </button>
+                </div>
+            </div>
+            """
 
-        # 3. أزرار الطباعة والحفظ بتصميم نقي وواضح خارج أي iframe مقيد
-        col_btn1, col_btn2 = st.columns(2)
-
-        # تجهيز الكود النصي للطباعة الفردية
-        single_escaped = (
-            item["single_html"]
-            .replace("`", "\\`")
-            .replace("$", "\\$")
-            .replace('"', '\\"')
+        st.components.v1.html(
+            combined_component_html, height=730, scrolling=True
         )
-
-        with col_btn1:
-          print_btn_html = f"""
-                <button onclick="
-                    var printWin = window.open('', '', 'height=800,width=800');
-                    printWin.document.write('<html><head><title>طباعة الشحنة {shipment}</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
-                    printWin.document.write(`{single_escaped}`);
-                    printWin.document.write('</body></html>');
-                    printWin.document.close();
-                    printWin.focus();
-                    setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
-                " style="
-                    background-color: #102a43; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; width: 100%; text-align: center;
-                ">
-                    🖨️ طباعة الوصل (ورقيّاً)
-                </button>
-                """
-          st.components.v1.html(print_btn_html, height=55)
-
-        with col_btn2:
-          pdf_btn_html = f"""
-                <button onclick="
-                    var printWin = window.open('', '', 'height=800,width=800');
-                    printWin.document.write('<html><head><title>{file_name_id}</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
-                    printWin.document.write(`{single_escaped}`);
-                    printWin.document.write('</body></html>');
-                    printWin.document.close();
-                    printWin.focus();
-                    setTimeout(function(){{ 
-                        printWin.document.title = '{file_name_id}';
-                        printWin.print(); 
-                    }}, 600);
-                " style="
-                    background-color: #b45309; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; width: 100%; text-align: center;
-                ">
-                    📑 حفظ PDF (مقاس A5)
-                </button>
-                """
-          st.components.v1.html(pdf_btn_html, height=55)
 
       st.markdown("---")
 
