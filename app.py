@@ -6,7 +6,7 @@ import streamlit as st
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
-# --- تنسيق الألوان العام وتغيير لون الشريط الجانبي وزر المسح ---
+# --- تنسيق الألوان العام وتغيير لون الشريط الجانبي وزر المسح ورأس الجدول التفاعلي ---
 st.markdown("""
     <style>
     /* لون الشريط الجانبي: رمادي غامق بدرجة متوسطة */
@@ -32,6 +32,12 @@ st.markdown("""
     [data-testid="stSidebar"] button[kind="secondary"]:hover {
         background-color: #7f1d1d !important;
         color: white !important;
+    }
+    /* تخصيص رأس الجدول (Table Header) ليكون لون حبري/برتقالي غامق والنصوص باللون الأبيض */
+    [data-testid="stDataFrame"] th {
+        background-color: #b45309 !important;
+        color: white !important;
+        font-weight: bold !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -364,12 +370,10 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- جدول تفاصيل الشحنة الفعّال مع عمود التسلسل (1, 2, 3...) ---
+    # --- جدول تفاصيل الشحنة الفعّال مع تسلسل ورأس ملون ---
     st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}]")
     
     display_table_df = df.copy()
-    
-    # إضافة عمود التسلسل في البداية يبدأ من 1 إلى نهاية عدد الأسطر
     display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
     
     preferred_cols = ["التسلسل", "الكود", "الاسم", "رقم الهاتف", "عدد الطرود", "الوزن", "عنوان استلام البظاعة", "نوع الشحنة"]
