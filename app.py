@@ -160,6 +160,6 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
       st.markdown("---")
 
   except Exception as e:
-    st.error(fحدث خطأ أثناء معالجة الملفات: {e})
+    st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
   st.info("الرجاء رفع كلا الملفين (ملف بيانات الشحنات وقالب الوصل) لتبدأ العملية.")
