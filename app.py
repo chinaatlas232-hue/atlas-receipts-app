@@ -6,7 +6,7 @@ import streamlit as st
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
-# --- تنسيق الألوان العام وتغيير لون الشريط الجانبي إلى رمادي غامق متوسط ---
+# --- تنسيق الألوان العام وتغيير لون الشريط الجانبي وزر المسح ---
 st.markdown("""
     <style>
     /* لون الشريط الجانبي: رمادي غامق بدرجة متوسطة */
@@ -21,6 +21,17 @@ st.markdown("""
     [data-testid="stSidebar"] label, 
     [data-testid="stSidebar"] .stMarkdown {
         color: #f8fafc !important;
+    }
+    /* تخصيص زر مسح الذاكرة ليكون أحمر غامق */
+    [data-testid="stSidebar"] button[kind="secondary"] {
+        background-color: #991b1b !important;
+        color: white !important;
+        border: 1px solid #7f1d1d !important;
+        font-weight: bold !important;
+    }
+    [data-testid="stSidebar"] button[kind="secondary"]:hover {
+        background-color: #7f1d1d !important;
+        color: white !important;
     }
     </style>
 """, unsafe_allow_html=True)
