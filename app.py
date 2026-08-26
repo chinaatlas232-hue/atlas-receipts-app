@@ -75,7 +75,7 @@ if active_data_file is not None and active_template_file is not None:
 
     # حلقة تكرارية لكل صف في ملف البيانات
     for index, row in df.iterrows():
-      # استخراج البيانات الأساسية ورقم الشحنة
+      # استخراج البيانات الأساسية
       shipment = str(row.get("الشحنة", "")).strip()
       if shipment.endswith(".0"):
         shipment = shipment[:-2]
@@ -84,12 +84,13 @@ if active_data_file is not None and active_template_file is not None:
       if code.endswith(".0"):
         code = code[:-2]
 
-      # جعل اسم الملف يأخذ رقم الشحنة حصراً بشكل مباشر، وإذا لم يوجد نلجأ للكود
-      file_name_id = shipment if shipment else (code if code else f"Receipt_{index}")
+      name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
+
+      # حل مشكلة تشابه أرقام الشحنات بدمج رقم الشحنة مع اسم العميل أو كود العميل ليكون الملف فريداً
+      file_name_id = f"{shipment}_{name}" if shipment and name else (shipment if shipment else f"Receipt_{index}")
 
       weight = float(row.get("الوزن", 0) or 0)
       packages = row.get("عدد الطرود", 0)
-      name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
 
       # استخراج سعر الكيلو وحسابه بأمان
       price_per_kg = 0
@@ -154,14 +155,14 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      # عرض الوصل داخل تطبيق Streamlit
+      # عرض الوصل داخل تطبيق Streamlit مع إظهار تفاصيل واضحة لكل عميل
       with st.expander(
           f"📄 وصل العميل: {name} | الشحنة: {shipment} | الإجمالي: {total_sales:,.0f} $",
           expanded=True,
       ):
         # زر تنزيل الإكسل
         st.download_button(
-            label=f"📥 تنزيل إكسل الوصل الرسمي (شحنة رقم: {file_name_id})",
+            label=f"📥 تنزيل إكسل الوصل (الشحنة: {shipment} - العميل: {name})",
             data=output,
             file_name=f"Delivery_Receipt_{file_name_id}.xlsx",
             mime=(
@@ -256,7 +257,7 @@ if active_data_file is not None and active_template_file is not None:
                     <!-- زر الطباعة الورقية -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=1000');
-                        printWin.document.write('<html><head><title>طباعة الشحنة {file_name_id}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
+                        printWin.document.write('<html><head><title>طباعة الشحنة {shipment}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
                         printWin.document.write(document.getElementById('receipt-print-{index}').innerHTML);
                         printWin.document.write('</body></html>');
                         printWin.document.close();
@@ -273,10 +274,10 @@ if active_data_file is not None and active_template_file is not None:
                         font-size: 15px;
                         flex: 1;
                     ">
-                        🖨️ طباعة وصل الشحنة: {file_name_id}
+                        🖨️ طباعة الوصل ورقيّاً
                     </button>
 
-                    <!-- زر حفظ كـ PDF مسمى برقم الشحنة -->
+                    <!-- زر حفظ كـ PDF بالاسم الفريد للشحنة والعميل -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=1000');
                         printWin.document.write('<html><head><title>{file_name_id}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
@@ -299,7 +300,7 @@ if active_data_file is not None and active_template_file is not None:
                         font-size: 15px;
                         flex: 1;
                     ">
-                        📑 حفظ بصيغة PDF (برقم الشحنة: {file_name_id})
+                        📑 حفظ بصيغة PDF ({file_name_id})
                     </button>
                 </div>
                 """
