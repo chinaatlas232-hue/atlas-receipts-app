@@ -6,7 +6,7 @@ import streamlit as st
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
-# --- تنسيق الألوان العام وتغيير لون الشريط الجانبي وزر المسح ورأس الجدول التفاعلي ---
+# --- تنسيق الألوان العام وتغيير لون الشريط الجانبي وزر المسح ---
 st.markdown("""
     <style>
     /* لون الشريط الجانبي: رمادي غامق بدرجة متوسطة */
@@ -32,12 +32,6 @@ st.markdown("""
     [data-testid="stSidebar"] button[kind="secondary"]:hover {
         background-color: #7f1d1d !important;
         color: white !important;
-    }
-    /* تخصيص رأس الجدول (Table Header) ليكون لون حبري/برتقالي غامق والنصوص باللون الأبيض */
-    [data-testid="stDataFrame"] th {
-        background-color: #b45309 !important;
-        color: white !important;
-        font-weight: bold !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -117,7 +111,7 @@ if active_data_file is not None and active_template_file is not None:
     df.columns = df.columns.str.strip()
 
     # تطبيق الفلتر إذا تم اختيار شحنة معينة
-    if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
+    if selected_shipment_filter != "الكل" && "الشحنة" in df.columns:
       df = df[df["الشحنة"].astype(str).str.replace(".0", "") == selected_shipment_filter]
 
     if df.empty:
@@ -370,7 +364,7 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- جدول تفاصيل الشحنة الفعّال مع تسلسل ورأس ملون ---
+    # --- جدول تفاصيل الشحنة (مع رأس أزرق حبري وكتابة بيضاء وتنسيق الأسطر) ---
     st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}]")
     
     display_table_df = df.copy()
@@ -380,14 +374,61 @@ if active_data_file is not None and active_template_file is not None:
     existing_cols = [col for col in preferred_cols if col in display_table_df.columns]
     
     if existing_cols:
-      st.dataframe(
-          display_table_df[existing_cols], 
-          use_container_width=True,
-          hide_index=True
-      )
+      final_table_df = display_table_df[existing_cols]
     else:
-      st.dataframe(display_table_df, use_container_width=True, hide_index=True)
+      final_table_df = display_table_df
 
+    # تحويل الجدول إلى كود HTML مباشر لضمان ثبات اللون الأزرق الحبري ورأس الجدول الأبيض بشكل تام
+    table_html = final_table_df.to_html(classes="custom-table", index=False, escape=False)
+    
+    custom_table_styling = f"""
+    <style>
+        .custom-table-container {{
+            max-height: 450px;
+            overflow-y: auto;
+            border: 1px solid #bcccdc;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }}
+        .custom-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Tahoma', Arial, sans-serif;
+            font-size: 13px;
+            direction: rtl;
+            background-color: #ffffff;
+            color: #102a43;
+        }}
+        .custom-table th {{
+            background-color: #102a43 !important; /* لون أزرق حبري */
+            color: #ffffff !important;           /* كتابة باللون الأبيض */
+            text-align: right;
+            padding: 12px 15px;
+            font-weight: bold;
+            border-bottom: 2px solid #0b1e33;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }}
+        .custom-table td {{
+            padding: 10px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: right;
+        }}
+        .custom-table tr:nth-child(even) {{
+            background-color: #f8fafc;
+        }}
+        .custom-table tr:hover {{
+            background-color: #f1f5f9;
+        }}
+    </style>
+    <div class="custom-table-container">
+        {table_html}
+    </div>
+    """
+    
+    st.markdown(custom_table_styling, unsafe_allow_html=True)
     st.markdown("---")
 
     # --- زر الطباعة الكلية (لطباعة الشحنات المعروضة فقط دفعة واحدة) ---
