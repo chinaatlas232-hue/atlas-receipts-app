@@ -16,7 +16,12 @@ if "template_saved" not in st.session_state:
 if "logo_saved" not in st.session_state:
   st.session_state.logo_saved = None
 
-# شريط جانبي لإدارة الملفات المرفوعة وحفظها
+# استخدام الملفات المحفوظة في الذاكرة المؤقتة للجلسة
+active_data_file = st.session_state.df_saved
+active_template_file = st.session_state.template_saved
+active_logo = st.session_state.logo_saved
+
+# شريط جانبي لإدارة الملفات والفلتر
 with st.sidebar:
   st.header("⚙️ إدارة الملفات")
 
@@ -44,7 +49,27 @@ with st.sidebar:
     st.session_state.logo_saved = None
     st.rerun()
 
-# استخدام الملفات المحفوظة في الذاكرة المؤقتة للجلسة
+  # --- فلتر الشحنات في القائمة الجانبية ---
+  st.markdown("---")
+  st.header("🔍 فلتر الشحنات")
+  selected_shipment_filter = "الكل"
+
+  if st.session_state.df_saved is not None:
+    try:
+      # قراءة مؤقتة للحصول على قائمة الشحنات للفلتر
+      temp_df = pd.read_excel(st.session_state.df_saved)
+      temp_df.columns = temp_df.columns.str.strip()
+      if "الشحنة" in temp_df.columns:
+        shipment_list = ["الكل"] + sorted(
+            temp_df["الشحنة"].dropna().astype(str).str.replace(".0", "").unique().tolist()
+        )
+        selected_shipment_filter = st.selectbox(
+            "اختر الشحنة للعرض:", shipment_list
+        )
+    except Exception:
+      pass
+
+# تحديث المتغيرات بعد الفلترة
 active_data_file = st.session_state.df_saved
 active_template_file = st.session_state.template_saved
 active_logo = st.session_state.logo_saved
@@ -55,12 +80,19 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
+    # تطبيق الفلتر إذا تم اختيار شحنة معينة
+    if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
+      df = df[df["الشحنة"].astype(str).str.replace(".0", "") == selected_shipment_filter]
+
+    if df.empty:
+      st.warning("⚠️ لا توجد بيانات مطابقة للشحنة المحددة.")
+      st.stop()
+
     # الحصول على تاريخ اليوم تلقائياً
     today_date = datetime.date.today().strftime("%Y-%m-%d")
 
     st.success(
-        f"✅ الملفات محفوظة في الذاكرة ومحمية ضد التحديث. تاريخ الإصدار:"
-        f" {today_date}"
+        f"✅ الملفات محفوظة في الذاكرة. الشحنة المعروضة: **{selected_shipment_filter}** | تاريخ الإصدار: {today_date}"
     )
     st.markdown("---")
 
@@ -80,7 +112,7 @@ if active_data_file is not None and active_template_file is not None:
     all_receipts_html_for_print = ""
     receipts_data_list = []
 
-    # حلقة تكرارية لكل صف في ملف البيانات
+    # حلقة تكرارية لكل صف في ملف البيانات المفلتر
     for index, row in df.iterrows():
       shipment = str(row.get("الشحنة", "")).strip()
       if shipment.endswith(".0"):
@@ -262,7 +294,7 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- زر الطباعة الكلية (طباعة الكل دفعة واحدة) ---
+    # --- زر الطباعة الكلية (لطباعة الشحنات المعروضة فقط دفعة واحدة) ---
     master_payload = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -299,7 +331,7 @@ if active_data_file is not None and active_template_file is not None:
         </head>
         <body>
             <button class="master-btn" onclick="printAllReceipts()">
-                🖨️ طباعة جميع الوصولات دفعة واحدة (مقاس A5)
+                🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)
             </button>
 
             <script>
@@ -307,7 +339,7 @@ if active_data_file is not None and active_template_file is not None:
 
                 function printAllReceipts() {{
                     var printWin = window.open('', '', 'height=900,width=800');
-                    printWin.document.write('<html><head><title>طباعة جميع الوصولات</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }} .receipt-page {{ page-break-after: always; break-after: page; margin-bottom: 20px; }}</style></head><body>');
+                    printWin.document.write('<html><head><title>طباعة الوصولات</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }} .receipt-page {{ page-break-after: always; break-after: page; margin-bottom: 20px; }}</style></head><body>');
                     printWin.document.write(allReceiptsContent);
                     printWin.document.write('</body></html>');
                     printWin.document.close();
@@ -322,7 +354,7 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(master_payload, height=75)
     st.markdown("---")
 
-    # عرض الوصولات بداخل Expander بنظام آمن ومستقل تماماً
+    # عرض الوصولات المفلترة بداخل Expander
     for item in receipts_data_list:
       index = item["index"]
       shipment = item["shipment"]
@@ -332,7 +364,6 @@ if active_data_file is not None and active_template_file is not None:
       expander_label = f"📄 وصل العميل: {item['name']}  |  كود: {item['code']}  |  الشحنة: {shipment}  |  الإجمالي: {item['total_sales']:,.2f} دولار"
 
       with st.expander(expander_label, expanded=False):
-        # زر تنزيل الإكسل الرسمي
         st.download_button(
             label=f"📥 تنزيل إكسل الوصل (الشحنة: {shipment})",
             data=item["output"],
