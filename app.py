@@ -28,7 +28,7 @@ st.markdown(
     [data-testid="stSidebar"] button[kind="secondary"] {
         background-color: #991b1b !important;
         color: white !important;
-      st.title("وصل تسليم البضائع")
+        border: 1px solid #7f1d1d !important;
         font-weight: bold !important;
     }
     [data-testid="stSidebar"] button[kind="secondary"]:hover {
@@ -40,7 +40,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("📦 النظام المالي والفني - وصل تسليم البضائع")
+st.title("📦 وصل تسليم البضائع")
 
 # إنشاء مجلد لحفظ الملفات بشكل دائم على السيرفر
 UPLOAD_DIR = "saved_files"
