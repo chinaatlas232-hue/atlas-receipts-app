@@ -96,23 +96,16 @@ if active_data_file is not None and active_template_file is not None:
     )
     st.markdown("---")
 
-    # معالجة الشعار بصيغة Base64 بطريقة آمنة
-    logo_html = ""
-    if active_logo is not None:
-      import base64
+    # حساب الإحصائيات الشاملة للشحنات المعروضة
+    total_clients_count = len(df)
+    total_packages_count = 0
+    total_weight_sum = 0.0
+    total_sales_sum = 0.0
 
-      try:
-        bytes_data = active_logo.getvalue()
-        if bytes_data:
-          base64_logo = base64.b64encode(bytes_data).decode("utf-8")
-          logo_html = f'<img src="data:image/png;base64,{base64_logo}" style="height: 45px; width: 45px; object-fit: cover; border-radius: 50%; border: none; outline: none; background: transparent; margin-left: 10px; vertical-align: middle;" />'
-      except Exception:
-        logo_html = ""
-
-    all_receipts_html_for_print = ""
+    # تجهيز البيانات وحساب القيم لكل صف
     receipts_data_list = []
+    all_receipts_html_for_print = ""
 
-    # حلقة تكرارية لكل صف في ملف البيانات المفلتر
     for index, row in df.iterrows():
       shipment = str(row.get("الشحنة", "")).strip()
       if shipment.endswith(".0"):
@@ -131,7 +124,14 @@ if active_data_file is not None and active_template_file is not None:
       )
 
       weight = float(row.get("الوزن", 0) or 0)
-      packages = row.get("عدد الطرود", 0)
+      total_weight_sum += weight
+
+      packages = 0
+      try:
+        packages = int(row.get("عدد الطرود", 0) or 0)
+      except Exception:
+        packages = 0
+      total_packages_count += packages
 
       # استخراج سعر الكيلو
       price_per_kg = 0
@@ -152,6 +152,8 @@ if active_data_file is not None and active_template_file is not None:
             break
       if total_sales == 0 and price_per_kg > 0 and weight > 0:
         total_sales = weight * price_per_kg
+      
+      total_sales_sum += total_sales
 
       # تنظيف رقم الهاتف وإضافة تنسيق +964
       phone_raw = row.get("رقم الهاتف", row.get("رقم الهاتف ", ""))
@@ -217,7 +219,6 @@ if active_data_file is not None and active_template_file is not None:
                     <tr>
                         <td style="text-align: right; vertical-align: middle;">
                             <div style="display: flex; align-items: center;">
-                                {logo_html}
                                 <div>
                                     <h2 style="margin: 0; font-size: 15px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
                                     <p style="margin: 2px 0 0; font-size: 10px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
@@ -293,6 +294,19 @@ if active_data_file is not None and active_template_file is not None:
           "file_name_id": file_name_id,
           "single_html": single_receipt_html,
       })
+
+    # --- عرض مربعات الإحصائيات (Metrics Dashboard) في رأس الصفحة ---
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+      st.metric(label="👥 عدد العملاء", value=f"{total_clients_count} عميل")
+    with m2:
+      st.metric(label="📦 إجمالي الطرود", value=f"{total_packages_count} طرد")
+    with m3:
+      st.metric(label="⚖️ الوزن الكلي", value=f"{total_weight_sum:,.2f} كغ")
+    with m4:
+      st.metric(label="💰 المبلغ الإجمالي", value=f"{total_sales_sum:,.2f} دولار")
+
+    st.markdown("---")
 
     # --- زر الطباعة الكلية (لطباعة الشحنات المعروضة فقط دفعة واحدة) ---
     master_payload = f"""
