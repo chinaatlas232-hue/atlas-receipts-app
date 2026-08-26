@@ -121,8 +121,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
 
       # عرض الوصل داخل تطبيق Streamlit
       with st.expander(
-          f"📄 وصل تسليم رقم: {code} | العميل: {name} | الإجمالي:"
-          f" {total_sales:,.0f} $",
+          f"📄 وصل العميل: {name} | الإجمالي: {total_sales:,.0f} $",
           expanded=True,
       ):
         st.download_button(
@@ -135,7 +134,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم HTML مع إضافة علامة الصندوق بجانب عدد الطرود
+        # تصميم HTML بدون كلمة كود
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -167,15 +166,14 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية -->
+                    <!-- تفاصيل الوصل الرئيسية (تمت ازالة خانة الكود نهائياً) -->
                     <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
                         <tr>
-                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الوصل (Code):</strong> <span style="color: #0066cc; font-weight: bold;">{code}</span></td>
-                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 100%;" colspan="2"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
                         </tr>
                         <tr style="background-color: #f0f4f8;">
-                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
-                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{formatted_phone}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{formatted_phone}</span></td>
                         </tr>
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
