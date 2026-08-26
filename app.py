@@ -107,7 +107,8 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
 
       # عرض الوصل داخل تطبيق Streamlit
       with st.expander(
-          f"📄 وصل تسليم رقم: {code} | العميل: {name} | الإجمالي: {total_sales:,.0f}",
+          f"📄 وصل تسليم رقم: {code} | العميل: {name} | الإجمالي:"
+          f" {total_sales:,.0f} $",
           expanded=True,
       ):
         st.download_button(
@@ -120,7 +121,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم HTML الفخم والمنظّم للطباعة مع الأسعار والإجمالي
+        # تصميم HTML الفخم والمنظّم للطباعة مع إضافة علامة $
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -147,7 +148,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية مع الأسعار والإجمالي -->
+                    <!-- تفاصيل الوصل الرئيسية مع الأسعار والإجمالي وعلامة $ -->
                     <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الوصل (Code):</strong> <span style="color: #0066cc; font-weight: bold;">{code}</span></td>
@@ -167,10 +168,10 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                         </tr>
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
-                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>سعر الكيلو:</strong> {price_per_kg:,.2f}</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>سعر الكيلو:</strong> {price_per_kg:,.2f} $</td>
                         </tr>
                         <tr style="background-color: #fef3c7;">
-                            <td style="padding: 10px; border: 1px solid #f59e0b;"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 15px;">{total_sales:,.2f}</span></td>
+                            <td style="padding: 10px; border: 1px solid #f59e0b;"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 15px;">{total_sales:,.2f} $</span></td>
                             <td style="padding: 10px; border: 1px solid #f59e0b;">
                                 <strong>طريقة الدفع:</strong> 
                                 &nbsp;&nbsp; [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل
