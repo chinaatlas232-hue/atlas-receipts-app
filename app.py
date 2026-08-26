@@ -1,37 +1,54 @@
 import pandas as pd
+import streamlit as st
 
-# قراءة ملف الأكسل
-file_path = "تعبئة  وصل اطلس.xlsx"
-df = pd.read_excel(file_path)
+st.title("تعبئة وصل أطلس")
 
-# تنظيف أسماء الأعمدة من المسافات الزائدة لضمان مطابقتها تماماً
-df.columns = df.columns.str.strip()
+# إضافة أداة لرفع ملف الأكسل مباشرة من المتصفح لمنع مشاكل مسار الملف
+uploaded_file = st.file_uploader("الرجاء رفع ملف الأكسل (تعبئة وصل أطلس.xlsx)", type=["xlsx"])
 
-# استعراض البيانات أو تعبئتها بالشكل المطلوب
-for index, row in df.iterrows():
-  # تنظيف القيم النصية من المسافات البيضاء الفائضة
-  shipment = str(row["الشحنة"]).strip()
-  code = str(row["الكود"]).strip()
-  weight = row["الوزن"]
-  packages = row["عدد الطرود"]
-  volume = row["الحجم"]
-  price_per_kg = row["سعر الكيلو"]
-  total_sales = row["اجمالي مبيعات"]
-  name = str(row["الاسم"]).strip()
+if uploaded_file is not None:
+  try:
+    # قراءة الملف المرفوع
+    df = pd.read_excel(uploaded_file)
 
-  # التأكد من التعامل مع رقم الهاتف كنص لكي لا يفقد الصفر في البداية أو يظهر بشكل خاطئ
-  phone = str(row["رقم الهاتف"]).strip()
-  if not phone.startswith("0") and not phone.startswith("964"):
-    phone = "0" + phone  # تعديل تنسيق الهاتف إذا لزم الأمر
+    # تنظيف أسماء الأعمدة من المسافات الزائدة
+    df.columns = df.columns.str.strip()
 
-  address = str(row["عنوان استلام البظاعة"]).strip()
-  shipment_type = str(row["نوع الشحنة"]).strip()
+    st.success("تم قراءة الملف بنجاح!")
+    st.write("معاينة البيانات:")
+    st.dataframe(df)
 
-  # طباعة البيانات للتأكد من مطابقتها الصحيحة
-  print(f"--- سجل رقم {index + 1} ---")
-  print(f"الكود: {code}")
-  print(f"اسم العميل: {name}")
-  print(f"رقم الهاتف: {phone}")
-  print(f"نوع الشحنة: {shipment_type}")
-  print(f"العنوان: {address}")
-  print(f"الوزن: {weight} | عدد الطرود: {packages} | الإجمالي: {total_sales}\n")
+    # استعراض وتعبئة البيانات لكل صف
+    for index, row in df.iterrows():
+      # تنظيف البيانات وقراءتها بشكل صحيح
+      shipment = str(row.get("الشحنة", "")).strip()
+      code = str(row.get("الكود", "")).strip()
+      weight = row.get("الوزن", 0)
+      packages = row.get("عدد الطرود", 0)
+      volume = row.get("الحجم", 0)
+      price_per_kg = row.get("سعر الكيلو", 0)
+      total_sales = row.get("اجمالي مبيعات", 0)
+      name = str(row.get("الاسم", "")).strip()
+
+      # معالجة رقم الهاتف لضمان ظهوره بشكل صحيح
+      phone = str(row.get("رقم الهاتف", "")).strip()
+      if phone.endswith(".0"):
+        phone = phone[:-2]  # إزالة الفاصلة العشرية لو ظهرت من القراءة العددية
+
+      address = str(row.get("عنوان استلام البظاعة", "")).strip()
+      shipment_type = str(row.get("نوع الشحنة", "")).strip()
+
+      # عرض النتائج لكل وصل على حدة للتأكد من مطابقتها
+      st.markdown(f"### وصل رقم {index + 1}")
+      st.write(f"- **الكود:** `{code}`")
+      st.write(f"- **اسم العميل:** {name}")
+      st.write(f"- **رقم الهاتف:** `{phone}`")
+      st.write(f"- **نوع الشحنة:** {shipment_type}")
+      st.write(f"- **عنوان الاستلام:** {address}")
+      st.write(f"- **الوزن:** {weight} | **عدد الطرود:** {packages}")
+      st.markdown("---")
+
+  except Exception as e:
+    st.error(f"حدث خطأ أثناء قراءة الملف: {e}")
+else:
+  st.info("الرجاء رفع الملف المذكور أعلاه ليبدأ الكود بالعمل.")
