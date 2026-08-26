@@ -35,15 +35,11 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
 
     # حلقة تكرارية لكل صف في ملف البيانات
     for index, row in df.iterrows():
-      # استخراج البيانات وتنظيفها
+      # استخراج البيانات الأساسية المتوفرة بأمان تام
       shipment = str(row.get("الشحنة", "")).strip()
       code = str(row.get("الكود", "")).strip()
       weight = row.get("الوزن", 0)
       packages = row.get("عدد الطرود", 0)
-      volume = row.get("الحجم", 0)
-
-      price_per_kg = row.get("سعر الكيلو", row.get("سعر الكيلو ", 0))
-      total_sales = row.get("اجمالي مبيعات", row.get("اجمالي مبيعات ", 0))
       name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
 
       # تنظيف رقم الهاتف وإضافة مسافة بين +964 وباقي الرقم
@@ -52,29 +48,34 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
       if phone.endswith(".0"):
         phone = phone[:-2]
 
-      # إزالة أي علامات زائد سابقة أو مسافات للتنظيف الموحد
       phone = phone.replace("+", "").strip()
       if phone.startswith("964"):
-        phone = phone[3:]  # فصل رمز الدولة لمعالجته بدقة
+        phone = phone[3:]
 
       formatted_phone = f"+964 {phone}" if phone else ""
 
-      address = str(
-          row.get("عنوان استلام البظاعة", row.get("عنوان استلام البظاعة ", ""))
-      ).strip()
-      shipment_type = str(
-          row.get("نوع الشحنة", row.get("نوع الشحنة ", ""))
-      ).strip()
+      # استخراج العنوان ونوع الشحنة مع التحقق من وجود الأعمدة
+      address = ""
+      for col in ["عنوان استلام البظاعة", "العنوان", "عنوان"]:
+        if col in df.columns:
+          address = str(row.get(col, "")).strip()
+          break
 
-      # تعبئة خلايا الأكسل للقالب الرسمي
+      shipment_type = ""
+      for col in ["نوع الشحنة", "النوع"]:
+        if col in df.columns:
+          shipment_type = str(row.get(col, "")).strip()
+          break
+
+      # تعبئة خلايا الإكسل للقالب الرسمي
       wb = openpyxl.load_workbook(uploaded_template_file)
       ws = wb.active
 
       ws["B4"] = code
       ws["D4"] = today_date
       ws["B5"] = name
-      ws["B6"] = address  # حقل العنوان المنفصل تحت اسم العميل
-      ws["D5"] = formatted_phone  # رقم الهاتف مع المسافة
+      ws["B6"] = address  # حقل العنوان المستقل تحت اسم العميل
+      ws["D5"] = formatted_phone  # رقم الهاتف مع مسافة دقيقة
       ws["B7"] = shipment
       ws["D6"] = packages
       ws["B8"] = shipment_type
@@ -99,7 +100,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم HTML مع مسافة دقيقة بين +964 ورقم الهاتف
+        # تصميم HTML الفخم والمنظّم للطباعة
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
