@@ -174,7 +174,7 @@ if active_data_file is not None and active_template_file is not None:
         # تصميم HTML للوصل المخصص للطباعة والحفظ
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
-                    padding: 40px; 
+                    padding: 20px; 
                     font-family: 'Tahoma', Arial, sans-serif; 
                     direction: rtl; 
                     border: 3px solid #102a43; 
@@ -185,7 +185,7 @@ if active_data_file is not None and active_template_file is not None:
                     color: #102a43;
                 ">
                     <!-- رأس الوصل مع شعار بدون مربعات -->
-                    <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 10px; margin-bottom: 25px;">
+                    <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 10px; margin-bottom: 20px;">
                         <tr>
                             <td style="text-align: right; vertical-align: middle;">
                                 <div style="display: flex; align-items: center;">
@@ -203,8 +203,8 @@ if active_data_file is not None and active_template_file is not None:
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية (مع إظهار كود العميل ورقم الشحنة) -->
-                    <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
+                    <!-- تفاصيل الوصل الرئيسية -->
+                    <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 20px;">
                         <tr style="background-color: #f0f4f8;">
                             <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{code}</span></td>
                             <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{shipment}</span></td>
@@ -231,15 +231,15 @@ if active_data_file is not None and active_template_file is not None:
                     </table>
 
                     <!-- إقرار استلام البضاعة -->
-                    <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 4px; margin-bottom: 30px;">
-                        <p style="margin: 0; font-size: 13px; color: #92400e; line-height: 1.7;">
+                    <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 4px; margin-bottom: 25px;">
+                        <p style="margin: 0; font-size: 13px; color: #92400e; line-height: 1.6;">
                             <strong>إقرار الاستلام:</strong><br>
                             أقر أنا الموقع أدناه، بأنني استلمت البضاعة والشحنة المذكورة أعلاه كاملة، وبحالة سليمة وممتازة، ومطابقة لكافة الأوزان والأوصاف المدونة.
                         </p>
                     </div>
 
                     <!-- تواقيع الاستلام -->
-                    <table style="width: 100%; font-size: 14px; margin-top: 20px;">
+                    <table style="width: 100%; font-size: 14px; margin-top: 15px;">
                         <tr>
                             <td style="width: 50%; padding: 10px;">
                                 <strong>اسم المستلم:</strong><br><br>
@@ -254,10 +254,10 @@ if active_data_file is not None and active_template_file is not None:
                 </div>
                 <br>
                 <div style="display: flex; gap: 10px;">
-                    <!-- زر الطباعة الورقية -->
+                    <!-- زر الطباعة الورقية للوصل فقط -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=1000');
-                        printWin.document.write('<html><head><title>Print_{shipment}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
+                        printWin.document.write('<html><head><title>طباعة الشحنة {shipment}</title><style>body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 20px; }} @page {{ size: auto; margin: 10mm; }}</style></head><body>');
                         printWin.document.write(document.getElementById('receipt-print-{index}').innerHTML);
                         printWin.document.write('</body></html>');
                         printWin.document.close();
@@ -274,13 +274,13 @@ if active_data_file is not None and active_template_file is not None:
                         font-size: 15px;
                         flex: 1;
                     ">
-                        🖨️ طباعة الوصل (ورقيّاً)
+                        🖨️ طباعة الوصل فقط (ورقيّاً)
                     </button>
 
-                    <!-- زر حفظ بصيغة PDF (يفتح نافذة الطباعة لاختيار Save as PDF وتظهر الشحنة في العنوان) -->
+                    <!-- زر حفظ بصيغة PDF للوصل فقط -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=1000');
-                        printWin.document.write('<html><head><title>{file_name_id}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
+                        printWin.document.write('<html><head><title>{file_name_id}</title><style>body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 20px; }} @page {{ size: auto; margin: 10mm; }}</style></head><body>');
                         printWin.document.write(document.getElementById('receipt-print-{index}').innerHTML);
                         printWin.document.write('</body></html>');
                         printWin.document.close();
@@ -300,7 +300,7 @@ if active_data_file is not None and active_template_file is not None:
                         font-size: 15px;
                         flex: 1;
                     ">
-                        📑 حفظ بصيغة PDF (باسم الشحنة: {shipment})
+                        📑 حفظ بصيغة PDF (الوصل فقط)
                     </button>
                 </div>
                 """
