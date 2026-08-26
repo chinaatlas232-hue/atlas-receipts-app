@@ -172,12 +172,24 @@ if active_data_file is not None and active_template_file is not None:
     receipts_data_list = []
     all_receipts_html_for_print = ""
 
-    # قراءة الشعار وتحويله إلى Base64 ليظهر داخل الـ HTML الخاص بالوصولات والطباعة
+    # تصميم إطار الشعار الفخم والمتناسق
     logo_html = ""
     if os.path.exists(logo_path):
       with open(logo_path, "rb") as lf:
         encoded_logo = base64.b64encode(lf.read()).decode("utf-8")
-        logo_html = f'<img src="data:image/png;base64,{encoded_logo}" style="max-height: 45px; vertical-align: middle; margin-left: 12px;" />'
+        logo_html = f'''
+            <div style="
+                border: 2px solid #102a43; 
+                padding: 4px; 
+                border-radius: 8px; 
+                display: inline-block; 
+                background: #ffffff; 
+                box-shadow: 0 2px 5px rgba(16,42,67,0.15);
+                vertical-align: middle;
+            ">
+                <img src="data:image/png;base64,{encoded_logo}" style="height: 42px; width: auto; display: block;" />
+            </div>
+        '''
 
     for index, row in df.iterrows():
       shipment = str(row.get("الشحنة", "")).strip()
@@ -258,7 +270,7 @@ if active_data_file is not None and active_template_file is not None:
       ws["B6"] = address
       ws["D5"] = formatted_phone
       ws["B7"] = shipment
-      ws["D6"] = packages
+      ws["D6"]  = packages
       ws["B8"] = shipment_type
       ws["D7"] = weight
 
@@ -281,21 +293,23 @@ if active_data_file is not None and active_template_file is not None:
                 page-break-after: always;
                 break-after: page;
             ">
-                <!-- رأس الوصل مع الشعار -->
-                <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px; border-collapse: collapse;">
+                <!-- رأس الوصل الفخم: الشعار يمين وعنوان الوصل يسار -->
+                <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 10px; margin-bottom: 12px; border-collapse: collapse;">
                     <tr>
-                        <td style="text-align: right; vertical-align: middle;">
-                            <div style="display: flex; align-items: center;">
-                                {logo_html}
-                                <div>
-                                    <h2 style="margin: 0; font-size: 15px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
-                                    <p style="margin: 2px 0 0; font-size: 10px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
-                                </div>
-                            </div>
+                        <td style="text-align: right; vertical-align: middle; width: 60%;">
+                            <table style="border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding-left: 10px; vertical-align: middle;">{logo_html}</td>
+                                    <td style="vertical-align: middle; text-align: right;">
+                                        <h2 style="margin: 0; font-size: 15px; color: #102a43; font-weight: bold;">أطلس المحيط للتجارة العامة</h2>
+                                        <p style="margin: 2px 0 0; font-size: 9px; color: #627d98; letter-spacing: 0.5px;">OCEAN ATLAS GENERAL TRADING</p>
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
-                        <td style="text-align: left; vertical-align: middle;">
-                            <h3 style="margin: 0; font-size: 13px; color: #b45309;">وصل تسليم بضاعة</h3>
-                            <p style="margin: 2px 0 0; font-size: 10px; color: #334e68;">Cargo Delivery Receipt</p>
+                        <td style="text-align: left; vertical-align: middle; width: 40%;">
+                            <h3 style="margin: 0; font-size: 14px; color: #b45309; font-weight: bold;">وصل تسليم بضاعة</h3>
+                            <p style="margin: 2px 0 0; font-size: 9px; color: #334e68;">Cargo Delivery Receipt</p>
                         </td>
                     </tr>
                 </table>
