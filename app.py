@@ -169,7 +169,7 @@ if active_data_file is not None and active_template_file is not None:
                 border: 2px solid #102a43; 
                 width: 100%; 
                 max-width: 148mm; 
-                margin: auto auto 25px auto; 
+                margin: auto auto 15px auto; 
                 background: #ffffff; 
                 color: #102a43;
                 box-sizing: border-box;
@@ -294,7 +294,7 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(master_button_component, height=65)
     st.markdown("---")
 
-    # عرض الوصولات الفردية داخل Expanders
+    # عرض الوصولات الفردية داخل Expanders (مع زيادة الارتفاع لضمان عدم اختفاء الأزرار)
     for item in receipts_data_list:
       index = item["index"]
       shipment = item["shipment"]
@@ -354,7 +354,8 @@ if active_data_file is not None and active_template_file is not None:
                 </div>
                 """
         )
-        st.components.v1.html(single_ui_html, height=580)
+        # تم زيادة الارتفاع هنا إلى 630 لضمان ظهور الأزرار بوضوح تام دون أي قص
+        st.components.v1.html(single_ui_html, height=630)
 
       st.markdown("---")
 
