@@ -110,9 +110,6 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
-    # حفظ النسخة الكاملة قبل الفلترة لاستخدامها في جدول التفاصيل إذا لزم الأمر
-    df_full = df.copy()
-
     # تطبيق الفلتر إذا تم اختيار شحنة معينة
     if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
       df = df[df["الشحنة"].astype(str).str.replace(".0", "") == selected_shipment_filter]
@@ -367,14 +364,15 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- جدول تفاصيل الشحنة الفعّال (يتغير تلقائياً حسب الفلتر المختار) ---
+    # --- جدول تفاصيل الشحنة الفعّال مع عمود التسلسل (1, 2, 3...) ---
     st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}]")
     
-    # تجهيز عرض جدول بيانات مبسط ومنسق للعملاء التابعين لهذه الشحنة
     display_table_df = df.copy()
     
-    # اختيار الأعمدة المهمة المعروضة للمستخدم لتجنب زحمة البيانات
-    preferred_cols = ["الكود", "الاسم", "رقم الهاتف", "عدد الطرود", "الوزن", "عنوان استلام البظاعة", "نوع الشحنة"]
+    # إضافة عمود التسلسل في البداية يبدأ من 1 إلى نهاية عدد الأسطر
+    display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
+    
+    preferred_cols = ["التسلسل", "الكود", "الاسم", "رقم الهاتف", "عدد الطرود", "الوزن", "عنوان استلام البظاعة", "نوع الشحنة"]
     existing_cols = [col for col in preferred_cols if col in display_table_df.columns]
     
     if existing_cols:
