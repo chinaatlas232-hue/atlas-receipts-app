@@ -155,7 +155,7 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      # عرض الوصل داخل تطبيق Streamlit مع تنسيق قياس A5 للطباعة
+      # عرض الوصل داخل تطبيق Streamlit مع ضبط العرض ليتناسب مع A5 دون قص
       with st.expander(
           f"📄 وصل العميل: {name} | كود العميل: {code} | الشحنة: {shipment} | الإجمالي: {total_sales:,.0f} $",
           expanded=True,
@@ -171,7 +171,7 @@ if active_data_file is not None and active_template_file is not None:
             key=f"download_excel_{index}",
         )
 
-        # تصميم HTML للوصل المخصص لقياس A5
+        # تصميم HTML للوصل المتوافق مع A5 وبدون اقتطاع
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 15px; 
@@ -180,7 +180,6 @@ if active_data_file is not None and active_template_file is not None:
                     border: 2px solid #102a43; 
                     width: 100%; 
                     max-width: 148mm; 
-                    min-height: 210mm;
                     margin: auto; 
                     background: #ffffff; 
                     color: #102a43;
@@ -206,48 +205,48 @@ if active_data_file is not None and active_template_file is not None:
                     </table>
 
                     <!-- تفاصيل الوصل الرئيسية -->
-                    <table style="width: 100%; font-size: 12px; border-collapse: collapse; margin-bottom: 15px;">
+                    <table style="width: 100%; font-size: 12px; border-collapse: collapse; margin-bottom: 12px;">
                         <tr style="background-color: #f0f4f8;">
-                            <td style="padding: 7px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{code}</span></td>
-                            <td style="padding: 7px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{shipment}</span></td>
+                            <td style="padding: 6px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{code}</span></td>
+                            <td style="padding: 6px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{shipment}</span></td>
                         </tr>
                         <tr>
-                            <td style="padding: 7px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
-                            <td style="padding: 7px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{formatted_phone}</span></td>
+                            <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
+                            <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{formatted_phone}</span></td>
                         </tr>
                         <tr style="background-color: #f0f4f8;">
-                            <td style="padding: 7px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
-                            <td style="padding: 7px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> 📦 {packages} طرد</td>
+                            <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
+                            <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> 📦 {packages} طرد</td>
                         </tr>
                         <tr>
-                            <td style="padding: 7px; border: 1px solid #bcccdc;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
-                            <td style="padding: 7px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ</td>
+                            <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
+                            <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ</td>
                         </tr>
                         <tr style="background-color: #f0f4f8;">
-                            <td style="padding: 7px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
-                            <td style="padding: 7px; border: 1px solid #bcccdc;"><strong>سعر الكيلو:</strong> {price_per_kg:,.2f} $</td>
+                            <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
+                            <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>سعر الكيلو:</strong> {price_per_kg:,.2f} $</td>
                         </tr>
                         <tr style="background-color: #fef3c7;">
-                            <td style="padding: 7px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 13px;">{total_sales:,.2f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
+                            <td style="padding: 6px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 13px;">{total_sales:,.2f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
                         </tr>
                     </table>
 
                     <!-- إقرار استلام البضاعة -->
-                    <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-                        <p style="margin: 0; font-size: 11px; color: #92400e; line-height: 1.5;">
+                    <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 8px; border-radius: 4px; margin-bottom: 12px;">
+                        <p style="margin: 0; font-size: 11px; color: #92400e; line-height: 1.4;">
                             <strong>إقرار الاستلام:</strong><br>
                             أقر أنا الموقع أدناه، بأنني استلمت البضاعة والشحنة المذكورة أعلاه كاملة، وبحالة سليمة وممتازة، ومطابقة لكافة الأوزان والأوصاف المدونة.
                         </p>
                     </div>
 
                     <!-- تواقيع الاستلام -->
-                    <table style="width: 100%; font-size: 12px; margin-top: 10px;">
+                    <table style="width: 100%; font-size: 12px; margin-top: 5px;">
                         <tr>
-                            <td style="width: 50%; padding: 5px;">
+                            <td style="width: 50%; padding: 4px;">
                                 <strong>اسم المستلم:</strong><br><br>
                                 ............................................
                             </td>
-                            <td style="width: 50%; padding: 5px; text-align: left;">
+                            <td style="width: 50%; padding: 4px; text-align: left;">
                                 <strong>توقيع وختم المستلم:</strong><br><br>
                                 ............................................
                             </td>
@@ -255,7 +254,7 @@ if active_data_file is not None and active_template_file is not None:
                     </table>
                 </div>
                 <br>
-                <div style="display: flex; gap: 10px; margin-bottom: 20px; direction: rtl;">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; direction: rtl;">
                     <!-- زر الطباعة الورقية للوصل فقط بمقاس A5 -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=800');
@@ -310,7 +309,9 @@ if active_data_file is not None and active_template_file is not None:
                     </button>
                 </div>
                 """
-        st.components.v1.html(clean_receipt_html, height=720)
+        st.components.v1.html(
+            clean_receipt_html, height=650
+        )  # تم الضبط ليتلاءم تماماً مع الارتفاع الجديد بدون تداخل
 
       st.markdown("---")
 
