@@ -171,7 +171,7 @@ if active_data_file is not None and active_template_file is not None:
             key=f"download_excel_{index}",
         )
 
-        # تصميم HTML للوصل المخصص للطباعة والحفظ
+        # تصميم HTML للوصل المخصص للطباعة والحفظ مع ضبط اتجاهات النصوص في الأزرار
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 20px; 
@@ -253,7 +253,7 @@ if active_data_file is not None and active_template_file is not None:
                     </table>
                 </div>
                 <br>
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; direction: rtl;">
                     <!-- زر الطباعة الورقية للوصل فقط -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=1000');
@@ -273,6 +273,8 @@ if active_data_file is not None and active_template_file is not None:
                         font-weight: bold; 
                         font-size: 15px;
                         flex: 1;
+                        direction: rtl;
+                        text-align: center;
                     ">
                         🖨️ طباعة الوصل فقط (ورقيّاً)
                     </button>
@@ -299,14 +301,14 @@ if active_data_file is not None and active_template_file is not None:
                         font-weight: bold; 
                         font-size: 15px;
                         flex: 1;
+                        direction: rtl;
+                        text-align: center;
                     ">
                         📑 حفظ بصيغة PDF (الوصل فقط)
                     </button>
                 </div>
                 """
-        st.components.v1.html(
-            clean_receipt_html, height=750
-        )  # تم رفع الارتفاع لمنع قص الأزرار
+        st.components.v1.html(clean_receipt_html, height=750)
 
       st.markdown("---")
 
