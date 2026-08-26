@@ -25,11 +25,11 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
     df = pd.read_excel(uploaded_data_file)
     df.columns = df.columns.str.strip()
 
-    # الحصول على تاريخ اليوم تلقائياً بصيغة (السنة / الشهر / اليوم)
+    # الحصول على تاريخ اليوم تلقائياً
     today_date = datetime.date.today().strftime("%Y-%m-%d")
 
     st.success(
-        f"تم تحميل الملفات بنجاح. تاريخ الوصلات التلقائي هو: {today_date}"
+        f"تم تحميل الملفات بنجاح. تاريخ الإصدار التلقائي هو: {today_date}"
     )
     st.markdown("---")
 
@@ -58,17 +58,18 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
           row.get("نوع الشحنة", row.get("نوع الشحنة ", ""))
       ).strip()
 
-      # تعبئة خلايا الأكسل للقالب الرسمي مع إدراج التاريخ تلقائياً
+      # تعبئة خلايا الأكسل للقالب الرسمي
       wb = openpyxl.load_workbook(uploaded_template_file)
       ws = wb.active
 
       ws["B4"] = code
-      ws["D4"] = today_date  # إدراج تاريخ اليوم في خلية التاريخ في إكسل
+      ws["D4"] = today_date
       ws["B5"] = name
+      ws["B6"] = address  # حقل العنوان المنفصل تحت اسم العميل
       ws["D5"] = phone
-      ws["B6"] = f"{shipment} - {address}"
+      ws["B7"] = shipment
       ws["D6"] = packages
-      ws["B7"] = shipment_type
+      ws["B8"] = shipment_type
       ws["D7"] = weight
 
       output = io.BytesIO()
@@ -90,7 +91,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم وصل تسليم بضاعة مبسط، فخم، ومنظّم مع التاريخ التلقائي
+        # تصميم HTML الفخم مع حقل العنوان المنفصل تحت اسم العميل مباشرة
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -117,29 +118,29 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية مع التاريخ التلقائي -->
+                    <!-- تفاصيل الوصل الرئيسية مع العنوان المستقل تحت اسم العميل -->
                     <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الوصل (Code):</strong> <span style="color: #0066cc; font-weight: bold;">{code}</span></td>
                             <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
                         </tr>
                         <tr style="background-color: #f0f4f8;">
-                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> {name}</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> {phone}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>تفاصيل الشحنة والوجهة:</strong> {shipment} - {address}</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> {packages} طرد</td>
                         </tr>
                         <tr style="background-color: #f0f4f8;">
-                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>تفاصيل الشحنة:</strong> {shipment}</td>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ</td>
                         </tr>
                         <tr>
-                            <td colspan="2" style="padding: 12px; border: 1px solid #bcccdc;">
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;">
                                 <strong>طريقة الدفع:</strong> 
-                                &nbsp;&nbsp;&nbsp;&nbsp; [ &nbsp; ] نقداً (Cash)
-                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [ &nbsp; ] أجل (Credit)
+                                &nbsp;&nbsp; [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل
                             </td>
                         </tr>
                     </table>
@@ -189,7 +190,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                     🖨️ طباعة وصل تسليم البضاعة للعميل: {name}
                 </button>
                 """
-        st.components.v1.html(clean_receipt_html, height=530)
+        st.components.v1.html(clean_receipt_html, height=540)
 
       st.markdown("---")
 
