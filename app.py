@@ -110,6 +110,9 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
+    # حفظ النسخة الكاملة قبل الفلترة لاستخدامها في جدول التفاصيل إذا لزم الأمر
+    df_full = df.copy()
+
     # تطبيق الفلتر إذا تم اختيار شحنة معينة
     if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
       df = df[df["الشحنة"].astype(str).str.replace(".0", "") == selected_shipment_filter]
@@ -132,7 +135,6 @@ if active_data_file is not None and active_template_file is not None:
     total_weight_sum = 0.0
     total_sales_sum = 0.0
 
-    # تجهيز البيانات وحساب القيم لكل صف
     receipts_data_list = []
     all_receipts_html_for_print = ""
 
@@ -248,11 +250,9 @@ if active_data_file is not None and active_template_file is not None:
                 <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px; border-collapse: collapse;">
                     <tr>
                         <td style="text-align: right; vertical-align: middle;">
-                            <div style="display: flex; align-items: center;">
-                                <div>
-                                    <h2 style="margin: 0; font-size: 15px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
-                                    <p style="margin: 2px 0 0; font-size: 10px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
-                                </div>
+                            <div>
+                                <h2 style="margin: 0; font-size: 15px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
+                                <p style="margin: 2px 0 0; font-size: 10px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
                             </div>
                         </td>
                         <td style="text-align: left; vertical-align: middle;">
@@ -366,6 +366,26 @@ if active_data_file is not None and active_template_file is not None:
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- جدول تفاصيل الشحنة الفعّال (يتغير تلقائياً حسب الفلتر المختار) ---
+    st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}]")
+    
+    # تجهيز عرض جدول بيانات مبسط ومنسق للعملاء التابعين لهذه الشحنة
+    display_table_df = df.copy()
+    
+    # اختيار الأعمدة المهمة المعروضة للمستخدم لتجنب زحمة البيانات
+    preferred_cols = ["الكود", "الاسم", "رقم الهاتف", "عدد الطرود", "الوزن", "عنوان استلام البظاعة", "نوع الشحنة"]
+    existing_cols = [col for col in preferred_cols if col in display_table_df.columns]
+    
+    if existing_cols:
+      st.dataframe(
+          display_table_df[existing_cols], 
+          use_container_width=True,
+          hide_index=True
+      )
+    else:
+      st.dataframe(display_table_df, use_container_width=True, hide_index=True)
+
     st.markdown("---")
 
     # --- زر الطباعة الكلية (لطباعة الشحنات المعروضة فقط دفعة واحدة) ---
