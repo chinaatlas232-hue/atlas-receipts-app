@@ -77,6 +77,10 @@ if active_data_file is not None and active_template_file is not None:
     for index, row in df.iterrows():
       # استخراج البيانات الأساسية
       shipment = str(row.get("الشحنة", "")).strip()
+      code = str(row.get("الكود", "")).strip()
+      if code.endswith(".0"):
+        code = code[:-2]
+
       weight = float(row.get("الوزن", 0) or 0)
       packages = row.get("عدد الطرود", 0)
       name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
@@ -130,6 +134,7 @@ if active_data_file is not None and active_template_file is not None:
       wb = openpyxl.load_workbook(active_template_file)
       ws = wb.active
 
+      ws["B4"] = code
       ws["D4"] = today_date
       ws["B5"] = name
       ws["B6"] = address
@@ -143,22 +148,23 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      # عرض الوصل داخل تطبيق Streamlit
+      # عرض الوصل داخل تطبيق Streamlit (مع إظهار الكود في العنوان)
       with st.expander(
-          f"📄 وصل العميل: {name} | الإجمالي: {total_sales:,.0f} $",
+          f"📄 وصل العميل: {name} | الكود: {code} | الإجمالي: {total_sales:,.0f}"
+          " $",
           expanded=True,
       ):
         st.download_button(
             label=f"📥 تنزيل إكسل الوصل الرسمي ({name})",
             data=output,
-            file_name=f"Delivery_Receipt_{name}.xlsx",
+            file_name=f"Delivery_Receipt_{code}_{name}.xlsx",
             mime=(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             ),
             key=f"download_{index}",
         )
 
-        # تصميم HTML
+        # تصميم HTML (مع إضافة كود العميل في الجدول المرئي)
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -190,24 +196,25 @@ if active_data_file is not None and active_template_file is not None:
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية -->
+                    <!-- تفاصيل الوصل الرئيسية (تمت إضافة كود العميل هنا) -->
                     <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
+                        <tr style="background-color: #f0f4f8;">
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{code}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
+                        </tr>
                         <tr>
-                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 100%;" colspan="2"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{formatted_phone}</span></td>
                         </tr>
                         <tr style="background-color: #f0f4f8;">
-                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
-                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{formatted_phone}</span></td>
-                        </tr>
-                        <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> 📦 {packages} طرد</td>
                         </tr>
-                        <tr style="background-color: #f0f4f8;">
+                        <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>تفاصيل الشحنة:</strong> {shipment}</td>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ</td>
                         </tr>
-                        <tr>
+                        <tr style="background-color: #f0f4f8;">
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>سعر الكيلو:</strong> {price_per_kg:,.2f} $</td>
                         </tr>
@@ -262,10 +269,10 @@ if active_data_file is not None and active_template_file is not None:
                     font-size: 15px;
                     width: 100%;
                 ">
-                    🖨️ طباعة وصل تسليم البضاعة للعميل: {name}
+                    🖨️ طباعة وصل تسليم البضاعة للعميل: {name} (كود: {code})
                 </button>
                 """
-        st.components.v1.html(clean_receipt_html, height=580)
+        st.components.v1.html(clean_receipt_html, height=600)
 
       st.markdown("---")
 
