@@ -253,7 +253,7 @@ if active_data_file is not None and active_template_file is not None:
                     </table>
                 </div>
                 <br>
-                <div style="display: flex; gap: 10px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
                     <!-- زر الطباعة الورقية للوصل فقط -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=1000');
@@ -304,7 +304,9 @@ if active_data_file is not None and active_template_file is not None:
                     </button>
                 </div>
                 """
-        st.components.v1.html(clean_receipt_html, height=620)
+        st.components.v1.html(
+            clean_receipt_html, height=750
+        )  # تم رفع الارتفاع لمنع قص الأزرار
 
       st.markdown("---")
 
