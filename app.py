@@ -38,14 +38,14 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
     )
     st.markdown("---")
 
-    # معالجة الشعار إن وجد لتحويله إلى Base64 لعرضه داخل HTML الطباعة
+    # معالجة الشعار بدون مربعات أو حدود خلفية
     logo_html = ""
     if uploaded_logo is not None:
       import base64
 
       bytes_data = uploaded_logo.getvalue()
       base64_logo = base64.b64encode(bytes_data).decode("utf-8")
-      logo_html = f'<img src="data:image/png;base64,{base64_logo}" style="max-height: 55px; margin-left: 15px; vertical-align: middle;">'
+      logo_html = f'<img src="data:image/png;base64,{base64_logo}" style="height: 55px; width: 55px; object-fit: cover; border-radius: 50%; border: none; outline: none; background: transparent; margin-left: 12px; vertical-align: middle;" />'
 
     # حلقة تكرارية لكل صف في ملف البيانات
     for index, row in df.iterrows():
@@ -65,7 +65,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             price_per_kg = float(val)
             break
 
-      # استخراج إجمالي المبيعات أو حسابه تلقائياً (الوزن × سعر الكيلو)
+      # استخراج إجمالي المبيعات أو حسابه تلقائياً
       total_sales = 0
       for col in ["اجمالي مبيعات", "اجمالي مبيعات ", "الاجمالي", "المبلغ"]:
         if col in df.columns:
@@ -135,7 +135,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم HTML الفخم مع إدراج الشعار بجانب اسم الشركة
+        # تصميم HTML مع شعار صافي ودائري بدون مربعات خلفية
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -148,7 +148,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                     background: #ffffff; 
                     color: #102a43;
                 ">
-                    <!-- رأس الوصل مع الشعار بجانب الاسم -->
+                    <!-- رأس الوصل مع شعار بدون مربعات -->
                     <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 10px; margin-bottom: 25px;">
                         <tr>
                             <td style="text-align: right; vertical-align: middle;">
@@ -251,6 +251,5 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
     st.error(f"حدث خطأ أثناء قراءة أو معالجة الملفات: {e}")
 else:
   st.info(
-      "الرجاء رفع ملف بيانات الشحنات وقالب الوصل (ويُفضل رفع شعار الشركة أيضاً)"
-      " لتظهر المعاينة والطباعة."
+      "الرجاء رفع ملف بيانات الشحنات وقالب الوصل والشعار لتظهر المعاينة والطباعة."
   )
