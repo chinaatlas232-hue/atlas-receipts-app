@@ -111,7 +111,7 @@ if active_data_file is not None and active_template_file is not None:
     df.columns = df.columns.str.strip()
 
     # تطبيق الفلتر إذا تم اختيار شحنة معينة
-    if selected_shipment_filter != "الكل" && "الشحنة" in df.columns:
+    if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
       df = df[df["الشحنة"].astype(str).str.replace(".0", "") == selected_shipment_filter]
 
     if df.empty:
@@ -378,7 +378,6 @@ if active_data_file is not None and active_template_file is not None:
     else:
       final_table_df = display_table_df
 
-    # تحويل الجدول إلى كود HTML مباشر لضمان ثبات اللون الأزرق الحبري ورأس الجدول الأبيض بشكل تام
     table_html = final_table_df.to_html(classes="custom-table", index=False, escape=False)
     
     custom_table_styling = f"""
