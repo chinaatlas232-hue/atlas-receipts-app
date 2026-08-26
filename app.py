@@ -46,13 +46,18 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
       total_sales = row.get("اجمالي مبيعات", row.get("اجمالي مبيعات ", 0))
       name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
 
-      # تنظيف رقم الهاتف وإضافة علامة (+) في بدايته تلقائياً
+      # تنظيف رقم الهاتف وإضافة مسافة بين +964 وباقي الرقم
       phone_raw = row.get("رقم الهاتف", row.get("رقم الهاتف ", ""))
       phone = str(phone_raw).strip()
       if phone.endswith(".0"):
         phone = phone[:-2]
-      if phone and not phone.startswith("+"):
-        phone = "+" + phone
+
+      # إزالة أي علامات زائد سابقة أو مسافات للتنظيف الموحد
+      phone = phone.replace("+", "").strip()
+      if phone.startswith("964"):
+        phone = phone[3:]  # فصل رمز الدولة لمعالجته بدقة
+
+      formatted_phone = f"+964 {phone}" if phone else ""
 
       address = str(
           row.get("عنوان استلام البظاعة", row.get("عنوان استلام البظاعة ", ""))
@@ -69,7 +74,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
       ws["D4"] = today_date
       ws["B5"] = name
       ws["B6"] = address  # حقل العنوان المنفصل تحت اسم العميل
-      ws["D5"] = phone  # رقم الهاتف مع علامة +
+      ws["D5"] = formatted_phone  # رقم الهاتف مع المسافة
       ws["B7"] = shipment
       ws["D6"] = packages
       ws["B8"] = shipment_type
@@ -94,7 +99,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم HTML الفخم مع إضافة علامة (+) لرقم الهاتف والعنوان المستقل
+        # تصميم HTML مع مسافة دقيقة بين +964 ورقم الهاتف
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -129,7 +134,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                         </tr>
                         <tr style="background-color: #f0f4f8;">
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
-                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{phone}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{formatted_phone}</span></td>
                         </tr>
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
