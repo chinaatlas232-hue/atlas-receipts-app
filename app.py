@@ -1,3 +1,4 @@
+import datetime
 import io
 import openpyxl
 import pandas as pd
@@ -24,7 +25,12 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
     df = pd.read_excel(uploaded_data_file)
     df.columns = df.columns.str.strip()
 
-    st.success("تم تحميل الملفات بنجاح. إليك النماذج الفخمة والمنسقة:")
+    # الحصول على تاريخ اليوم تلقائياً بصيغة (السنة / الشهر / اليوم)
+    today_date = datetime.date.today().strftime("%Y-%m-%d")
+
+    st.success(
+        f"تم تحميل الملفات بنجاح. تاريخ الوصلات التلقائي هو: {today_date}"
+    )
     st.markdown("---")
 
     # حلقة تكرارية لكل صف في ملف البيانات
@@ -52,14 +58,15 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
           row.get("نوع الشحنة", row.get("نوع الشحنة ", ""))
       ).strip()
 
-      # تعبئة خلايا الأكسل للقالب الرسمي
+      # تعبئة خلايا الأكسل للقالب الرسمي مع إدراج التاريخ تلقائياً
       wb = openpyxl.load_workbook(uploaded_template_file)
       ws = wb.active
 
       ws["B4"] = code
+      ws["D4"] = today_date  # إدراج تاريخ اليوم في خلية التاريخ في إكسل
       ws["B5"] = name
       ws["D5"] = phone
-      ws["B6"] = f"{shipment} ({address})"
+      ws["B6"] = f"{shipment} - {address}"
       ws["D6"] = packages
       ws["B7"] = shipment_type
       ws["D7"] = weight
@@ -70,7 +77,8 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
 
       # عرض الوصل داخل تطبيق Streamlit
       with st.expander(
-          f"📄 وصل تسليم رقم: {code} | العميل: {name}", expanded=True
+          f"📄 وصل تسليم رقم: {code} | العميل: {name} | التاريخ: {today_date}",
+          expanded=True,
       ):
         st.download_button(
             label=f"📥 تنزيل إكسل الوصل الرسمي ({name})",
@@ -82,11 +90,11 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم وصل تسليم بضاعة مبسط، فخم، ومنظّم وخالي من الأخطاء
+        # تصميم وصل تسليم بضاعة مبسط، فخم، ومنظّم مع التاريخ التلقائي
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
-                    font-family: 'Amiri', 'Tahoma', serif; 
+                    font-family: 'Tahoma', Arial, sans-serif; 
                     direction: rtl; 
                     border: 3px solid #102a43; 
                     width: 100%; 
@@ -109,11 +117,11 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية -->
+                    <!-- تفاصيل الوصل الرئيسية مع التاريخ التلقائي -->
                     <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
                         <tr>
-                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الوصل (Code):</strong> <span style="color: #0066cc;">{code}</span></td>
-                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>التاريخ (Date):</strong> 2026 / &nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الوصل (Code):</strong> <span style="color: #0066cc; font-weight: bold;">{code}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
                         </tr>
                         <tr style="background-color: #f0f4f8;">
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> {name}</td>
@@ -188,4 +196,4 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
   except Exception as e:
     st.error(f"حدث خطأ أثناء قراءة أو معالجة الملفات: {e}")
 else:
-  st.info("الرجاء رفع ملف بيانات الشحنات وقالب الوصل لتظهر معاينة الروابط والوصلات.")
+  st.info("الرجاء رفع ملف بيانات الشحنات وقالب الوصل لتظهر المعاينة والطباعة.")
