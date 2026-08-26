@@ -160,20 +160,19 @@ if active_data_file is not None and active_template_file is not None:
 
       # تصميم HTML للوصل الواحد (مع فاصل صفحة مخصص للطباعة الكلية)
       single_receipt_html = f"""
-            <div class="receipt-page" id="receipt-print-{index}" style="
+            <div class="receipt-page" style="
                 padding: 15px; 
                 font-family: 'Tahoma', Arial, sans-serif; 
                 direction: rtl; 
                 border: 2px solid #102a43; 
                 width: 100%; 
                 max-width: 148mm; 
-                margin: auto; 
+                margin: auto auto 25px auto; 
                 background: #ffffff; 
                 color: #102a43;
                 box-sizing: border-box;
                 page-break-after: always;
                 break-after: page;
-                margin-bottom: 25px;
             ">
                 <!-- رأس الوصل مع شعار بدون مربعات -->
                 <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px;">
@@ -258,35 +257,35 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- زر الطباعة الكلية في أعلى الصفحة ---
-    master_print_html = f"""
-        <div style="text-align: center; margin-bottom: 15px; direction: rtl;">
-            <button onclick="
+    # --- زر الطباعة الكلية في أعلى الصفحة باستخدام Streamlit الأصلي ---
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+      master_btn = st.button(
+          "🖨️ طباعة جميع الوصولات دفعة واحدة (A5)",
+          use_container_width=True,
+          type="primary",
+      )
+
+    if master_btn:
+      # حقن كود JavaScript لتنفيذ الطباعة الشاملة في نافذة جديدة نظيفة
+      escaped_html = (
+          all_receipts_html_for_print.replace("`", "\\`")
+          .replace("$", "\\$")
+          .replace('"', '\\"')
+      )
+      master_js = f"""
+            <script>
                 var printWin = window.open('', '', 'height=900,width=800');
                 printWin.document.write('<html><head><title>طباعة جميع الوصولات - A5</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }} .receipt-page {{ page-break-after: always; break-after: page; margin-bottom: 20px; }}</style></head><body>');
-                printWin.document.write(`{all_receipts_html_for_print}`);
+                printWin.document.write("{escaped_html}");
                 printWin.document.write('</body></html>');
                 printWin.document.close();
                 printWin.focus();
                 setTimeout(function(){{ printWin.print(); printWin.close(); }}, 600);
-            " style="
-                background-color: #047857; 
-                color: white; 
-                padding: 14px 24px; 
-                border: none; 
-                border-radius: 8px; 
-                cursor: pointer; 
-                font-weight: bold; 
-                font-size: 16px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                width: 100%;
-                max-width: 450px;
-            ">
-                🖨️ طباعة جميع الوصولات دفعة واحدة (A5)
-            </button>
-        </div>
-        """
-    st.components.v1.html(master_print_html, height=70)
+            </script>
+            """
+      st.components.v1.html(master_js, height=0)
+
     st.markdown("---")
 
     # حلقة تكرارية لعرض الوصولات تفصيلياً مع أزرارها الخاصة بالتنزيل والطباعة الفردية
