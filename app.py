@@ -6,6 +6,25 @@ import streamlit as st
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
+# --- تنسيق الألوان العام وتغيير لون الشريط الجانبي إلى رمادي غامق متوسط ---
+st.markdown("""
+    <style>
+    /* لون الشريط الجانبي: رمادي غامق بدرجة متوسطة */
+    [data-testid="stSidebar"] {
+        background-color: #334155;
+        color: #f8fafc;
+    }
+    /* تغيير لون النصوص والعناوين داخل الشريط الجانبي لتكون واضحة */
+    [data-testid="stSidebar"] h1, 
+    [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3, 
+    [data-testid="stSidebar"] label, 
+    [data-testid="stSidebar"] .stMarkdown {
+        color: #f8fafc !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("📦 النظام المالي والفني - وصل تسليم البضائع")
 
 # تهيئة Session State لحفظ الملفات والبيانات
