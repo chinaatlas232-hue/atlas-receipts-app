@@ -264,17 +264,16 @@ if active_data_file is not None and active_template_file is not None:
 
     # --- زر الطباعة الكلية ---
     escaped_master_html = (
-        all_receipts_html_for_print.replace("\\", "\\\\")
-        .replace("`", "\\`")
-        .replace("$", "\\$")
-        .replace('"', '\\"')
+        all_receipts_html_for_print.replace("&", "&amp;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
     )
     master_button_component = f"""
         <div style="text-align: center; margin-bottom: 15px; direction: rtl;">
             <button onclick="
                 var printWin = window.open('', '', 'height=900,width=800');
                 printWin.document.write('<html><head><title>طباعة جميع الوصولات - A5</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }} .receipt-page {{ page-break-after: always; break-after: page; margin-bottom: 20px; }}</style></head><body>');
-                printWin.document.write(`{escaped_master_html}`);
+                printWin.document.write(`{all_receipts_html_for_print}`);
                 printWin.document.write('</body></html>');
                 printWin.document.close();
                 printWin.focus();
@@ -299,22 +298,14 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(master_button_component, height=65)
     st.markdown("---")
 
-    # عرض كل وصل داخل Expander بنص نظيف تماماً وخالٍ من وسوم الـ HTML
+    # عرض الوصولات بداخل Expander بنظام آمن ومستقل تماماً
     for item in receipts_data_list:
       index = item["index"]
       shipment = item["shipment"]
       file_name_id = item["file_name_id"]
       single_html_content = item["single_html"]
 
-      clean_js_html = (
-          single_html_content.replace("\\", "\\\\")
-          .replace("`", "\\`")
-          .replace("$", "\\$")
-          .replace('"', '\\"')
-      )
-
-      # عنوان نصي متناسق بدون أي HTML لضمان عدم ظهور الأكواد
-      expander_label = f"📄 وصل العميل: {item['name']}  |  كود: {item['code']}  |  الشحنة: {shipment}  |  الإجمالي: {item['total_sales']:,.2f} $"
+      expander_label = f"📄 وصل العميل: {item['name']}  |  كود: {item['code']}  |  الشحنة: {shipment}  |  الإجمالي: {item['total_sales']:,.2f} دولار"
 
       with st.expander(expander_label, expanded=False):
         # زر تنزيل الإكسل الرسمي
@@ -330,46 +321,88 @@ if active_data_file is not None and active_template_file is not None:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        combined_component_html = f"""
-            <div style="direction: rtl; font-family: Tahoma, sans-serif; width: 100%;">
+        # استخدام عنصر iframe مع قالب HTML سليم لضمان عدم تداخل الأكواد
+        safe_html_payload = f"""
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {{
+                        font-family: Tahoma, sans-serif;
+                        background-color: #ffffff;
+                        margin: 0;
+                        padding: 5px;
+                        direction: rtl;
+                    }}
+                    .btn-container {{
+                        display: flex;
+                        gap: 12px;
+                        margin-top: 15px;
+                        margin-bottom: 10px;
+                    }}
+                    .action-btn {{
+                        background-color: #102a43;
+                        color: white;
+                        padding: 12px 20px;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: bold;
+                        font-size: 14px;
+                        flex: 1;
+                        text-align: center;
+                    }}
+                    .pdf-btn {{
+                        background-color: #b45309;
+                    }}
+                </style>
+            </head>
+            <body>
                 {single_html_content}
-                <div style="display: flex; gap: 12px; margin-top: 15px; margin-bottom: 10px;">
-                    <button onclick="
+                
+                <div class="btn-container">
+                    <button class="action-btn" onclick="printReceipt()">
+                        🖨️ طباعة الوصل (ورقيّاً)
+                    </button>
+                    <button class="action-btn pdf-btn" onclick="savePdfReceipt()">
+                        📑 حفظ PDF (مقاس A5)
+                    </button>
+                </div>
+
+                <script>
+                    const receiptContent = `{single_html_content.replace('`', '\\`').replace('$', '\\$')}`;
+                    const fileNameId = '{file_name_id}';
+
+                    function printReceipt() {{
                         var printWin = window.open('', '', 'height=800,width=800');
-                        printWin.document.write('<html><head><title>طباعة الشحنة {shipment}</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
-                        printWin.document.write(`{clean_js_html}`);
+                        printWin.document.write('<html><head><title>طباعة الشحنة</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
+                        printWin.document.write(receiptContent);
                         printWin.document.write('</body></html>');
                         printWin.document.close();
                         printWin.focus();
                         setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
-                    " style="
-                        background-color: #102a43; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; flex: 1; text-align: center;
-                    ">
-                        🖨️ طباعة الوصل (ورقيّاً)
-                    </button>
+                    }}
 
-                    <button onclick="
+                    function savePdfReceipt() {{
                         var printWin = window.open('', '', 'height=800,width=800');
-                        printWin.document.write('<html><head><title>{file_name_id}</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
-                        printWin.document.write(`{clean_js_html}`);
+                        printWin.document.write('<html><head><title>' + fileNameId + '</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
+                        printWin.document.write(receiptContent);
                         printWin.document.write('</body></html>');
                         printWin.document.close();
                         printWin.focus();
                         setTimeout(function(){{ 
-                            printWin.document.title = '{file_name_id}';
+                            printWin.document.title = fileNameId;
                             printWin.print(); 
                         }}, 600);
-                    " style="
-                        background-color: #b45309; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; flex: 1; text-align: center;
-                    ">
-                        📑 حفظ PDF (مقاس A5)
-                    </button>
-                </div>
-            </div>
+                    }}
+                </script>
+            </body>
+            </html>
             """
 
         st.components.v1.html(
-            combined_component_html, height=730, scrolling=True
+            safe_html_payload, height=750, scrolling=True
         )
 
       st.markdown("---")
