@@ -295,17 +295,47 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- عرض مربعات الإحصائيات (Metrics Dashboard) في رأس الصفحة ---
+    # --- تنسيق ألوان مربعات الإحصائيات (KPI Cards Dashboard) ---
+    st.markdown("""
+        <style>
+        .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-2 { background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-3 { background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-4 { background-color: #fdf2f8; border: 1px solid #fbcfe8; padding: 15px; border-radius: 10px; text-align: center; }
+        </style>
+    """, unsafe_allow_html=True)
+
     m1, m2, m3, m4 = st.columns(4)
     with m1:
-      st.metric(label="👥 عدد العملاء", value=f"{total_clients_count} عميل")
+      st.markdown(f"""
+            <div class="metric-card-1">
+                <p style="margin: 0; color: #1e40af; font-weight: bold; font-size: 14px;">👥 عدد العملاء</p>
+                <h3 style="margin: 5px 0 0; color: #1e3a8a; font-size: 20px;">{total_clients_count} عميل</h3>
+            </div>
+        """, unsafe_allow_html=True)
     with m2:
-      st.metric(label="📦 إجمالي الطرود", value=f"{total_packages_count} طرد")
+      st.markdown(f"""
+            <div class="metric-card-2">
+                <p style="margin: 0; color: #166534; font-weight: bold; font-size: 14px;">📦 إجمالي الطرود</p>
+                <h3 style="margin: 5px 0 0; color: #14532d; font-size: 20px;">{total_packages_count} طرد</h3>
+            </div>
+        """, unsafe_allow_html=True)
     with m3:
-      st.metric(label="⚖️ الوزن الكلي", value=f"{total_weight_sum:,.2f} كغ")
+      st.markdown(f"""
+            <div class="metric-card-3">
+                <p style="margin: 0; color: #92400e; font-weight: bold; font-size: 14px;">⚖️ الوزن الكلي</p>
+                <h3 style="margin: 5px 0 0; color: #78350f; font-size: 20px;">{total_weight_sum:,.2f} كغ</h3>
+            </div>
+        """, unsafe_allow_html=True)
     with m4:
-      st.metric(label="💰 المبلغ الإجمالي", value=f"{total_sales_sum:,.2f} دولار")
+      st.markdown(f"""
+            <div class="metric-card-4">
+                <p style="margin: 0; color: #9d174d; font-weight: bold; font-size: 14px;">💰 المبلغ الإجمالي</p>
+                <h3 style="margin: 5px 0 0; color: #831843; font-size: 20px;">{total_sales_sum:,.2f} $</h3>
+            </div>
+        """, unsafe_allow_html=True)
 
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")
 
     # --- زر الطباعة الكلية (لطباعة الشحنات المعروضة فقط دفعة واحدة) ---
