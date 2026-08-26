@@ -8,42 +8,68 @@ st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout=
 
 st.title("📦 النظام المالي والفني - وصل تسليم البضائع")
 
-# 1. رفع ملف البيانات الرئيسي
-uploaded_data_file = st.file_uploader(
-    "1. الرجاء رفع ملف بيانات الشحنات (تعبئة وصل اطلس.xlsx)", type=["xlsx"]
-)
+# تهيئة Session State لحفظ الملفات والبيانات حتى لا تضيع عند التحديث
+if "df_saved" not in st.session_state:
+  st.session_state.df_saved = None
+if "template_saved" not in st.session_state:
+  st.session_state.template_saved = None
+if "logo_saved" not in st.session_state:
+  st.session_state.logo_saved = None
 
-# 2. رفع قالب الوصل
-uploaded_template_file = st.file_uploader(
-    "2. الرجاء رفع قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)",
-    type=["xlsx"],
-)
+# شريط جانبي لإدارة الملفات المرفوعة وحفظها
+with st.sidebar:
+  st.header("⚙️ إدارة الملفات")
 
-# 3. رفع شعار الشركة (اختياري)
-uploaded_logo = st.file_uploader(
-    "3. الرجاء رفع شعار الشركة (Logo) - اختيارى", type=["png", "jpg", "jpeg"]
-)
+  uploaded_data_file = st.file_uploader(
+      "1. ملف بيانات الشحنات (تعبئة وصل اطلس.xlsx)", type=["xlsx"]
+  )
+  if uploaded_data_file is not None:
+    st.session_state.df_saved = uploaded_data_file
 
-if uploaded_data_file is not None and uploaded_template_file is not None:
+  uploaded_template_file = st.file_uploader(
+      "2. قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)", type=["xlsx"]
+  )
+  if uploaded_template_file is not None:
+    st.session_state.template_saved = uploaded_template_file
+
+  uploaded_logo = st.file_uploader(
+      "3. شعار الشركة (Logo) - اختيارى", type=["png", "jpg", "jpeg"]
+  )
+  if uploaded_logo is not None:
+    st.session_state.logo_saved = uploaded_logo
+
+  if st.button("🗑️ مسح الذاكرة ورفع ملفات جديدة"):
+    st.session_state.df_saved = None
+    st.session_state.template_saved = None
+    st.session_state.logo_saved = None
+    st.rerun()
+
+# استخدام الملفات المحفوظة في الذاكرة المؤقتة للجلسة
+active_data_file = st.session_state.df_saved
+active_template_file = st.session_state.template_saved
+active_logo = st.session_state.logo_saved
+
+if active_data_file is not None and active_template_file is not None:
   try:
     # قراءة بيانات الشحنات
-    df = pd.read_excel(uploaded_data_file)
+    df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
     # الحصول على تاريخ اليوم تلقائياً
     today_date = datetime.date.today().strftime("%Y-%m-%d")
 
     st.success(
-        f"تم تحميل الملفات بنجاح. تاريخ الإصدار التلقائي هو: {today_date}"
+        f"✅ الملفات محفوظة في الذاكرة ومحمية ضد التحديث. تاريخ الإصدار:"
+        f" {today_date}"
     )
     st.markdown("---")
 
     # معالجة الشعار بدون مربعات أو حدود خلفية
     logo_html = ""
-    if uploaded_logo is not None:
+    if active_logo is not None:
       import base64
 
-      bytes_data = uploaded_logo.getvalue()
+      bytes_data = active_logo.getvalue()
       base64_logo = base64.b64encode(bytes_data).decode("utf-8")
       logo_html = f'<img src="data:image/png;base64,{base64_logo}" style="height: 55px; width: 55px; object-fit: cover; border-radius: 50%; border: none; outline: none; background: transparent; margin-left: 12px; vertical-align: middle;" />'
 
@@ -51,7 +77,6 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
     for index, row in df.iterrows():
       # استخراج البيانات الأساسية
       shipment = str(row.get("الشحنة", "")).strip()
-      code = str(row.get("الكود", "")).strip()
       weight = float(row.get("الوزن", 0) or 0)
       packages = row.get("عدد الطرود", 0)
       name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
@@ -102,10 +127,9 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
           break
 
       # تعبئة خلايا الإكسل للقالب الرسمي
-      wb = openpyxl.load_workbook(uploaded_template_file)
+      wb = openpyxl.load_workbook(active_template_file)
       ws = wb.active
 
-      ws["B4"] = code
       ws["D4"] = today_date
       ws["B5"] = name
       ws["B6"] = address
@@ -127,14 +151,14 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
         st.download_button(
             label=f"📥 تنزيل إكسل الوصل الرسمي ({name})",
             data=output,
-            file_name=f"Delivery_Receipt_{code}_{name}.xlsx",
+            file_name=f"Delivery_Receipt_{name}.xlsx",
             mime=(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             ),
             key=f"download_{index}",
         )
 
-        # تصميم HTML بدون كلمة أو رقم الكود
+        # تصميم HTML
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -249,5 +273,6 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
     st.error(f"حدث خطأ أثناء قراءة أو معالجة الملفات: {e}")
 else:
   st.info(
-      "الرجاء رفع ملف بيانات الشحنات وقالب الوصل والشعار لتظهر المعاينة والطباعة."
+      "الرجاء رفع ملف بيانات الشحنات وقالب الوصل من الشريط الجانبي لتظهر المعاينة"
+      " والطباعة."
   )
