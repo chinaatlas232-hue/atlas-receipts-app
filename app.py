@@ -299,7 +299,7 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(master_button_component, height=65)
     st.markdown("---")
 
-    # عرض كل وصل مع أزراره داخل حاوية HTML متكاملة مع ضبط عنوان الـ Expander بدقة
+    # عرض كل وصل داخل Expander بنص نظيف تماماً وخالٍ من وسوم الـ HTML
     for item in receipts_data_list:
       index = item["index"]
       shipment = item["shipment"]
@@ -313,12 +313,10 @@ if active_data_file is not None and active_template_file is not None:
           .replace('"', '\\"')
       )
 
-      # عنوان منسق يدعم الاتجاه العربي الصحيح لمنع انعكاس الرموز
-      expander_title_html = f"""<div style="direction: rtl; text-align: right; font-family: Tahoma, sans-serif;">
-            📄 وصل العميل: <b>{item['name']}</b> &nbsp;|&nbsp; كود العميل: <span style="color: #b45309;">{item['code']}</span> &nbsp;|&nbsp; الشحنة: <span style="color: #102a43;">{shipment}</span> &nbsp;|&nbsp; الإجمالي: <span style="color: #047857; font-weight: bold;">{item['total_sales']:,.2f} $</span>
-        </div>"""
+      # عنوان نصي متناسق بدون أي HTML لضمان عدم ظهور الأكواد
+      expander_label = f"📄 وصل العميل: {item['name']}  |  كود: {item['code']}  |  الشحنة: {shipment}  |  الإجمالي: {item['total_sales']:,.2f} $"
 
-      with st.expander(expander_title_html, expanded=False):
+      with st.expander(expander_label, expanded=False):
         # زر تنزيل الإكسل الرسمي
         st.download_button(
             label=f"📥 تنزيل إكسل الوصل (الشحنة: {shipment})",
