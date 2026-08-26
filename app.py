@@ -260,7 +260,8 @@ if active_data_file is not None and active_template_file is not None:
 
     # --- زر الطباعة الكلية ---
     escaped_master_html = (
-        all_receipts_html_for_print.replace("`", "\\`")
+        all_receipts_html_for_print.replace("\\", "\\\\")
+        .replace("`", "\\`")
         .replace("$", "\\$")
         .replace('"', '\\"')
     )
@@ -294,16 +295,17 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(master_button_component, height=65)
     st.markdown("---")
 
-    # عرض كل وصل مع أزراره داخل حاوية HTML متكاملة وواضحة
+    # عرض كل وصل مع أزراره داخل حاوية HTML متكاملة
     for item in receipts_data_list:
       index = item["index"]
       shipment = item["shipment"]
       file_name_id = item["file_name_id"]
       single_html_content = item["single_html"]
 
-      # تهريب النصوص بأمان تام لتعمل داخل JavaScript للطباعة
+      # تنظيف النص وتجنب مشاكل علامات التنصيص تماماً لتعمل طباعة JavaScript بكفاءة
       clean_js_html = (
-          single_html_content.replace("`", "\\`")
+          single_html_content.replace("\\", "\\\\")
+          .replace("`", "\\`")
           .replace("$", "\\$")
           .replace('"', '\\"')
       )
@@ -313,7 +315,7 @@ if active_data_file is not None and active_template_file is not None:
           f" {shipment} | الإجمالي: {item['total_sales']:,.0f} $",
           expanded=False,
       ):
-        # زر تنزيل الإكسل الرسمي من Streamlit
+        # زر تنزيل الإكسل الرسمي
         st.download_button(
             label=f"📥 تنزيل إكسل الوصل (الشحنة: {shipment})",
             data=item["output"],
@@ -326,7 +328,6 @@ if active_data_file is not None and active_template_file is not None:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # دمج الوصل مع أزرار الطباعة والحفظ داخل مكون HTML واحد بارتفاع كافٍ (730 بكسل) لمنع أي اقتطاع نهائياً
         combined_component_html = f"""
             <div style="direction: rtl; font-family: Tahoma, sans-serif; width: 100%;">
                 {single_html_content}
