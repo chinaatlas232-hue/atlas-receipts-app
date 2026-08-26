@@ -8,7 +8,7 @@ st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout=
 
 st.title("📦 النظام المالي والفني - وصل تسليم البضائع")
 
-# تهيئة Session State لحفظ الملفات والبيانات حتى لا تضيع عند التحديث
+# تهيئة Session State لحفظ الملفات والبيانات
 if "df_saved" not in st.session_state:
   st.session_state.df_saved = None
 if "template_saved" not in st.session_state:
@@ -64,7 +64,7 @@ if active_data_file is not None and active_template_file is not None:
     )
     st.markdown("---")
 
-    # معالجة الشعار بدون مربعات أو حدود خلفية
+    # معالجة الشعار بصيغة Base64 للاستخدام داخل HTML بأمان
     logo_html = ""
     if active_logo is not None:
       import base64
@@ -78,7 +78,6 @@ if active_data_file is not None and active_template_file is not None:
 
     # حلقة تكرارية لكل صف في ملف البيانات
     for index, row in df.iterrows():
-      # استخراج البيانات الأساسية
       shipment = str(row.get("الشحنة", "")).strip()
       if shipment.endswith(".0"):
         shipment = shipment[:-2]
@@ -89,13 +88,16 @@ if active_data_file is not None and active_template_file is not None:
 
       name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
 
-      # معرف فريد للملف
-      file_name_id = f"Shipment_{shipment}_Client_{name}" if shipment and name else (shipment if shipment else f"Receipt_{index}")
+      file_name_id = (
+          f"Shipment_{shipment}_Client_{name}"
+          if shipment and name
+          else (shipment if shipment else f"Receipt_{index}")
+      )
 
       weight = float(row.get("الوزن", 0) or 0)
       packages = row.get("عدد الطرود", 0)
 
-      # استخراج سعر الكيلو وحسابه بأمان
+      # استخراج سعر الكيلو
       price_per_kg = 0
       for col in ["سعر الكيلو", "سعر الكيلو ", "السعر"]:
         if col in df.columns:
@@ -115,7 +117,7 @@ if active_data_file is not None and active_template_file is not None:
       if total_sales == 0 and price_per_kg > 0 and weight > 0:
         total_sales = weight * price_per_kg
 
-      # تنظيف رقم الهاتف وإضافة مسافة بين +964 وباقي الرقم
+      # تنظيف رقم الهاتف وإضافة تنسيق +964
       phone_raw = row.get("رقم الهاتف", row.get("رقم الهاتف ", ""))
       phone = str(phone_raw).strip()
       if phone.endswith(".0"):
@@ -127,7 +129,7 @@ if active_data_file is not None and active_template_file is not None:
 
       formatted_phone = f"+964 {phone}" if phone else ""
 
-      # استخراج العنوان ونوع الشحنة مع التحقق من وجود الأعمدة
+      # استخراج العنوان ونوع الشحنة
       address = ""
       for col in ["عنوان استلام البظاعة", "العنوان", "عنوان"]:
         if col in df.columns:
@@ -140,7 +142,7 @@ if active_data_file is not None and active_template_file is not None:
           shipment_type = str(row.get(col, "")).strip()
           break
 
-      # تعبئة خلايا الإكسل للقالب الرسمي
+      # تعبئة قالب الإكسل الرسمي
       wb = openpyxl.load_workbook(active_template_file)
       ws = wb.active
 
@@ -158,7 +160,7 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      # تصميم HTML للوصل الواحد (مع فاصل صفحة مخصص للطباعة الكلية)
+      # تصميم HTML للوصل الواحد بدقة مقاس A5
       single_receipt_html = f"""
             <div class="receipt-page" style="
                 padding: 15px; 
@@ -174,68 +176,68 @@ if active_data_file is not None and active_template_file is not None:
                 page-break-after: always;
                 break-after: page;
             ">
-                <!-- رأس الوصل مع شعار بدون مربعات -->
-                <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px;">
+                <!-- رأس الوصل مع الشعار -->
+                <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px; border-collapse: collapse;">
                     <tr>
                         <td style="text-align: right; vertical-align: middle;">
                             <div style="display: flex; align-items: center;">
                                 {logo_html}
                                 <div>
-                                    <h2 style="margin: 0; font-size: 16px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
+                                    <h2 style="margin: 0; font-size: 15px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
                                     <p style="margin: 2px 0 0; font-size: 10px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
                                 </div>
                             </div>
                         </td>
                         <td style="text-align: left; vertical-align: middle;">
-                            <h3 style="margin: 0; font-size: 14px; color: #b45309;">وصل تسليم بضاعة</h3>
-                            <p style="margin: 2px 0 0; font-size: 11px; color: #334e68;">Cargo Delivery Receipt</p>
+                            <h3 style="margin: 0; font-size: 13px; color: #b45309;">وصل تسليم بضاعة</h3>
+                            <p style="margin: 2px 0 0; font-size: 10px; color: #334e68;">Cargo Delivery Receipt</p>
                         </td>
                     </tr>
                 </table>
 
                 <!-- تفاصيل الوصل الرئيسية -->
-                <table style="width: 100%; font-size: 12px; border-collapse: collapse; margin-bottom: 12px;">
+                <table style="width: 100%; font-size: 11px; border-collapse: collapse; margin-bottom: 10px;">
                     <tr style="background-color: #f0f4f8;">
-                        <td style="padding: 6px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{code}</span></td>
-                        <td style="padding: 6px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{shipment}</span></td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{code}</span></td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{shipment}</span></td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
-                        <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{formatted_phone}</span></td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{formatted_phone}</span></td>
                     </tr>
                     <tr style="background-color: #f0f4f8;">
-                        <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
-                        <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> 📦 {packages} طرد</td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> 📦 {packages} طرد</td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
-                        <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ</td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ</td>
                     </tr>
                     <tr style="background-color: #f0f4f8;">
-                        <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
-                        <td style="padding: 6px; border: 1px solid #bcccdc;"><strong>سعر الكيلو:</strong> {price_per_kg:,.2f} $</td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>سعر الكيلو:</strong> {price_per_kg:,.2f} $</td>
                     </tr>
                     <tr style="background-color: #fef3c7;">
-                        <td style="padding: 6px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 13px;">{total_sales:,.2f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
+                        <td style="padding: 5px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 12px;">{total_sales:,.2f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
                     </tr>
                 </table>
 
-                <!-- إقرار استلام البضاعة -->
-                <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 8px; border-radius: 4px; margin-bottom: 12px;">
-                    <p style="margin: 0; font-size: 11px; color: #92400e; line-height: 1.4;">
+                <!-- إقرار الاستلام -->
+                <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 6px; border-radius: 4px; margin-bottom: 10px;">
+                    <p style="margin: 0; font-size: 10px; color: #92400e; line-height: 1.3;">
                         <strong>إقرار الاستلام:</strong><br>
                         أقر أنا الموقع أدناه، بأنني استلمت البضاعة والشحنة المذكورة أعلاه كاملة، وبحالة سليمة وممتازة، ومطابقة لكافة الأوزان والأوصاف المدونة.
                     </p>
                 </div>
 
-                <!-- تواقيع الاستلام -->
-                <table style="width: 100%; font-size: 12px; margin-top: 5px;">
+                <!-- التواقيع -->
+                <table style="width: 100%; font-size: 11px; margin-top: 5px;">
                     <tr>
-                        <td style="width: 50%; padding: 4px;">
+                        <td style="width: 50%; padding: 2px;">
                             <strong>اسم المستلم:</strong><br><br>
                             ............................................
                         </td>
-                        <td style="width: 50%; padding: 4px; text-align: left;">
+                        <td style="width: 50%; padding: 2px; text-align: left;">
                             <strong>توقيع وختم المستلم:</strong><br><br>
                             ............................................
                         </td>
@@ -245,7 +247,6 @@ if active_data_file is not None and active_template_file is not None:
             """
 
       all_receipts_html_for_print += single_receipt_html
-
       receipts_data_list.append({
           "index": index,
           "name": name,
@@ -257,14 +258,14 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- زر الطباعة الكلية العلوي (باستخدام زر تفاعلي مباشر HTML/JS منعاً للحظر) ---
+    # --- زر الطباعة الكلية ---
     escaped_master_html = (
         all_receipts_html_for_print.replace("`", "\\`")
         .replace("$", "\\$")
         .replace('"', '\\"')
     )
     master_button_component = f"""
-        <div style="text-align: center; margin-bottom: 20px; direction: rtl;">
+        <div style="text-align: center; margin-bottom: 15px; direction: rtl;">
             <button onclick="
                 var printWin = window.open('', '', 'height=900,width=800');
                 printWin.document.write('<html><head><title>طباعة جميع الوصولات - A5</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }} .receipt-page {{ page-break-after: always; break-after: page; margin-bottom: 20px; }}</style></head><body>');
@@ -276,12 +277,12 @@ if active_data_file is not None and active_template_file is not None:
             " style="
                 background-color: #047857; 
                 color: white; 
-                padding: 14px 28px; 
+                padding: 12px 24px; 
                 border: none; 
                 border-radius: 8px; 
                 cursor: pointer; 
                 font-weight: bold; 
-                font-size: 16px;
+                font-size: 15px;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                 width: 100%;
                 max-width: 450px;
@@ -290,10 +291,10 @@ if active_data_file is not None and active_template_file is not None:
             </button>
         </div>
         """
-    st.components.v1.html(master_button_component, height=75)
+    st.components.v1.html(master_button_component, height=65)
     st.markdown("---")
 
-    # حلقة تكرارية لعرض الوصولات تفصيلياً مع أزرارها الخاصة بالتنزيل والطباعة الفردية
+    # عرض الوصولات الفردية داخل Expanders
     for item in receipts_data_list:
       index = item["index"]
       shipment = item["shipment"]
@@ -316,43 +317,44 @@ if active_data_file is not None and active_template_file is not None:
 
         single_ui_html = (
             f"""
-                {item['single_html']}
-                <br>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px; direction: rtl;">
-                    <button onclick="
-                        var printWin = window.open('', '', 'height=800,width=800');
-                        printWin.document.write('<html><head><title>طباعة الشحنة {shipment}</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
-                        printWin.document.write(`{item['single_html']}`);
-                        printWin.document.write('</body></html>');
-                        printWin.document.close();
-                        printWin.focus();
-                        setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
-                    " style="
-                        background-color: #102a43; color: white; padding: 10px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; flex: 1; text-align: center;
-                    ">
-                        🖨️ طباعة الوصل (ورقيّاً)
-                    </button>
+                <div style="direction: rtl; width: 100%;">
+                    {item['single_html']}
+                    <div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;">
+                        <button onclick="
+                            var printWin = window.open('', '', 'height=800,width=800');
+                            printWin.document.write('<html><head><title>طباعة الشحنة {shipment}</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
+                            printWin.document.write(`{item['single_html']}`);
+                            printWin.document.write('</body></html>');
+                            printWin.document.close();
+                            printWin.focus();
+                            setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
+                        " style="
+                            background-color: #102a43; color: white; padding: 10px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; flex: 1; text-align: center;
+                        ">
+                            🖨️ طباعة الوصل (ورقيّاً)
+                        </button>
 
-                    <button onclick="
-                        var printWin = window.open('', '', 'height=800,width=800');
-                        printWin.document.write('<html><head><title>{file_name_id}</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
-                        printWin.document.write(`{item['single_html']}`);
-                        printWin.document.write('</body></html>');
-                        printWin.document.close();
-                        printWin.focus();
-                        setTimeout(function(){{ 
-                            printWin.document.title = '{file_name_id}';
-                            printWin.print(); 
-                        }}, 600);
-                    " style="
-                        background-color: #b45309; color: white; padding: 10px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; flex: 1; text-align: center;
-                    ">
-                        📑 حفظ PDF (مقاس A5)
-                    </button>
+                        <button onclick="
+                            var printWin = window.open('', '', 'height=800,width=800');
+                            printWin.document.write('<html><head><title>{file_name_id}</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
+                            printWin.document.write(`{item['single_html']}`);
+                            printWin.document.write('</body></html>');
+                            printWin.document.close();
+                            printWin.focus();
+                            setTimeout(function(){{ 
+                                printWin.document.title = '{file_name_id}';
+                                printWin.print(); 
+                            }}, 600);
+                        " style="
+                            background-color: #b45309; color: white; padding: 10px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; flex: 1; text-align: center;
+                        ">
+                            📑 حفظ PDF (مقاس A5)
+                        </button>
+                    </div>
                 </div>
                 """
         )
-        st.components.v1.html(single_ui_html, height=650)
+        st.components.v1.html(single_ui_html, height=580)
 
       st.markdown("---")
 
