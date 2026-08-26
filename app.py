@@ -28,7 +28,7 @@ st.markdown(
     [data-testid="stSidebar"] button[kind="secondary"] {
         background-color: #991b1b !important;
         color: white !important;
-        border: 1px solid #7f1d1d !important;
+      st.title("وصل تسليم البضائع")
         font-weight: bold !important;
     }
     [data-testid="stSidebar"] button[kind="secondary"]:hover {
