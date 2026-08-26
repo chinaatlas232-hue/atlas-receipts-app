@@ -427,7 +427,8 @@ if active_data_file is not None and active_template_file is not None:
     </div>
     """
     
-    st.markdown(custom_table_styling, unsafe_allow_html=True)
+    # استخدام st.html لعرض الجدول المنسق بشكل صحيح تماماً
+    st.html(custom_table_styling)
     st.markdown("---")
 
     # --- زر الطباعة الكلية (لطباعة الشحنات المعروضة فقط دفعة واحدة) ---
