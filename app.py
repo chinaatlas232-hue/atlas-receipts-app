@@ -3,18 +3,18 @@ import openpyxl
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="تعبئة وتوليد وصل أطلس", layout="wide")
+st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
-st.title("📦 نظام تعبئة وطباعة وصل أطلس للشحن")
+st.title("📦 النظام المالي والفني - وصل تسليم البضائع")
 
 # 1. رفع ملف البيانات الرئيسي
 uploaded_data_file = st.file_uploader(
-    "1.الرجاء رفع ملف بيانات الشحنات (تعبئة وصل اطلس.xlsx)", type=["xlsx"]
+    "1. الرجاء رفع ملف بيانات الشحنات (تعبئة وصل اطلس.xlsx)", type=["xlsx"]
 )
 
 # 2. رفع قالب الوصل
 uploaded_template_file = st.file_uploader(
-    "2.الرجاء رفع قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)",
+    "2. الرجاء رفع قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)",
     type=["xlsx"],
 )
 
@@ -24,12 +24,12 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
     df = pd.read_excel(uploaded_data_file)
     df.columns = df.columns.str.strip()
 
-    st.success("تم قراءة ملف البيانات وقالب الوصل بنجاح!")
+    st.success("تم تحميل الملفات بنجاح. إليك النماذج الفخمة والمنسقة:")
     st.markdown("---")
 
-    # حلقة تكرارية لكل صف في ملف البيانات لتعبئة الوصل الخاص به
+    # حلقة تكرارية لكل صف في ملف البيانات
     for index, row in df.iterrows():
-      # استخراج وتنقيب البيانات بدقة من الأعمدة
+      # استخراج البيانات وتنظيفها
       shipment = str(row.get("الشحنة", "")).strip()
       code = str(row.get("الكود", "")).strip()
       weight = row.get("الوزن", 0)
@@ -52,114 +52,140 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
           row.get("نوع الشحنة", row.get("نوع الشحنة ", ""))
       ).strip()
 
-      # فتح قالب الوصل باستخدام openpyxl وتعبئته بالبيانات المطابقة تماماً للخلايا
+      # تعبئة خلايا الأكسل للقالب الرسمي
       wb = openpyxl.load_workbook(uploaded_template_file)
       ws = wb.active
 
-      # تعبئة خلايا القالب بناءً على تصميم ملف الـ Excel الخاص بالوصل
-      ws["B4"] = code  # رقم الوصل / Receipt No (نضع الكود هنا)
-      ws["B5"] = name  # اسم العميل / Client Name
-      ws["D5"] = phone  # رقم الهاتف / Phone
-      ws["B6"] = (
-          f"{shipment} - {address}"  # اسم الشحنة / Cargo Name (مع العنوان)
-      )
-      ws["D6"] = packages  # عدد الطرود / Pieces
-      ws["B7"] = shipment_type  # نوع الشحنة / Cargo Type
-      ws["D7"] = weight  # الوزن الفعلي / Actual Weight
+      ws["B4"] = code
+      ws["B5"] = name
+      ws["D5"] = phone
+      ws["B6"] = f"{shipment} ({address})"
+      ws["D6"] = packages
+      ws["B7"] = shipment_type
+      ws["D7"] = weight
 
-      # حفظ الملف في الذاكرة لتسهيل التحميل المباشر
       output = io.BytesIO()
       wb.save(output)
       output.seek(0)
 
-      # عرض تفاصيل الوصل في الواجهة
+      # عرض الوصل داخل تطبيق Streamlit
       with st.expander(
-          f"📁 الوصل رقم {index + 1} | العميل: {name} | الكود: {code}",
-          expanded=True,
+          f"📄 وصل تسليم رقم: {code} | العميل: {name}", expanded=True
       ):
-        col1, col2 = st.columns(2)
-        with col1:
-          st.write(f"- **رقم الشحنة:** `{shipment}`")
-          st.write(f"- **الكود (رقم الوصل):** `{code}`")
-          st.write(f"- **اسم العميل:** {name}")
-          st.write(f"- **رقم الهاتف:** `{phone}`")
-          st.write(f"- **نوع الشحنة:** {shipment_type}")
-        with col2:
-          st.write(f"- **عنوان الاستلام:** {address}")
-          st.write(f"- **الوزن الفعلي:** {weight} كغ")
-          st.write(f"- **عدد الطرود:** {packages}")
-          st.write(f"- **سعر الكيلو:** {price_per_kg}")
-          st.write(f"- **إجمالي المبيعات:** {total_sales}")
-
-        # زر تحميل ملف الإكسل المعبأ لهذا الوصل
         st.download_button(
-            label=f"📥 تحميل وصل العميل {name} (Excel)",
+            label=f"📥 تنزيل إكسل الوصل الرسمي ({name})",
             data=output,
-            file_name=f"Atlas_Receipt_{code}_{name}.xlsx",
+            file_name=f"Delivery_Receipt_{code}_{name}.xlsx",
             mime=(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             ),
             key=f"download_{index}",
         )
 
-        # كود HTML + جافاسكريبت لطباعة الوصل بتنسيق نظيف ومنسق
-        receipt_html = f"""
-                <div id="print-area-{index}" style="padding: 20px; font-family: Tahoma, sans-serif; direction: rtl; border: 2px solid #333; width: 100%; max-width: 600px; margin: auto; background: #fff;">
-                    <h2 style="text-align: center; margin-bottom: 5px;">أطلس المحيط للتجارة العامة</h2>
-                    <h4 style="text-align: center; margin-top: 0; color: #555;">وصل تسليم الشحنات (CARGO DELIVERY RECEIPT)</h4>
-                    <hr/>
-                    <table style="width: 100%; font-size: 14px; line-height: 1.8;">
+        # تصميم وصل تسليم بضاعة مبسط، فخم، ومنظّم وخالي من الأخطاء
+        clean_receipt_html = f"""
+                <div id="receipt-print-{index}" style="
+                    padding: 40px; 
+                    font-family: 'Amiri', 'Tahoma', serif; 
+                    direction: rtl; 
+                    border: 3px solid #102a43; 
+                    width: 100%; 
+                    max-width: 700px; 
+                    margin: auto; 
+                    background: #ffffff; 
+                    color: #102a43;
+                ">
+                    <!-- رأس الوصل -->
+                    <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 10px; margin-bottom: 25px;">
                         <tr>
-                            <td><strong>رقم الوصل:</strong> {code}</td>
-                            <td><strong>التاريخ:</strong> 2026 / / </td>
-                        </tr>
-                        <tr>
-                            <td><strong>اسم العميل:</strong> {name}</td>
-                            <td><strong>رقم الهاتف:</strong> {phone}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>اسم الشحنة:</strong> {shipment} ({address})</td>
-                            <td><strong>عدد الطرود:</strong> {packages}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>نوع الشحنة:</strong> {shipment_type}</td>
-                            <td><strong>الوزن الفعلي:</strong> {weight} كغ</td>
-                        </tr>
-                        <tr>
-                            <td colspan="2"><strong>طريقة الدفع:</strong> [  ] نقداً    [  ] أجل</td>
+                            <td style="text-align: right;">
+                                <h2 style="margin: 0; font-size: 22px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
+                                <p style="margin: 3px 0 0; font-size: 12px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
+                            </td>
+                            <td style="text-align: left;">
+                                <h3 style="margin: 0; font-size: 18px; color: #b45309;">وصل تسليم بضاعة</h3>
+                                <p style="margin: 3px 0 0; font-size: 13px; color: #334e68;">Cargo Delivery Receipt</p>
+                            </td>
                         </tr>
                     </table>
-                    <br>
-                    <p style="font-size: 12px; border-top: 1px dashed #ccc; padding-top: 10px;">
-                        <strong>إقرار الاستلام والتسليم:</strong><br>
-                        أقر أنا الموقع أدناه، بأنني استلمت الشحنة المذكورة أعلاه سليمة وبحالة جيدة ومطابقة لكافة الأوزان والأوصاف المذكورة.
-                    </p>
-                    <br>
-                    <table style="width: 100%; font-size: 14px;">
+
+                    <!-- تفاصيل الوصل الرئيسية -->
+                    <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
                         <tr>
-                            <td><strong>اسم المستلم:</strong> ........................................</td>
-                            <td><strong>التوقيع:</strong> ..........................</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الوصل (Code):</strong> <span style="color: #0066cc;">{code}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>التاريخ (Date):</strong> 2026 / &nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;</td>
+                        </tr>
+                        <tr style="background-color: #f0f4f8;">
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> {name}</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> {phone}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>تفاصيل الشحنة والوجهة:</strong> {shipment} - {address}</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> {packages} طرد</td>
+                        </tr>
+                        <tr style="background-color: #f0f4f8;">
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding: 12px; border: 1px solid #bcccdc;">
+                                <strong>طريقة الدفع:</strong> 
+                                &nbsp;&nbsp;&nbsp;&nbsp; [ &nbsp; ] نقداً (Cash)
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [ &nbsp; ] أجل (Credit)
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- إقرار استلام البضاعة -->
+                    <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 4px; margin-bottom: 30px;">
+                        <p style="margin: 0; font-size: 13px; color: #92400e; line-height: 1.7;">
+                            <strong>إقرار الاستلام:</strong><br>
+                            أقر أنا الموقع أدناه، بأنني استلمت البضاعة والشحنة المذكورة أعلاه كاملة، وبحالة سليمة وممتازة، ومطابقة لكافة الأوزان والأوصاف المدونة.
+                        </p>
+                    </div>
+
+                    <!-- تواقيع الاستلام -->
+                    <table style="width: 100%; font-size: 14px; margin-top: 20px;">
+                        <tr>
+                            <td style="width: 50%; padding: 10px;">
+                                <strong>اسم المستلم:</strong><br><br>
+                                ....................................................
+                            </td>
+                            <td style="width: 50%; padding: 10px; text-align: left;">
+                                <strong>توقيع وختم المستلم:</strong><br><br>
+                                ....................................................
+                            </td>
                         </tr>
                     </table>
                 </div>
                 <br>
                 <button onclick="
-                    var printWin = window.open('', '', 'height=700,width=900');
-                    printWin.document.write('<html><head><title>طباعة الوصل</title></head><body style=\\'direction: rtl; font-family: Tahoma;\\'>');
-                    printWin.document.write(document.getElementById('print-area-{index}').innerHTML);
+                    var printWin = window.open('', '', 'height=800,width=1000');
+                    printWin.document.write('<html><head><title>طباعة وصل تسليم بضاعة - أطلس</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
+                    printWin.document.write(document.getElementById('receipt-print-{index}').innerHTML);
                     printWin.document.write('</body></html>');
                     printWin.document.close();
                     printWin.focus();
                     setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
-                " style="background-color: #2e7d32; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">
-                    🖨️ طباعة وصل العميل {name}
+                " style="
+                    background-color: #102a43; 
+                    color: white; 
+                    padding: 12px 20px; 
+                    border: none; 
+                    border-radius: 6px; 
+                    cursor: pointer; 
+                    font-weight: bold; 
+                    font-size: 15px;
+                    width: 100%;
+                ">
+                    🖨️ طباعة وصل تسليم البضاعة للعميل: {name}
                 </button>
                 """
-        st.components.v1.html(receipt_html, height=340)
+        st.components.v1.html(clean_receipt_html, height=530)
 
       st.markdown("---")
 
   except Exception as e:
-    st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
+    st.error(f"حدث خطأ أثناء قراءة أو معالجة الملفات: {e}")
 else:
-  st.info("الرجاء رفع كلا الملفين (ملف بيانات الشحنات وقالب الوصل) لتبدأ العملية.")
+  st.info("الرجاء رفع ملف بيانات الشحنات وقالب الوصل لتظهر معاينة الروابط والوصلات.")
