@@ -19,6 +19,11 @@ uploaded_template_file = st.file_uploader(
     type=["xlsx"],
 )
 
+# 3. رفع شعار الشركة (اختياري)
+uploaded_logo = st.file_uploader(
+    "3. الرجاء رفع شعار الشركة (Logo) - اختيارى", type=["png", "jpg", "jpeg"]
+)
+
 if uploaded_data_file is not None and uploaded_template_file is not None:
   try:
     # قراءة بيانات الشحنات
@@ -32,6 +37,15 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
         f"تم تحميل الملفات بنجاح. تاريخ الإصدار التلقائي هو: {today_date}"
     )
     st.markdown("---")
+
+    # معالجة الشعار إن وجد لتحويله إلى Base64 لعرضه داخل HTML الطباعة
+    logo_html = ""
+    if uploaded_logo is not None:
+      import base64
+
+      bytes_data = uploaded_logo.getvalue()
+      base64_logo = base64.b64encode(bytes_data).decode("utf-8")
+      logo_html = f'<img src="data:image/png;base64,{base64_logo}" style="max-height: 55px; margin-left: 15px; vertical-align: middle;">'
 
     # حلقة تكرارية لكل صف في ملف البيانات
     for index, row in df.iterrows():
@@ -94,8 +108,8 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
       ws["B4"] = code
       ws["D4"] = today_date
       ws["B5"] = name
-      ws["B6"] = address  # حقل العنوان المستقل تحت اسم العميل
-      ws["D5"] = formatted_phone  # رقم الهاتف مع مسافة دقيقة
+      ws["B6"] = address
+      ws["D5"] = formatted_phone
       ws["B7"] = shipment
       ws["D6"] = packages
       ws["B8"] = shipment_type
@@ -121,7 +135,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم HTML الفخم والمنظّم للطباعة مع إضافة علامة $
+        # تصميم HTML الفخم مع إدراج الشعار بجانب اسم الشركة
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -134,21 +148,26 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                     background: #ffffff; 
                     color: #102a43;
                 ">
-                    <!-- رأس الوصل -->
+                    <!-- رأس الوصل مع الشعار بجانب الاسم -->
                     <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 10px; margin-bottom: 25px;">
                         <tr>
-                            <td style="text-align: right;">
-                                <h2 style="margin: 0; font-size: 22px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
-                                <p style="margin: 3px 0 0; font-size: 12px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
+                            <td style="text-align: right; vertical-align: middle;">
+                                <div style="display: flex; align-items: center;">
+                                    {logo_html}
+                                    <div>
+                                        <h2 style="margin: 0; font-size: 22px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
+                                        <p style="margin: 3px 0 0; font-size: 12px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
+                                    </div>
+                                </div>
                             </td>
-                            <td style="text-align: left;">
+                            <td style="text-align: left; vertical-align: middle;">
                                 <h3 style="margin: 0; font-size: 18px; color: #b45309;">وصل تسليم بضاعة</h3>
                                 <p style="margin: 3px 0 0; font-size: 13px; color: #334e68;">Cargo Delivery Receipt</p>
                             </td>
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية مع الأسعار والإجمالي وعلامة $ -->
+                    <!-- تفاصيل الوصل الرئيسية -->
                     <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الوصل (Code):</strong> <span style="color: #0066cc; font-weight: bold;">{code}</span></td>
@@ -231,4 +250,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
   except Exception as e:
     st.error(f"حدث خطأ أثناء قراءة أو معالجة الملفات: {e}")
 else:
-  st.info("الرجاء رفع ملف بيانات الشحنات وقالب الوصل لتظهر المعاينة والطباعة.")
+  st.info(
+      "الرجاء رفع ملف بيانات الشحنات وقالب الوصل (ويُفضل رفع شعار الشركة أيضاً)"
+      " لتظهر المعاينة والطباعة."
+  )
