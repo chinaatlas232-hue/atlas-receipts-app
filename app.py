@@ -89,7 +89,7 @@ with st.sidebar:
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
   selected_shipment_filter = "الكل"
-  selected_search_query = ""
+  selected_code_filter = "الكل"
 
   if os.path.exists(shipment_path):
     try:
@@ -108,8 +108,27 @@ with st.sidebar:
             "اختر الشحنة للعرض:", shipment_list
         )
         
-      # --- فلتر البحث الإضافي في القائمة الجانبية ---
-      selected_search_query = st.text_input("بحث برقم الكود أو اسم العميل:", "")
+      # تصفية المؤقت حسب الشحنة المحددة لإعطاء الأكواد الخاصة بها فقط
+      filtered_temp_df = temp_df.copy()
+      if selected_shipment_filter != "الكل" and "الشحنة" in filtered_temp_df.columns:
+        filtered_temp_df = filtered_temp_df[
+            filtered_temp_df["الشحنة"].astype(str).str.replace(".0", "")
+            == selected_shipment_filter
+        ]
+
+      # قائمة منسدلة تلقائية للكودات (بدون الحاجة للضغط على زر إنتر)
+      if "الكود" in filtered_temp_df.columns:
+        code_list = ["الكل"] + sorted(
+            filtered_temp_df["الكود"]
+            .dropna()
+            .astype(str)
+            .str.replace(".0", "")
+            .unique()
+            .tolist()
+        )
+        selected_code_filter = st.selectbox(
+            "اختر أو ابحث برقم الكود:", code_list
+        )
     except Exception:
       pass
 
@@ -135,19 +154,15 @@ if active_data_file is not None and active_template_file is not None:
           == selected_shipment_filter
       ]
 
-    # تطبيق بحث الكود أو اسم العميل إذا تم إدخاله
-    if selected_search_query.strip():
-      query = selected_search_query.strip()
-      mask = pd.Series([False] * len(df), index=df.index)
-      if "الكود" in df.columns:
-        mask = mask | df["الكود"].astype(str).str.contains(query, case=False, na=False)
-      for name_col in ["الاسم", "الاسم "]:
-        if name_col in df.columns:
-          mask = mask | df[name_col].astype(str).str.contains(query, case=False, na=False)
-      df = df[mask]
+    # تطبيق الفلتر إذا تم اختيار كود معين من القائمة المنسدلة
+    if selected_code_filter != "الكل" and "الكود" in df.columns:
+      df = df[
+          df["الكود"].astype(str).str.replace(".0", "")
+          == selected_code_filter
+      ]
 
     if df.empty:
-      st.warning("⚠️ لا توجد بيانات مطابقة للشحنة أو البحث المحدد.")
+      st.warning("⚠️ لا توجد بيانات مطابقة للشحنة أو الكود المحدد.")
       st.stop()
 
     # الحصول على تاريخ اليوم تلقائياً
@@ -155,7 +170,7 @@ if active_data_file is not None and active_template_file is not None:
 
     st.success(
         f"✅ الملفات محفوظة بثبات على السيرفر. الشحنة المعروضة:"
-        f" **{selected_shipment_filter}** | تاريخ الإصدار: {today_date}"
+        f" **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | تاريخ الإصدار: {today_date}"
     )
     st.markdown("---")
 
