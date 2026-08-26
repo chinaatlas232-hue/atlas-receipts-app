@@ -64,14 +64,18 @@ if active_data_file is not None and active_template_file is not None:
     )
     st.markdown("---")
 
-    # معالجة الشعار بصيغة Base64 للاستخدام داخل HTML بأمان
+    # معالجة الشعار بصيغة Base64 بطريقة آمنة
     logo_html = ""
     if active_logo is not None:
       import base64
 
-      bytes_data = active_logo.getvalue()
-      base64_logo = base64.b64encode(bytes_data).decode("utf-8")
-      logo_html = f'<img src="data:image/png;base64,{base64_logo}" style="height: 45px; width: 45px; object-fit: cover; border-radius: 50%; border: none; outline: none; background: transparent; margin-left: 10px; vertical-align: middle;" />'
+      try:
+        bytes_data = active_logo.getvalue()
+        if bytes_data:
+          base64_logo = base64.b64encode(bytes_data).decode("utf-8")
+          logo_html = f'<img src="data:image/png;base64,{base64_logo}" style="height: 45px; width: 45px; object-fit: cover; border-radius: 50%; border: none; outline: none; background: transparent; margin-left: 10px; vertical-align: middle;" />'
+      except Exception:
+        logo_html = ""
 
     all_receipts_html_for_print = ""
     receipts_data_list = []
@@ -295,14 +299,13 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(master_button_component, height=65)
     st.markdown("---")
 
-    # عرض كل وصل مع أزراره داخل حاوية HTML متكاملة
+    # عرض كل وصل مع أزراره داخل حاوية HTML متكاملة مع ضبط عنوان الـ Expander بدقة
     for item in receipts_data_list:
       index = item["index"]
       shipment = item["shipment"]
       file_name_id = item["file_name_id"]
       single_html_content = item["single_html"]
 
-      # تنظيف النص وتجنب مشاكل علامات التنصيص تماماً لتعمل طباعة JavaScript بكفاءة
       clean_js_html = (
           single_html_content.replace("\\", "\\\\")
           .replace("`", "\\`")
@@ -310,11 +313,12 @@ if active_data_file is not None and active_template_file is not None:
           .replace('"', '\\"')
       )
 
-      with st.expander(
-          f"📄 وصل العميل: {item['name']} | كود العميل: {item['code']} | الشحنة:"
-          f" {shipment} | الإجمالي: {item['total_sales']:,.0f} $",
-          expanded=False,
-      ):
+      # عنوان منسق يدعم الاتجاه العربي الصحيح لمنع انعكاس الرموز
+      expander_title_html = f"""<div style="direction: rtl; text-align: right; font-family: Tahoma, sans-serif;">
+            📄 وصل العميل: <b>{item['name']}</b> &nbsp;|&nbsp; كود العميل: <span style="color: #b45309;">{item['code']}</span> &nbsp;|&nbsp; الشحنة: <span style="color: #102a43;">{shipment}</span> &nbsp;|&nbsp; الإجمالي: <span style="color: #047857; font-weight: bold;">{item['total_sales']:,.2f} $</span>
+        </div>"""
+
+      with st.expander(expander_title_html, expanded=False):
         # زر تنزيل الإكسل الرسمي
         st.download_button(
             label=f"📥 تنزيل إكسل الوصل (الشحنة: {shipment})",
