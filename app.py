@@ -84,7 +84,7 @@ if active_data_file is not None and active_template_file is not None:
       if code.endswith(".0"):
         code = code[:-2]
 
-      # استخدام رقم الشحنة كاسم أساسي للملفات، وإذا لمשتوجد نلجأ للكود أو الـ index
+      # جعل اسم الملف يأخذ رقم الشحنة حصراً بشكل مباشر، وإذا لم يوجد نلجأ للكود
       file_name_id = shipment if shipment else (code if code else f"Receipt_{index}")
 
       weight = float(row.get("الوزن", 0) or 0)
@@ -161,7 +161,7 @@ if active_data_file is not None and active_template_file is not None:
       ):
         # زر تنزيل الإكسل
         st.download_button(
-            label=f"📥 تنزيل إكسل الوصل الرسمي (رقم الشحنة: {file_name_id})",
+            label=f"📥 تنزيل إكسل الوصل الرسمي (شحنة رقم: {file_name_id})",
             data=output,
             file_name=f"Delivery_Receipt_{file_name_id}.xlsx",
             mime=(
@@ -170,7 +170,7 @@ if active_data_file is not None and active_template_file is not None:
             key=f"download_excel_{index}",
         )
 
-        # تصميم HTML للوصل المخصص للطباعة وتحويله لـ PDF
+        # تصميم HTML للوصل المخصص للطباعة وحفظه بصيغة PDF
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -253,10 +253,10 @@ if active_data_file is not None and active_template_file is not None:
                 </div>
                 <br>
                 <div style="display: flex; gap: 10px;">
-                    <!-- زر الطباعة المباشرة -->
+                    <!-- زر الطباعة الورقية -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=1000');
-                        printWin.document.write('<html><head><title>طباعة وصل الشحنة {file_name_id}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
+                        printWin.document.write('<html><head><title>طباعة الشحنة {file_name_id}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
                         printWin.document.write(document.getElementById('receipt-print-{index}').innerHTML);
                         printWin.document.write('</body></html>');
                         printWin.document.close();
@@ -276,7 +276,7 @@ if active_data_file is not None and active_template_file is not None:
                         🖨️ طباعة وصل الشحنة: {file_name_id}
                     </button>
 
-                    <!-- زر تحويل وحفظ كملف PDF (باستخدام أمر الحفظ المباشر بمتصفح الويب) -->
+                    <!-- زر حفظ كـ PDF مسمى برقم الشحنة -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=1000');
                         printWin.document.write('<html><head><title>{file_name_id}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
@@ -285,9 +285,9 @@ if active_data_file is not None and active_template_file is not None:
                         printWin.document.close();
                         printWin.focus();
                         setTimeout(function(){{ 
-                            document.title = '{file_name_id}';
+                            printWin.document.title = '{file_name_id}';
                             printWin.print(); 
-                        }}, 500);
+                        }}, 600);
                     " style="
                         background-color: #b45309; 
                         color: white; 
@@ -299,7 +299,7 @@ if active_data_file is not None and active_template_file is not None:
                         font-size: 15px;
                         flex: 1;
                     ">
-                        📑 حفظ كـ PDF (باسم الشحنة: {file_name_id})
+                        📑 حفظ بصيغة PDF (برقم الشحنة: {file_name_id})
                     </button>
                 </div>
                 """
@@ -314,4 +314,3 @@ else:
       "الرجاء رفع ملف بيانات الشحنات وقالب الوصل من الشريط الجانبي لتظهر المعاينة"
       " والطباعة."
   )
-  
