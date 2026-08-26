@@ -106,12 +106,9 @@ active_logo = st.session_state.logo_saved
 
 if active_data_file is not None and active_template_file is not None:
   try:
-    # قراءة بيانات الشحنات الأصلية الكاملة لكشف الحساب التراكمي
-    master_full_df = pd.read_excel(active_data_file)
-    master_full_df.columns = master_full_df.columns.str.strip()
-
     # قراءة بيانات الشحنات
-    df = master_full_df.copy()
+    df = pd.read_excel(active_data_file)
+    df.columns = df.columns.str.strip()
 
     # تطبيق الفلتر إذا تم اختيار شحنة معينة
     if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
@@ -432,90 +429,6 @@ if active_data_file is not None and active_template_file is not None:
     
     # استخدام st.html لعرض الجدول المنسق بشكل صحيح تماماً
     st.html(custom_table_styling)
-    st.markdown("---")
-
-    # ==========================================
-    # --- إضافة نظام كشف حساب العميل التراكمي ---
-    # ==========================================
-    st.subheader("📊 كشف حساب العميل التراكمي (عبر أرشيف الشحنات)")
-    
-    # استخراج قائمة العملاء الفريدة بناءً على الكود والاسم من الملف الكامل
-    if "الكود" in master_full_df.columns:
-      master_full_df["الكود_str"] = master_full_df["الكود"].astype(str).str.replace(".0", "").str.strip()
-      
-      # تجميع قائمة بجميع العملاء المتاحين
-      client_options = []
-      client_map = {}
-      for _, c_row in master_full_df.drop_duplicates(subset=["الكود_str"]).iterrows():
-        c_code = c_row["الكود_str"]
-        c_name = str(c_row.get("الاسم", c_row.get("الاسم ", "بدون اسم"))).strip()
-        display_label = f"الكود: {c_code} - الاسم: {c_name}"
-        client_options.append(display_label)
-        client_map[display_label] = c_code
-
-      if client_options:
-        selected_client_label = st.selectbox("اختر العميل أو كوده لعرض سجله التراكمي الشامل:", sorted(client_options))
-        selected_code = client_map[selected_client_label]
-
-        # فلترة كافة السجلات المتعلقة بهذا الكود عبر كل الشحنات السابقة
-        client_history_df = master_full_df[master_full_df["الكود_str"] == selected_code].copy()
-
-        if not client_history_df.empty:
-          # حساب الإجماليات التراكمية للعميل
-          hist_total_shipments = len(client_history_df)
-          
-          hist_total_packages = 0
-          for col in ["عدد الطرود", "عدد الطرود "]:
-            if col in client_history_df.columns:
-              hist_total_packages = client_history_df[col].fillna(0).astype(int).sum()
-              break
-
-          hist_total_weight = 0.0
-          for col in ["الوزن", "الوزن "]:
-            if col in client_history_df.columns:
-              hist_total_weight = client_history_df[col].fillna(0).astype(float).sum()
-              break
-
-          hist_total_amount = 0.0
-          for _, h_row in client_history_df.iterrows():
-            h_weight = float(h_row.get("الوزن", 0) or 0)
-            h_price = 0
-            for p_col in ["سعر الكيلو", "سعر الكيلو ", "السعر"]:
-              if p_col in client_history_df.columns and pd.notna(h_row.get(p_col)):
-                h_price = float(h_row.get(p_col))
-                break
-            
-            h_sales = 0
-            for s_col in ["اجمالي مبيعات", "اجمالي مبيعات ", "الاجمالي", "المبلغ"]:
-              if s_col in client_history_df.columns and pd.notna(h_row.get(s_col)):
-                h_sales = float(h_row.get(s_col))
-                break
-            if h_sales == 0 and h_price > 0 and h_weight > 0:
-              h_sales = h_weight * h_price
-            hist_total_amount += h_sales
-
-          # عرض ملخص إحصائيات كشف الحساب التراكمي
-          hc1, hc2, hc3, hc4 = st.columns(4)
-          with hc1:
-            st.metric("📁 عدد الشحنات المسجلة", f"{hist_total_shipments} شحنة")
-          with hc2:
-            st.metric("📦 إجمالي الطرود المستلمة", f"{hist_total_packages} طرد")
-          with hc3:
-            st.metric("⚖️ الوزن التراكمي الكلي", f"{hist_total_weight:,.2f} كغ")
-          with hc4:
-            st.metric("💰 إجمالي المبيعات التراكمية", f"{hist_total_amount:,.2f} $")
-
-          st.markdown("##### تفاصيل حركات وسجلات الشحنات السابقة للعميل:")
-          
-          # تنسيق وعرض جدول السجل التراكمي
-          hist_display = client_history_df.copy()
-          if "الكود_str" in hist_display.columns:
-            hist_display = hist_display.drop(columns=["الكود_str"])
-          
-          st.dataframe(hist_display, use_container_width=True)
-        else:
-          st.info("لا توجد سجلات تراكمية متطابقة لهذا العميل.")
-    
     st.markdown("---")
 
     # --- زر الطباعة الكلية (لطباعة الشحنات المعروضة فقط دفعة واحدة) ---
