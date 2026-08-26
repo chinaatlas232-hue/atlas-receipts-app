@@ -75,11 +75,17 @@ if active_data_file is not None and active_template_file is not None:
 
     # حلقة تكرارية لكل صف في ملف البيانات
     for index, row in df.iterrows():
-      # استخراج البيانات الأساسية
+      # استخراج البيانات الأساسية ورقم الشحنة
       shipment = str(row.get("الشحنة", "")).strip()
+      if shipment.endswith(".0"):
+        shipment = shipment[:-2]
+
       code = str(row.get("الكود", "")).strip()
       if code.endswith(".0"):
         code = code[:-2]
+
+      # استخدام رقم الشحنة كاسم أساسي للملفات، وإذا لمשتوجد نلجأ للكود أو الـ index
+      file_name_id = shipment if shipment else (code if code else f"Receipt_{index}")
 
       weight = float(row.get("الوزن", 0) or 0)
       packages = row.get("عدد الطرود", 0)
@@ -148,23 +154,23 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      # عرض الوصل داخل تطبيق Streamlit (مع إظهار الكود في العنوان)
+      # عرض الوصل داخل تطبيق Streamlit
       with st.expander(
-          f"📄 وصل العميل: {name} | الكود: {code} | الإجمالي: {total_sales:,.0f}"
-          " $",
+          f"📄 وصل العميل: {name} | الشحنة: {shipment} | الإجمالي: {total_sales:,.0f} $",
           expanded=True,
       ):
+        # زر تنزيل الإكسل
         st.download_button(
-            label=f"📥 تنزيل إكسل الوصل الرسمي ({name})",
+            label=f"📥 تنزيل إكسل الوصل الرسمي (رقم الشحنة: {file_name_id})",
             data=output,
-            file_name=f"Delivery_Receipt_{code}_{name}.xlsx",
+            file_name=f"Delivery_Receipt_{file_name_id}.xlsx",
             mime=(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             ),
-            key=f"download_{index}",
+            key=f"download_excel_{index}",
         )
 
-        # تصميم HTML (مع إضافة كود العميل في الجدول المرئي)
+        # تصميم HTML للوصل المخصص للطباعة وتحويله لـ PDF
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -196,11 +202,11 @@ if active_data_file is not None and active_template_file is not None:
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية (تمت إضافة كود العميل هنا) -->
+                    <!-- تفاصيل الوصل الرئيسية -->
                     <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
                         <tr style="background-color: #f0f4f8;">
-                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{code}</span></td>
-                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{shipment}</span></td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="font-weight: bold;">{code}</span></td>
                         </tr>
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
@@ -211,7 +217,7 @@ if active_data_file is not None and active_template_file is not None:
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> 📦 {packages} طرد</td>
                         </tr>
                         <tr>
-                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>تفاصيل الشحنة:</strong> {shipment}</td>
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ</td>
                         </tr>
                         <tr style="background-color: #f0f4f8;">
@@ -219,11 +225,7 @@ if active_data_file is not None and active_template_file is not None:
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>سعر الكيلو:</strong> {price_per_kg:,.2f} $</td>
                         </tr>
                         <tr style="background-color: #fef3c7;">
-                            <td style="padding: 10px; border: 1px solid #f59e0b;"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 15px;">{total_sales:,.2f} $</span></td>
-                            <td style="padding: 10px; border: 1px solid #f59e0b;">
-                                <strong>طريقة الدفع:</strong> 
-                                &nbsp;&nbsp; [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل
-                            </td>
+                            <td style="padding: 10px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 15px;">{total_sales:,.2f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
                         </tr>
                     </table>
 
@@ -250,29 +252,58 @@ if active_data_file is not None and active_template_file is not None:
                     </table>
                 </div>
                 <br>
-                <button onclick="
-                    var printWin = window.open('', '', 'height=800,width=1000');
-                    printWin.document.write('<html><head><title>طباعة وصل تسليم بضاعة - أطلس</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
-                    printWin.document.write(document.getElementById('receipt-print-{index}').innerHTML);
-                    printWin.document.write('</body></html>');
-                    printWin.document.close();
-                    printWin.focus();
-                    setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
-                " style="
-                    background-color: #102a43; 
-                    color: white; 
-                    padding: 12px 20px; 
-                    border: none; 
-                    border-radius: 6px; 
-                    cursor: pointer; 
-                    font-weight: bold; 
-                    font-size: 15px;
-                    width: 100%;
-                ">
-                    🖨️ طباعة وصل تسليم البضاعة للعميل: {name} (كود: {code})
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <!-- زر الطباعة المباشرة -->
+                    <button onclick="
+                        var printWin = window.open('', '', 'height=800,width=1000');
+                        printWin.document.write('<html><head><title>طباعة وصل الشحنة {file_name_id}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
+                        printWin.document.write(document.getElementById('receipt-print-{index}').innerHTML);
+                        printWin.document.write('</body></html>');
+                        printWin.document.close();
+                        printWin.focus();
+                        setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
+                    " style="
+                        background-color: #102a43; 
+                        color: white; 
+                        padding: 12px 20px; 
+                        border: none; 
+                        border-radius: 6px; 
+                        cursor: pointer; 
+                        font-weight: bold; 
+                        font-size: 15px;
+                        flex: 1;
+                    ">
+                        🖨️ طباعة وصل الشحنة: {file_name_id}
+                    </button>
+
+                    <!-- زر تحويل وحفظ كملف PDF (باستخدام أمر الحفظ المباشر بمتصفح الويب) -->
+                    <button onclick="
+                        var printWin = window.open('', '', 'height=800,width=1000');
+                        printWin.document.write('<html><head><title>{file_name_id}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
+                        printWin.document.write(document.getElementById('receipt-print-{index}').innerHTML);
+                        printWin.document.write('</body></html>');
+                        printWin.document.close();
+                        printWin.focus();
+                        setTimeout(function(){{ 
+                            document.title = '{file_name_id}';
+                            printWin.print(); 
+                        }}, 500);
+                    " style="
+                        background-color: #b45309; 
+                        color: white; 
+                        padding: 12px 20px; 
+                        border: none; 
+                        border-radius: 6px; 
+                        cursor: pointer; 
+                        font-weight: bold; 
+                        font-size: 15px;
+                        flex: 1;
+                    ">
+                        📑 حفظ كـ PDF (باسم الشحنة: {file_name_id})
+                    </button>
+                </div>
                 """
-        st.components.v1.html(clean_receipt_html, height=600)
+        st.components.v1.html(clean_receipt_html, height=620)
 
       st.markdown("---")
 
