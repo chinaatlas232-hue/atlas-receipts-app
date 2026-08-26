@@ -134,7 +134,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم HTML بدون كلمة كود
+        # تصميم HTML بدون كلمة أو رقم الكود
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -166,7 +166,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية (تمت ازالة خانة الكود نهائياً) -->
+                    <!-- تفاصيل الوصل الرئيسية -->
                     <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc; width: 100%;" colspan="2"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
