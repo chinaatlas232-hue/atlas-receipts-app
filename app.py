@@ -1,26 +1,35 @@
+import io
+import openpyxl
 import pandas as pd
 import streamlit as st
 
-st.title("تعبئة وصل أطلس")
+st.set_page_config(page_title="تعبئة وتوليد وصل أطلس", layout="wide")
 
-# إضافة أداة لرفع ملف الأكسل مباشرة من المتصفح
-uploaded_file = st.file_uploader(
-    "الرجاء رفع ملف الأكسل (تعبئة وصل أطلس.xlsx)", type=["xlsx"]
+st.title("📦 نظام تعبئة وطباعة وصل أطلس للشحن")
+
+# 1. رفع ملف البيانات الرئيسي
+uploaded_data_file = st.file_uploader(
+    "1.الرجاء رفع ملف بيانات الشحنات (تعبئة وصل اطلس.xlsx)", type=["xlsx"]
 )
 
-if uploaded_file is not None:
-  try:
-    # قراءة الملف المرفوع
-    df = pd.read_excel(uploaded_file)
+# 2. رفع قالب الوصل
+uploaded_template_file = st.file_uploader(
+    "2.الرجاء رفع قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)",
+    type=["xlsx"],
+)
 
-    # تنظيف أسماء الأعمدة من المسافات الزائدة لضمان مطابقتها تماماً
+if uploaded_data_file is not None and uploaded_template_file is not None:
+  try:
+    # قراءة بيانات الشحنات
+    df = pd.read_excel(uploaded_data_file)
     df.columns = df.columns.str.strip()
 
-    st.success("تم قراءة الملف بنجاح!")
+    st.success("تم قراءة ملف البيانات وقالب الوصل بنجاح!")
+    st.markdown("---")
 
-    # استعراض وتعبئة البيانات لكل صف مع زر طباعة خاص لكل وصل
+    # حلقة تكرارية لكل صف في ملف البيانات لتعبئة الوصل الخاص به
     for index, row in df.iterrows():
-      # تنظيف وقراءة البيانات بدقة
+      # استخراج وتنقيب البيانات بدقة من الأعمدة
       shipment = str(row.get("الشحنة", "")).strip()
       code = str(row.get("الكود", "")).strip()
       weight = row.get("الوزن", 0)
@@ -43,57 +52,114 @@ if uploaded_file is not None:
           row.get("نوع الشحنة", row.get("نوع الشحنة ", ""))
       ).strip()
 
-      # استخدام حاوية (Container) لكل وصل لتنظيم العرض والطباعة
-      with st.container():
-        st.markdown(f"### وصل رقم {index + 1} (الكود: {code})")
-        st.write(f"- **الشحنة:** `{shipment}`")
-        st.write(f"- **الكود:** `{code}`")
-        st.write(f"- **اسم العميل:** {name}")
-        st.write(f"- **رقم الهاتف:** `{phone}`")
-        st.write(f"- **نوع الشحنة:** {shipment_type}")
-        st.write(f"- **عنوان الاستلام:** {address}")
-        st.write(
-            f"- **الوزن:** {weight} كغ | **عدد الطرود:** {packages} | **الحجم:**"
-            f" {volume}"
-        )
-        st.write(f"- **سعر الكيلو:** {price_per_kg}")
-        st.write(f"- **إجمالي المبيعات:** {total_sales}")
+      # فتح قالب الوصل باستخدام openpyxl وتعبئته بالبيانات المطابقة تماماً للخلايا
+      wb = openpyxl.load_workbook(uploaded_template_file)
+      ws = wb.active
 
-        # كود جافاسكريبت لفتح نافذة طباعة خاصة بهذا الوصل عند الضغط على الزر
-        print_html = f"""
-                <div id="receipt-{index}" style="padding: 20px; font-family: Tahoma, sans-serif; direction: rtl;">
-                    <h2>وصل أطلس للشحن</h2>
+      # تعبئة خلايا القالب بناءً على تصميم ملف الـ Excel الخاص بالوصل
+      ws["B4"] = code  # رقم الوصل / Receipt No (نضع الكود هنا)
+      ws["B5"] = name  # اسم العميل / Client Name
+      ws["D5"] = phone  # رقم الهاتف / Phone
+      ws["B6"] = (
+          f"{shipment} - {address}"  # اسم الشحنة / Cargo Name (مع العنوان)
+      )
+      ws["D6"] = packages  # عدد الطرود / Pieces
+      ws["B7"] = shipment_type  # نوع الشحنة / Cargo Type
+      ws["D7"] = weight  # الوزن الفعلي / Actual Weight
+
+      # حفظ الملف في الذاكرة لتسهيل التحميل المباشر
+      output = io.BytesIO()
+      wb.save(output)
+      output.seek(0)
+
+      # عرض تفاصيل الوصل في الواجهة
+      with st.expander(
+          f"📁 الوصل رقم {index + 1} | العميل: {name} | الكود: {code}",
+          expanded=True,
+      ):
+        col1, col2 = st.columns(2)
+        with col1:
+          st.write(f"- **رقم الشحنة:** `{shipment}`")
+          st.write(f"- **الكود (رقم الوصل):** `{code}`")
+          st.write(f"- **اسم العميل:** {name}")
+          st.write(f"- **رقم الهاتف:** `{phone}`")
+          st.write(f"- **نوع الشحنة:** {shipment_type}")
+        with col2:
+          st.write(f"- **عنوان الاستلام:** {address}")
+          st.write(f"- **الوزن الفعلي:** {weight} كغ")
+          st.write(f"- **عدد الطرود:** {packages}")
+          st.write(f"- **سعر الكيلو:** {price_per_kg}")
+          st.write(f"- **إجمالي المبيعات:** {total_sales}")
+
+        # زر تحميل ملف الإكسل المعبأ لهذا الوصل
+        st.download_button(
+            label=f"📥 تحميل وصل العميل {name} (Excel)",
+            data=output,
+            file_name=f"Atlas_Receipt_{code}_{name}.xlsx",
+            mime=(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
+            key=f"download_{index}",
+        )
+
+        # كود HTML + جافاسكريبت لطباعة الوصل بتنسيق نظيف ومنسق
+        receipt_html = f"""
+                <div id="print-area-{index}" style="padding: 20px; font-family: Tahoma, sans-serif; direction: rtl; border: 2px solid #333; width: 100%; max-width: 600px; margin: auto; background: #fff;">
+                    <h2 style="text-align: center; margin-bottom: 5px;">أطلس المحيط للتجارة العامة</h2>
+                    <h4 style="text-align: center; margin-top: 0; color: #555;">وصل تسليم الشحنات (CARGO DELIVERY RECEIPT)</h4>
                     <hr/>
-                    <p><strong>رقم الشحنة:</strong> {shipment}</p>
-                    <p><strong>الكود:</strong> {code}</p>
-                    <p><strong>اسم العميل:</strong> {name}</p>
-                    <p><strong>رقم الهاتف:</strong> {phone}</p>
-                    <p><strong>نوع الشحنة:</strong> {shipment_type}</p>
-                    <p><strong>عنوان استلام البضاعة:</strong> {address}</p>
-                    <p><strong>الوزن:</strong> {weight} كغ</p>
-                    <p><strong>عدد الطرود:</strong> {packages}</p>
-                    <p><strong>الحجم:</strong> {volume}</p>
-                    <p><strong>سعر الكيلو:</strong> {price_per_kg}</p>
-                    <p><strong>إجمالي المبيعات:</strong> {total_sales}</p>
+                    <table style="width: 100%; font-size: 14px; line-height: 1.8;">
+                        <tr>
+                            <td><strong>رقم الوصل:</strong> {code}</td>
+                            <td><strong>التاريخ:</strong> 2026 / / </td>
+                        </tr>
+                        <tr>
+                            <td><strong>اسم العميل:</strong> {name}</td>
+                            <td><strong>رقم الهاتف:</strong> {phone}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>اسم الشحنة:</strong> {shipment} ({address})</td>
+                            <td><strong>عدد الطرود:</strong> {packages}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>نوع الشحنة:</strong> {shipment_type}</td>
+                            <td><strong>الوزن الفعلي:</strong> {weight} كغ</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><strong>طريقة الدفع:</strong> [  ] نقداً    [  ] أجل</td>
+                        </tr>
+                    </table>
+                    <br>
+                    <p style="font-size: 12px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                        <strong>إقرار الاستلام والتسليم:</strong><br>
+                        أقر أنا الموقع أدناه، بأنني استلمت الشحنة المذكورة أعلاه سليمة وبحالة جيدة ومطابقة لكافة الأوزان والأوصاف المذكورة.
+                    </p>
+                    <br>
+                    <table style="width: 100%; font-size: 14px;">
+                        <tr>
+                            <td><strong>اسم المستلم:</strong> ........................................</td>
+                            <td><strong>التوقيع:</strong> ..........................</td>
+                        </tr>
+                    </table>
                 </div>
+                <br>
                 <button onclick="
-                    var printWindow = window.open('', '', 'height=600,width=800');
-                    printWindow.document.write('<html><head><title>طباعة الوصل</title>');
-                    printWindow.document.write('</head><body style=\\"direction: rtl; font-family: Tahoma;\\">');
-                    printWindow.document.write(document.getElementById('receipt-{index}').innerHTML);
-                    printWindow.document.write('</body></html>');
-                    printWindow.document.close();
-                    printWindow.focus();
-                    setTimeout(function(){{ printWindow.print(); printWindow.close(); }}, 500);
-                " style="background-color: #ff4b4b; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                    🖨️ طباعة هذا الوصل
+                    var printWin = window.open('', '', 'height=700,width=900');
+                    printWin.document.write('<html><head><title>طباعة الوصل</title></head><body style=\\'direction: rtl; font-family: Tahoma;\\'>');
+                    printWin.document.write(document.getElementById('print-area-{index}').innerHTML);
+                    printWin.document.write('</body></html>');
+                    printWin.document.close();
+                    printWin.focus();
+                    setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
+                " style="background-color: #2e7d32; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">
+                    🖨️ طباعة وصل العميل {name}
                 </button>
-                <br><br>
                 """
-        st.components.v1.html(print_html, height=120)
-        st.markdown("---")
+        st.components.v1.html(receipt_html, height=340)
+
+      st.markdown("---")
 
   except Exception as e:
-    st.error(f"حدث خطأ أثناء قراءة الملف: {e}")
+    st.error(fحدث خطأ أثناء معالجة الملفات: {e})
 else:
-  st.info("الرجاء رفع الملف المذكور أعلاه ليبدأ الكود بالعمل.")
+  st.info("الرجاء رفع كلا الملفين (ملف بيانات الشحنات وقالب الوصل) لتبدأ العملية.")
