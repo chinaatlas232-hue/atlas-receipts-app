@@ -86,8 +86,8 @@ if active_data_file is not None and active_template_file is not None:
 
       name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
 
-      # حل مشكلة تشابه أرقام الشحنات بدمج رقم الشحنة مع اسم العميل أو كود العميل ليكون الملف فريداً
-      file_name_id = f"{shipment}_{name}" if shipment and name else (shipment if shipment else f"Receipt_{index}")
+      # معرف فريد للملف
+      file_name_id = f"Shipment_{shipment}_Client_{name}" if shipment and name else (shipment if shipment else f"Receipt_{index}")
 
       weight = float(row.get("الوزن", 0) or 0)
       packages = row.get("عدد الطرود", 0)
@@ -155,14 +155,14 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      # عرض الوصل داخل تطبيق Streamlit مع إظهار تفاصيل واضحة لكل عميل
+      # عرض الوصل داخل تطبيق Streamlit
       with st.expander(
-          f"📄 وصل العميل: {name} | الشحنة: {shipment} | الإجمالي: {total_sales:,.0f} $",
+          f"📄 وصل العميل: {name} | كود العميل: {code} | الشحنة: {shipment} | الإجمالي: {total_sales:,.0f} $",
           expanded=True,
       ):
         # زر تنزيل الإكسل
         st.download_button(
-            label=f"📥 تنزيل إكسل الوصل (الشحنة: {shipment} - العميل: {name})",
+            label=f"📥 تنزيل إكسل الوصل (الشحنة: {shipment})",
             data=output,
             file_name=f"Delivery_Receipt_{file_name_id}.xlsx",
             mime=(
@@ -171,7 +171,7 @@ if active_data_file is not None and active_template_file is not None:
             key=f"download_excel_{index}",
         )
 
-        # تصميم HTML للوصل المخصص للطباعة وحفظه بصيغة PDF
+        # تصميم HTML للوصل المخصص للطباعة والحفظ
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -203,11 +203,11 @@ if active_data_file is not None and active_template_file is not None:
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية -->
+                    <!-- تفاصيل الوصل الرئيسية (مع إظهار كود العميل ورقم الشحنة) -->
                     <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
                         <tr style="background-color: #f0f4f8;">
+                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{code}</span></td>
                             <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{shipment}</span></td>
-                            <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="font-weight: bold;">{code}</span></td>
                         </tr>
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
@@ -257,7 +257,7 @@ if active_data_file is not None and active_template_file is not None:
                     <!-- زر الطباعة الورقية -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=1000');
-                        printWin.document.write('<html><head><title>طباعة الشحنة {shipment}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
+                        printWin.document.write('<html><head><title>Print_{shipment}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
                         printWin.document.write(document.getElementById('receipt-print-{index}').innerHTML);
                         printWin.document.write('</body></html>');
                         printWin.document.close();
@@ -274,10 +274,10 @@ if active_data_file is not None and active_template_file is not None:
                         font-size: 15px;
                         flex: 1;
                     ">
-                        🖨️ طباعة الوصل ورقيّاً
+                        🖨️ طباعة الوصل (ورقيّاً)
                     </button>
 
-                    <!-- زر حفظ كـ PDF بالاسم الفريد للشحنة والعميل -->
+                    <!-- زر حفظ بصيغة PDF (يفتح نافذة الطباعة لاختيار Save as PDF وتظهر الشحنة في العنوان) -->
                     <button onclick="
                         var printWin = window.open('', '', 'height=800,width=1000');
                         printWin.document.write('<html><head><title>{file_name_id}</title></head><body style=\\'direction: rtl; font-family: Tahoma; background: #fff;\\'>');
@@ -300,7 +300,7 @@ if active_data_file is not None and active_template_file is not None:
                         font-size: 15px;
                         flex: 1;
                     ">
-                        📑 حفظ بصيغة PDF ({file_name_id})
+                        📑 حفظ بصيغة PDF (باسم الشحنة: {shipment})
                     </button>
                 </div>
                 """
