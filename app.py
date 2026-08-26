@@ -89,6 +89,7 @@ with st.sidebar:
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
   selected_shipment_filter = "الكل"
+  selected_search_query = ""
 
   if os.path.exists(shipment_path):
     try:
@@ -106,6 +107,9 @@ with st.sidebar:
         selected_shipment_filter = st.selectbox(
             "اختر الشحنة للعرض:", shipment_list
         )
+        
+      # --- فلتر البحث الإضافي في القائمة الجانبية ---
+      selected_search_query = st.text_input("بحث برقم الكود أو اسم العميل:", "")
     except Exception:
       pass
 
@@ -131,8 +135,19 @@ if active_data_file is not None and active_template_file is not None:
           == selected_shipment_filter
       ]
 
+    # تطبيق بحث الكود أو اسم العميل إذا تم إدخاله
+    if selected_search_query.strip():
+      query = selected_search_query.strip()
+      mask = pd.Series([False] * len(df), index=df.index)
+      if "الكود" in df.columns:
+        mask = mask | df["الكود"].astype(str).str.contains(query, case=False, na=False)
+      for name_col in ["الاسم", "الاسم "]:
+        if name_col in df.columns:
+          mask = mask | df[name_col].astype(str).str.contains(query, case=False, na=False)
+      df = df[mask]
+
     if df.empty:
-      st.warning("⚠️ لا توجد بيانات مطابقة للشحنة المحددة.")
+      st.warning("⚠️ لا توجد بيانات مطابقة للشحنة أو البحث المحدد.")
       st.stop()
 
     # الحصول على تاريخ اليوم تلقائياً
