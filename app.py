@@ -173,7 +173,7 @@ if active_data_file is not None and active_template_file is not None:
                 border: 2px solid #102a43; 
                 width: 100%; 
                 max-width: 148mm; 
-                margin: auto auto 15px auto; 
+                margin: auto auto 20px auto; 
                 background: #ffffff; 
                 color: #102a43;
                 box-sizing: border-box;
@@ -262,40 +262,64 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- زر الطباعة الكلية ---
-    escaped_master_html = (
-        all_receipts_html_for_print.replace("&", "&amp;")
-        .replace('"', "&quot;")
-        .replace("'", "&#39;")
-    )
-    master_button_component = f"""
-        <div style="text-align: center; margin-bottom: 15px; direction: rtl;">
-            <button onclick="
-                var printWin = window.open('', '', 'height=900,width=800');
-                printWin.document.write('<html><head><title>طباعة جميع الوصولات - A5</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }} .receipt-page {{ page-break-after: always; break-after: page; margin-bottom: 20px; }}</style></head><body>');
-                printWin.document.write(`{all_receipts_html_for_print}`);
-                printWin.document.write('</body></html>');
-                printWin.document.close();
-                printWin.focus();
-                setTimeout(function(){{ printWin.print(); printWin.close(); }}, 600);
-            " style="
-                background-color: #047857; 
-                color: white; 
-                padding: 12px 24px; 
-                border: none; 
-                border-radius: 8px; 
-                cursor: pointer; 
-                font-weight: bold; 
-                font-size: 15px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                width: 100%;
-                max-width: 450px;
-            ">
-                🖨️ طباعة جميع الوصولات دفعة واحدة (A5)
+    # --- زر الطباعة الكلية (طباعة الكل دفعة واحدة) ---
+    master_payload = f"""
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{
+                    font-family: Tahoma, sans-serif;
+                    background-color: #ffffff;
+                    margin: 0;
+                    padding: 10px;
+                    direction: rtl;
+                }}
+                .master-btn {{
+                    background-color: #047857;
+                    color: white;
+                    padding: 14px 28px;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    font-size: 16px;
+                    width: 100%;
+                    max-width: 500px;
+                    display: block;
+                    margin: 0 auto;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    text-align: center;
+                }}
+                .master-btn:hover {{
+                    background-color: #065f46;
+                }}
+            </style>
+        </head>
+        <body>
+            <button class="master-btn" onclick="printAllReceipts()">
+                🖨️ طباعة جميع الوصولات دفعة واحدة (مقاس A5)
             </button>
-        </div>
+
+            <script>
+                const allReceiptsContent = `{all_receipts_html_for_print.replace('`', '\\`').replace('$', '\\$')}`;
+
+                function printAllReceipts() {{
+                    var printWin = window.open('', '', 'height=900,width=800');
+                    printWin.document.write('<html><head><title>طباعة جميع الوصولات</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }} .receipt-page {{ page-break-after: always; break-after: page; margin-bottom: 20px; }}</style></head><body>');
+                    printWin.document.write(allReceiptsContent);
+                    printWin.document.write('</body></html>');
+                    printWin.document.close();
+                    printWin.focus();
+                    setTimeout(function(){{ printWin.print(); printWin.close(); }}, 600);
+                }}
+            </script>
+        </body>
+        </html>
         """
-    st.components.v1.html(master_button_component, height=65)
+
+    st.components.v1.html(master_payload, height=75)
     st.markdown("---")
 
     # عرض الوصولات بداخل Expander بنظام آمن ومستقل تماماً
@@ -321,7 +345,6 @@ if active_data_file is not None and active_template_file is not None:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # استخدام عنصر iframe مع قالب HTML سليم لضمان عدم تداخل الأكواد
         safe_html_payload = f"""
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
