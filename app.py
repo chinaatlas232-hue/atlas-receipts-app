@@ -35,12 +35,32 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
 
     # حلقة تكرارية لكل صف في ملف البيانات
     for index, row in df.iterrows():
-      # استخراج البيانات الأساسية المتوفرة بأمان تام
+      # استخراج البيانات الأساسية
       shipment = str(row.get("الشحنة", "")).strip()
       code = str(row.get("الكود", "")).strip()
-      weight = row.get("الوزن", 0)
+      weight = float(row.get("الوزن", 0) or 0)
       packages = row.get("عدد الطرود", 0)
       name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
+
+      # استخراج سعر الكيلو وحسابه بأمان
+      price_per_kg = 0
+      for col in ["سعر الكيلو", "سعر الكيلو ", "السعر"]:
+        if col in df.columns:
+          val = row.get(col, 0)
+          if pd.notna(val):
+            price_per_kg = float(val)
+            break
+
+      # استخراج إجمالي المبيعات أو حسابه تلقائياً (الوزن × سعر الكيلو)
+      total_sales = 0
+      for col in ["اجمالي مبيعات", "اجمالي مبيعات ", "الاجمالي", "المبلغ"]:
+        if col in df.columns:
+          val = row.get(col, 0)
+          if pd.notna(val):
+            total_sales = float(val)
+            break
+      if total_sales == 0 and price_per_kg > 0 and weight > 0:
+        total_sales = weight * price_per_kg
 
       # تنظيف رقم الهاتف وإضافة مسافة بين +964 وباقي الرقم
       phone_raw = row.get("رقم الهاتف", row.get("رقم الهاتف ", ""))
@@ -87,7 +107,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
 
       # عرض الوصل داخل تطبيق Streamlit
       with st.expander(
-          f"📄 وصل تسليم رقم: {code} | العميل: {name} | التاريخ: {today_date}",
+          f"📄 وصل تسليم رقم: {code} | العميل: {name} | الإجمالي: {total_sales:,.0f}",
           expanded=True,
       ):
         st.download_button(
@@ -100,7 +120,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
             key=f"download_{index}",
         )
 
-        # تصميم HTML الفخم والمنظّم للطباعة
+        # تصميم HTML الفخم والمنظّم للطباعة مع الأسعار والإجمالي
         clean_receipt_html = f"""
                 <div id="receipt-print-{index}" style="
                     padding: 40px; 
@@ -127,7 +147,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                         </tr>
                     </table>
 
-                    <!-- تفاصيل الوصل الرئيسية -->
+                    <!-- تفاصيل الوصل الرئيسية مع الأسعار والإجمالي -->
                     <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 25px;">
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الوصل (Code):</strong> <span style="color: #0066cc; font-weight: bold;">{code}</span></td>
@@ -147,7 +167,11 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                         </tr>
                         <tr>
                             <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
-                            <td style="padding: 10px; border: 1px solid #bcccdc;">
+                            <td style="padding: 10px; border: 1px solid #bcccdc;"><strong>سعر الكيلو:</strong> {price_per_kg:,.2f}</td>
+                        </tr>
+                        <tr style="background-color: #fef3c7;">
+                            <td style="padding: 10px; border: 1px solid #f59e0b;"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 15px;">{total_sales:,.2f}</span></td>
+                            <td style="padding: 10px; border: 1px solid #f59e0b;">
                                 <strong>طريقة الدفع:</strong> 
                                 &nbsp;&nbsp; [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل
                             </td>
@@ -199,7 +223,7 @@ if uploaded_data_file is not None and uploaded_template_file is not None:
                     🖨️ طباعة وصل تسليم البضاعة للعميل: {name}
                 </button>
                 """
-        st.components.v1.html(clean_receipt_html, height=540)
+        st.components.v1.html(clean_receipt_html, height=580)
 
       st.markdown("---")
 
