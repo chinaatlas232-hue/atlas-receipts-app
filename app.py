@@ -158,13 +158,13 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
-    # --- المعالجة السحرية الفائقة لدمج بيانات العملاء ---
+    # --- المعالجة الدقيقة والمطابقة الذكية لبيانات العملاء من coustmer info.xlsx ---
     if active_customers_db is not None:
       try:
         cust_df = pd.read_excel(active_customers_db)
         cust_df.columns = cust_df.columns.str.strip()
         
-        # البحث الذكي والدقيق عن الأعمدة في ملف العملاء (شامل الأسماء الإنجليزية الشائعة مثل NEW CODE و NAME SURNAME)
+        # البحث عن عمود الكود في ملف العملاء (مثال: NEW CODE)
         cust_code_col = None
         for col in cust_df.columns:
           c_lower = str(col).lower()
@@ -172,8 +172,9 @@ if active_data_file is not None and active_template_file is not None:
             cust_code_col = col
             break
         if not cust_code_col and len(cust_df.columns) > 1:
-          cust_code_col = cust_df.columns[1] # غالباً العمود الثاني هو الكود الجديد
+          cust_code_col = cust_df.columns[1]
 
+        # البحث عن عمود الاسم (مثال: NAME SURNAME)
         cust_name_col = None
         for col in cust_df.columns:
           c_lower = str(col).lower()
@@ -183,6 +184,7 @@ if active_data_file is not None and active_template_file is not None:
         if not cust_name_col and len(cust_df.columns) > 2:
           cust_name_col = cust_df.columns[2]
 
+        # البحث عن عمود الهاتف (مثال: PHONE 1)
         cust_phone_col = None
         for col in cust_df.columns:
           c_lower = str(col).lower()
@@ -190,6 +192,7 @@ if active_data_file is not None and active_template_file is not None:
             cust_phone_col = col
             break
 
+        # البحث عن عمود العنوان (مثال: ADDRESS)
         cust_address_col = None
         for col in cust_df.columns:
           c_lower = str(col).lower()
@@ -222,12 +225,12 @@ if active_data_file is not None and active_template_file is not None:
                 if val_a and val_a.lower() != "nan":
                   address_dict[c_code] = val_a
 
-          # تحديث أعمدة الملف الرئيسي إن وجدت أو إنشاؤها
+          # التأكد من وجود الأعمدة المطلوبة في الملف الرئيسي
           for col_name in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
             if col_name not in df.columns:
               df[col_name] = ""
 
-          # التعبئة التلقائية الذكية لكل قيمة فارغة أو NaN
+          # التعبئة التلقائية للمعلومات الناقصة بناءً على مطابقة الكود بدقة
           for idx, row in df.iterrows():
             raw_code_val = str(row.get("الكود", "")).strip().replace(".0", "", regex=False).lower()
             if raw_code_val and raw_code_val != "nan" and raw_code_val != "بدون كود" and raw_code_val != "":
@@ -304,8 +307,13 @@ if active_data_file is not None and active_template_file is not None:
       display_code = "" if code == "بدون كود" else code
       display_shipment = "" if shipment == "بدون شحنة" else shipment
 
-      name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
-      if name.lower() == "nan" or not name:
+      # استخراج الاسم المعالج
+      name = ""
+      for col in ["الاسم", "الاسم "]:
+        if col in df.columns and pd.notna(row.get(col)):
+          name = str(row.get(col)).strip()
+          break
+      if not name or name.lower() == "nan":
         name = "عميل غير محدد"
 
       file_name_id = (
@@ -363,7 +371,11 @@ if active_data_file is not None and active_template_file is not None:
 
       total_sales_sum += total_sales
 
-      phone_raw = row.get("رقم الهاتف", row.get("رقم الهاتف ", ""))
+      phone_raw = ""
+      for col in ["رقم الهاتف", "رقم الهاتف "]:
+        if col in df.columns:
+          phone_raw = row.get(col, "")
+          break
       phone = str(phone_raw).strip()
       if phone.endswith(".0"):
         phone = phone[:-2]
