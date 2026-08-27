@@ -160,6 +160,7 @@ if active_data_file is not None and active_template_file is not None:
     total_clients_count = len(df)
     total_packages_count = 0
     total_weight_sum = 0.0
+    total_cbm_sum = 0.0
     total_sales_sum = 0.0
 
     receipts_data_list = []
@@ -197,6 +198,7 @@ if active_data_file is not None and active_template_file is not None:
             except:
               pass
             break
+      total_cbm_sum += cbm_value
 
       packages = 0
       try:
@@ -376,14 +378,15 @@ if active_data_file is not None and active_template_file is not None:
         <style>
         .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
         .metric-card-2 { background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-card-3 { background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-card-4 { background-color: #fdf2f8; border: 1px solid #fbcfe8; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-3 { background-color: #f5f3ff; border: 1px solid #ddd6fe; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-4 { background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-5 { background-color: #fdf2f8; border: 1px solid #fbcfe8; padding: 15px; border-radius: 10px; text-align: center; }
         </style>
     """,
         unsafe_allow_html=True,
     )
 
-    m1, m2, m3, m4 = st.columns(4)
+    m1, m2, m3, m4, m5 = st.columns(5)
     with m1:
       st.markdown(
           f"""
@@ -408,8 +411,8 @@ if active_data_file is not None and active_template_file is not None:
       st.markdown(
           f"""
             <div class="metric-card-3">
-                <p style="margin: 0; color: #92400e; font-weight: bold; font-size: 14px;">⚖️ الوزن الكلي</p>
-                <h3 style="margin: 5px 0 0; color: #78350f; font-size: 20px;">{total_weight_sum:,.2f} كغ</h3>
+                <p style="margin: 0; color: #5b21b6; font-weight: bold; font-size: 14px;">📐 إجمالي الحجم</p>
+                <h3 style="margin: 5px 0 0; color: #4c1d95; font-size: 20px;">{total_cbm_sum:,.2f} CBM</h3>
             </div>
         """,
           unsafe_allow_html=True,
@@ -418,6 +421,16 @@ if active_data_file is not None and active_template_file is not None:
       st.markdown(
           f"""
             <div class="metric-card-4">
+                <p style="margin: 0; color: #92400e; font-weight: bold; font-size: 14px;">⚖️ الوزن الكلي</p>
+                <h3 style="margin: 5px 0 0; color: #78350f; font-size: 20px;">{total_weight_sum:,.2f} كغ</h3>
+            </div>
+        """,
+          unsafe_allow_html=True,
+      )
+    with m5:
+      st.markdown(
+          f"""
+            <div class="metric-card-5">
                 <p style="margin: 0; color: #9d174d; font-weight: bold; font-size: 14px;">💰 المبلغ الإجمالي</p>
                 <h3 style="margin: 5px 0 0; color: #831843; font-size: 20px;">{total_sales_sum:,.2f} $</h3>
             </div>
