@@ -16,7 +16,7 @@ template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
 logo_path = os.path.join(UPLOAD_DIR, "logo.png")
 customer_info_path = os.path.join(UPLOAD_DIR, "customer_info.xlsx")
 
-# --- تنسيق الألوان العام للشريط الجانبي ---
+# --- تنسيق الألوان العام للشريط الجانبي والأزرار ---
 st.markdown(
     """
     <style>
@@ -108,16 +108,14 @@ with st.sidebar:
           
         df_c.columns = df_c.columns.str.strip()
 
-        # البحث عن عمود الكود في ملف الشحنات
         ship_code_col = None
         for col in df_s.columns:
           if any(k in str(col).lower() for k in ["كود", "code", "ats"]):
             ship_code_col = col
             break
         if not ship_code_col and len(df_s.columns) > 1:
-          ship_code_col = df_s.columns[1] # افتراض العمود الثاني عادةً للكود
+          ship_code_col = df_s.columns[1]
 
-        # البحث عن عمود الكود في ملف العملاء
         cust_code_col = None
         for col in df_c.columns:
           if any(k in str(col).lower() for k in ["new code", "ats", "كود"]):
@@ -130,12 +128,9 @@ with st.sidebar:
           df_s['__s_code__'] = df_s[ship_code_col].astype(str).str.strip().str.replace('.0', '', regex=False)
           df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.replace('.0', '', regex=False)
           
-          # دمج الملفين
           merged = pd.merge(df_s, df_c, left_on='__s_code__', right_on='__c_code__', how='left', suffixes=('', '_cust'))
           
-          # تعبئة الحقول الفارغة بذكاء
           for target_col in ['الاسم', 'رقم الهاتف', 'عنوان استلام البظاعة']:
-            # البحث عن البدائل في ملف العملاء
             cust_alternatives = [c for c in merged.columns if target_col in c or c.endswith('_cust')]
             for alt in cust_alternatives:
               if alt != target_col and alt in merged.columns:
@@ -144,7 +139,6 @@ with st.sidebar:
                 else:
                   merged[target_col] = merged[alt]
 
-          # تنظيف الأعمدة المؤقتة
           drop_cols = [c for c in merged.columns if c.startswith('__') or c.endswith('_cust')]
           merged.drop(columns=drop_cols, errors='ignore', inplace=True)
           df_s = merged
@@ -231,7 +225,7 @@ if active_data_file is not None and active_template_file is not None:
       with open(active_logo, "rb") as img_file:
         logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
-    st.success(f"✅ تم دمج وتحديث البيانات بنجاح. الشحنة: **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | التاريخ: {today_date}")
+    st.success(f"✅ تم دمج وتحديث البيانات بنجاح. الشحنة المعروضة: **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}** | التاريخ: {today_date}")
     st.markdown("---")
 
     total_clients_count = len(df)
@@ -398,25 +392,86 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # الإحصائيات العلوية
+    # --- بطاقات الإحصائيات الملونة (Metrics Cards) ---
+    st.markdown("""
+        <style>
+        .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-2 { background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-3 { background-color: #f5f3ff; border: 1px solid #ddd6fe; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-4 { background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-5 { background-color: #fdf2f8; border: 1px solid #fbcfe8; padding: 15px; border-radius: 10px; text-align: center; }
+        </style>
+    """, unsafe_allow_html=True)
+
     m1, m2, m3, m4, m5 = st.columns(5)
     with m1:
-      st.metric("👥 عدد العملاء", f"{total_clients_count} عميل")
+      st.markdown(f'<div class="metric-card-1"><p style="margin:0; color:#1e40af; font-weight:bold; font-size:14px;">👥 عدد العملاء</p><h3 style="margin:5px 0 0; color:#1e3a8a; font-size:20px;">{total_clients_count} عميل</h3></div>', unsafe_allow_html=True)
     with m2:
-      st.metric("📦 إجمالي الطرود", f"{total_packages_count} طرد")
+      st.markdown(f'<div class="metric-card-2"><p style="margin:0; color:#166534; font-weight:bold; font-size:14px;">📦 إجمالي الطرود</p><h3 style="margin:5px 0 0; color:#14532d; font-size:20px;">{total_packages_count} طرد</h3></div>', unsafe_allow_html=True)
     with m3:
-      st.metric("📐 إجمالي الحجم", f"{total_cbm_sum:,.2f} CBM")
+      st.markdown(f'<div class="metric-card-3"><p style="margin:0; color:#5b21b6; font-weight:bold; font-size:14px;">📐 إجمالي الحجم</p><h3 style="margin:5px 0 0; color:#4c1d95; font-size:20px;">{total_cbm_sum:,.2f} CBM</h3></div>', unsafe_allow_html=True)
     with m4:
-      st.metric("⚖️ الوزن الكلي", f"{total_weight_sum:,.2f} كغ")
+      st.markdown(f'<div class="metric-card-4"><p style="margin:0; color:#92400e; font-weight:bold; font-size:14px;">⚖️ الوزن الكلي</p><h3 style="margin:5px 0 0; color:#78350f; font-size:20px;">{total_weight_sum:,.2f} كغ</h3></div>', unsafe_allow_html=True)
     with m5:
-      st.metric("💰 المبلغ الإجمالي", f"{total_sales_sum:,.2f} $")
+      st.markdown(f'<div class="metric-card-5"><p style="margin:0; color:#9d174d; font-weight:bold; font-size:14px;">💰 المبلغ الإجمالي</p><h3 style="margin:5px 0 0; color:#831843; font-size:20px;">{total_sales_sum:,.2f} $</h3></div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}]")
+    st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع: [{selected_type_filter}]")
 
+    # --- جدول البيانات المنسق بالكامل ---
     display_table_df = df.copy()
     display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
-    st.dataframe(display_table_df, use_container_width=True)
+    table_html = display_table_df.to_html(classes="custom-table", index=False, escape=False)
+
+    custom_table_styling = f"""
+    <style>
+        .custom-table-container {{
+            max-height: 450px;
+            overflow-x: auto;
+            overflow-y: auto;
+            border: 1px solid #bcccdc;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }}
+        .custom-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Tahoma', Arial, sans-serif;
+            font-size: 13px;
+            direction: rtl;
+            background-color: #ffffff;
+            color: #102a43;
+            white-space: nowrap;
+        }}
+        .custom-table th {{
+            background-color: #102a43 !important;
+            color: #ffffff !important;
+            text-align: right;
+            padding: 12px 15px;
+            font-weight: bold;
+            border-bottom: 2px solid #0b1e33;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }}
+        .custom-table td {{
+            padding: 10px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: right;
+        }}
+        .custom-table tr:nth-child(even) {{
+            background-color: #f8fafc;
+        }}
+        .custom-table tr:hover {{
+            background-color: #f1f5f9;
+        }}
+    </style>
+    <div class="custom-table-container">
+        {table_html}
+    </div>
+    """
+    st.html(custom_table_styling)
     st.markdown("---")
 
     # زر الطباعة الجماعية
@@ -425,7 +480,7 @@ if active_data_file is not None and active_template_file is not None:
         <html lang="ar" dir="rtl">
         <head><meta charset="UTF-8"></head>
         <body>
-            <button style="background-color: #047857; color: white; padding: 14px 28px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; width: 100%; max-width: 500px; display: block; margin: 0 auto;" onclick="printAll()">🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)</button>
+            <button style="background-color: #047857; color: white; padding: 14px 28px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; width: 100%; max-width: 500px; display: block; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="printAll()">🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)</button>
             <script>
                 const content = `{all_receipts_html_for_print.replace('`', '\\`').replace('$', '\\$')}`;
                 function printAll() {{
@@ -443,21 +498,23 @@ if active_data_file is not None and active_template_file is not None:
     st.markdown("---")
 
     for item in receipts_data_list:
-      with st.expander(f"📄 وصل العميل: {item['name']} | كود: {item['code'] or 'بدون'} | الإجمالي: {item['total_sales']:,.2f} $"):
+      with st.expander(f"📄 وصل العميل: {item['name']} | كود: {item['code'] or 'بدون'} | الشحنة: {item['shipment']} | الإجمالي: {item['total_sales']:,.2f} $"):
         st.download_button(
-            label="📥 تنزيل إكسل الوصل",
+            label=f"📥 تنزيل إكسل الوصل",
             data=item["output"],
             file_name=f"Delivery_Receipt_{item['file_name_id']}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"dl_{item['index']}",
         )
+        st.markdown("<br>", unsafe_allow_html=True)
         st.components.v1.html(
-            f"""<div style="direction:rtl">{item['single_html']}</div><button style="background:#102a43;color:white;padding:10px;border:none;border-radius:5px;cursor:pointer;margin-top:10px;" onclick="window.print()">🖨️ طباعة هذا الوصل</button>""",
+            f"""<div style="direction:rtl">{item['single_html']}</div><button style="background:#102a43;color:white;padding:12px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin-top:15px;" onclick="window.print()">🖨️ طباعة هذا الوصل</button>""",
             height=700,
             scrolling=True
         )
+      st.markdown("---")
 
   except Exception as e:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
-  st.info("الرجاء التأكد من رفع جميع الملفات المطلوبة من القائمة الجانبية (الشحنات، القالب، ومعلومات العملاء).")
+  st.info("الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي لتظهر المعاينة والطباعة بالتنسيق الكامل.")
