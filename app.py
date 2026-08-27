@@ -91,7 +91,7 @@ with st.sidebar:
     st.sidebar.warning("تم مسح الملفات المحفوظة بنجاح.")
     st.rerun()
 
-  # --- دالة دمج ملف الشحنات مع ملف العملاء بمرونة تامة ---
+  # --- دالة دمج ملف الشحنات مع ملف العملاء بمرونة مطابقة الأعمدة ---
   def load_and_merge_data():
     if not os.path.exists(shipment_path):
       return None
@@ -108,41 +108,42 @@ with st.sidebar:
           
         df_c.columns = df_c.columns.astype(str).str.strip()
 
-        # محاولة إيجاد عمود الكود في الشحنات
+        # البحث عن أعمدة المطابقة (مثل ATS أو Code أو New Code)
         ship_code_col = None
         for col in df_s.columns:
           c_lower = col.lower()
           if any(k in c_lower for k in ["كود", "code", "ats", "id"]):
             ship_code_col = col
             break
-        if not ship_code_col and len(df_s.columns) > 1:
-          ship_code_col = df_s.columns[1]
+        if not ship_code_col and len(df_s.columns) > 0:
+          ship_code_col = df_s.columns[0]
 
-        # محاولة إيجاد عمود الكود في العملاء
         cust_code_col = None
         for col in df_c.columns:
           c_lower = col.lower()
-          if any(k in c_lower for k in ["كود", "code", "ats", "id", "new code"]):
+          if any(k in c_lower for k in ["كود", "code", "ats", "id"]):
             cust_code_col = col
             break
-        if not cust_code_col and len(df_c.columns) > 1:
-          cust_code_col = df_c.columns[1]
+        if not cust_code_col and len(df_c.columns) > 0:
+          cust_code_col = df_c.columns[0]
 
         if ship_code_col and cust_code_col:
           df_s['__s_code__'] = df_s[ship_code_col].astype(str).str.strip().str.replace('.0', '', regex=False)
           df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.replace('.0', '', regex=False)
           
+          # الدمج مع ملف العملاء لجلب الأعمدة الناقصة غير الموجودة في الشحنات
           merged = pd.merge(df_s, df_c, left_on='__s_code__', right_on='__c_code__', how='left', suffixes=('', '_cust'))
           
-          # جلب البيانات الأساسية من ملف العملاء إذا كانت فارغة في الشحنات
-          for keyword in ['اسم', 'name', 'هاتف', 'phone', 'رقم', 'عنوان', 'address']:
-            s_col = next((c for c in df_s.columns if keyword in c.lower()), None)
-            c_col = next((c for c in df_c.columns if keyword in c.lower()), None)
-            if c_col and c_col in merged.columns:
-              if s_col and s_col in merged.columns:
-                merged[s_col] = merged[s_col].fillna(merged[c_col])
-              else:
-                merged[c_col.capitalize()] = merged[c_col]
+          # تعبئة الأعمدة الفارغة في الشحنات من بيانات العملاء
+          for col_c in df_c.columns:
+            if col_c in ['__c_code__', cust_code_col]:
+              continue
+            # البحث عن عميل مطابق في الشحنات أو إضافته إذا لم يكن موجوداً
+            matching_s_col = next((c for c in df_s.columns if c.lower() == col_c.lower()), None)
+            if matching_s_col:
+              merged[matching_s_col] = merged[matching_s_col].fillna(merged[col_c])
+            else:
+              merged[col_c] = merged[col_c]
 
           merged.drop(columns=[c for c in merged.columns if c.startswith('__') or c.endswith('_cust')], errors='ignore', inplace=True)
           df_s = merged
@@ -170,7 +171,7 @@ with st.sidebar:
       if selected_shipment_filter != "الكل":
         filtered_temp_df = filtered_temp_df[filtered_temp_df[ship_col] == selected_shipment_filter]
 
-      code_col = next((c for c in filtered_temp_df.columns if any(k in str(c).lower() for k in ["كود", "code"])), None)
+      code_col = next((c for c in filtered_temp_df.columns if any(k in str(c).lower() for k in ["كود", "code", "ats"])), None)
       if code_col:
         filtered_temp_df[code_col] = filtered_temp_df[code_col].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False)
         code_list = ["الكل"] + sorted(filtered_temp_df[code_col].unique().tolist())
@@ -199,7 +200,7 @@ if active_data_file is not None and active_template_file is not None:
       st.stop()
 
     ship_col = next((c for c in df.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), df.columns[0])
-    code_col = next((c for c in df.columns if any(k in str(c).lower() for k in ["كود", "code"])), None)
+    code_col = next((c for c in df.columns if any(k in str(c).lower() for k in ["كود", "code", "ats"])), None)
     type_col_name = next((c for c in df.columns if any(k in str(c).lower() for k in ["نوع", "النوع", "type"])), None)
 
     df[ship_col] = df[ship_col].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False)
