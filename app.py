@@ -90,6 +90,7 @@ with st.sidebar:
   st.header("🔍 فلتر الشحنات")
   selected_shipment_filter = "الكل"
   selected_code_filter = "الكل"
+  selected_type_filter = "الكل"
 
   if os.path.exists(shipment_path):
     try:
@@ -115,6 +116,26 @@ with st.sidebar:
         selected_code_filter = st.selectbox(
             "اختر أو ابحث برقم الكود:", code_list
         )
+        
+      if selected_code_filter != "الكل" and "الكود" in filtered_temp_df.columns:
+        filtered_temp_df = filtered_temp_df[
+            filtered_temp_df["الكود"] == selected_code_filter
+        ]
+
+      # فلتر نوع الشحنة (بحري / جوي)
+      type_col = None
+      for col in ["نوع الشحنة", "النوع"]:
+        if col in filtered_temp_df.columns:
+          type_col = col
+          break
+          
+      if type_col:
+        filtered_temp_df[type_col] = filtered_temp_df[type_col].fillna("غير محدد").astype(str).str.strip()
+        type_list = ["الكل"] + sorted(filtered_temp_df[type_col].unique().tolist())
+        selected_type_filter = st.selectbox(
+            "اختر نوع الشحنة:", type_list
+        )
+
     except Exception:
       pass
 
@@ -132,14 +153,26 @@ if active_data_file is not None and active_template_file is not None:
     if "الكود" in df.columns:
       df["الكود"] = df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "")
 
+    type_col_name = None
+    for col in ["نوع الشحنة", "النوع"]:
+      if col in df.columns:
+        type_col_name = col
+        break
+        
+    if type_col_name:
+      df[type_col_name] = df[type_col_name].fillna("غير محدد").astype(str).str.strip()
+
     if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
       df = df[df["الشحنة"] == selected_shipment_filter]
 
     if selected_code_filter != "الكل" and "الكود" in df.columns:
       df = df[df["الكود"] == selected_code_filter]
 
+    if selected_type_filter != "الكل" and type_col_name:
+      df = df[df[type_col_name] == selected_type_filter]
+
     if df.empty:
-      st.warning("⚠️ لا توجد بيانات مطابقة للشحنة أو الكود المحدد.")
+      st.warning("⚠️ لا توجد بيانات مطابقة للفلاتر المحددة.")
       st.stop()
 
     today_date = datetime.date.today().strftime("%Y-%m-%d")
@@ -153,7 +186,7 @@ if active_data_file is not None and active_template_file is not None:
 
     st.success(
         f"✅ الملفات محفوظة بثبات على السيرفر. الشحنة المعروضة:"
-        f" **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | تاريخ الإصدار: {today_date}"
+        f" **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}** | تاريخ الإصدار: {today_date}"
     )
     st.markdown("---")
 
@@ -250,10 +283,8 @@ if active_data_file is not None and active_template_file is not None:
         address = ""
 
       shipment_type = ""
-      for col in ["نوع الشحنة", "النوع"]:
-        if col in df.columns:
-          shipment_type = str(row.get(col, "")).strip()
-          break
+      if type_col_name:
+        shipment_type = str(row.get(type_col_name, "")).strip()
       if shipment_type == "nan":
         shipment_type = ""
 
@@ -447,7 +478,7 @@ if active_data_file is not None and active_template_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # --- جدول تفاصيل الشحنة ---
-    st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}]")
+    st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع: [{selected_type_filter}]")
 
     display_table_df = df.copy()
     display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
