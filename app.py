@@ -158,16 +158,21 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.astype(str).str.strip()
 
-    # --- لوحة تشخيصية تظهر أعلى الصفحة لتتأكد من أسماء الأعمدة وكيفية قراءتها ---
-    with st.expander("🛠️ لوحة التشخيص الفني للملفات (اضغط للعرض)", expanded=False):
-      st.write("أعمدة ملف الشحنات المكتشفة:", list(df.columns))
+    # --- لوحة تشخيصية ظاهرة ومباشرة أعلى الصفحة ---
+    st.info("🛠️ **لوحة التشخيص الفني للملفات (مباشرة):**")
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+      st.write("**أعمدة ملف الشحنات المكتشفة:**", list(df.columns))
+    with col_d2:
       if active_customers_db:
         try:
           c_debug_df = pd.read_excel(active_customers_db)
           c_debug_df.columns = c_debug_df.columns.astype(str).str.strip()
-          st.write("أعمدة ملف العملاء المكتشفة:", list(c_debug_df.columns))
+          st.write("**أعمدة ملف العملاء المكتشفة:**", list(c_debug_df.columns))
         except Exception as d_ex:
-          st.write("خطأ في قراءة ملف العملاء للتشخيص:", d_ex)
+          st.write("**خطأ في قراءة ملف العملاء:**", d_ex)
+      else:
+        st.warning("⚠️ ملف العملاء (coustmer info.xlsx) غير مرفوع حالياً في الشريط الجانبي!")
 
     # تحديد الأعمدة الأساسية بمرونة فائقة
     s_col = next((c for c in df.columns if any(k in c.lower() for k in ["شحنة", "shipment"])), df.columns[0])
@@ -284,7 +289,6 @@ if active_data_file is not None and active_template_file is not None:
       with open(active_logo, "rb") as img_file:
         logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
-    st.success(f"✅ تم تحميل وتصفية البيانات بنجاح | الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}")
     st.markdown("---")
 
     total_clients_count = len(df)
