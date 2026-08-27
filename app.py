@@ -362,7 +362,7 @@ if active_data_file is not None and active_template_file is not None:
                 <div style="border-top: 1px dashed #bcccdc; margin-top: 10px; padding-top: 6px; text-align: center; font-size: 9.5px; color: #334e68;">
                     <span>📍 العنوان: بغداد - المنصور - تقاطع الواد</span>
                     <span style="margin: 0 10px;">|</span>
-                    <span style="direction: ltr; display: inline-block;">📞 هاتف: 0000000000000 / 000000000</span>
+                    <span style="direction: ltr; display: inline-block;">📞 هاتف: 07858588899 / 07814518989</span>
                 </div>
             </div>
             """
