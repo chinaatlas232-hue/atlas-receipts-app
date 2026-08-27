@@ -144,7 +144,7 @@ if active_data_file is not None and active_template_file is not None:
 
     today_date = datetime.date.today().strftime("%Y-%m-%d")
 
-    # تحويل الشعار إلى Base64 بدون أي دمج ألوان أو فلاتر خلفية (عرض الصورة الأصلية تماماً)
+    # معالجة الشعار
     import base64
     logo_base64 = ""
     if active_logo and os.path.exists(active_logo):
@@ -274,8 +274,7 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      # عرض الشعار بشكل طبيعي ونظيف بدون تأثيرات دمج الخلفية
-      logo_img_tag = f'<img src="data:image/png;base64,{logo_base64}" style="max-height: 50px; max-width: 55px; margin-left: 10px; vertical-align: middle;">' if logo_base64 else ''
+      logo_img_tag = f'<img src="data:image/png;base64,{logo_base64}" style="max-height: 52px; max-width: 60px; margin-left: 10px; vertical-align: middle; mix-blend-mode: multiply; filter: contrast(120%) brightness(105%);">' if logo_base64 else ''
 
       single_receipt_html = f"""
             <div class="receipt-page" style="
@@ -346,7 +345,7 @@ if active_data_file is not None and active_template_file is not None:
                     </p>
                 </div>
 
-                <table style="width: 100%; font-size: 11px; margin-top: 5px;">
+                <table style="width: 100%; font-size: 11px; margin-top: 5px; margin-bottom: 10px;">
                     <tr>
                         <td style="width: 50%; padding: 2px;">
                             <strong>اسم المستلم:</strong><br><br>
@@ -358,6 +357,13 @@ if active_data_file is not None and active_template_file is not None:
                         </td>
                     </tr>
                 </table>
+
+                <!-- تذيل الوصل (Footer) -->
+                <div style="border-top: 1px dashed #bcccdc; margin-top: 10px; padding-top: 6px; text-align: center; font-size: 9.5px; color: #334e68;">
+                    <span>📍 العنوان: بغداد - المنصور - تقاطع الواد</span>
+                    <span style="margin: 0 10px;">|</span>
+                    <span style="direction: ltr; display: inline-block;">📞 هاتف: 0000000000000 / 000000000</span>
+                </div>
             </div>
             """
 
