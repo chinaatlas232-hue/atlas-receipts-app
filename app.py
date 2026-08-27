@@ -144,7 +144,7 @@ if active_data_file is not None and active_template_file is not None:
 
     today_date = datetime.date.today().strftime("%Y-%m-%d")
 
-    # تحويل الشعار إلى Base64 لضمان ظهوره بسلاسة في الطباعة والـ HTML
+    # تحويل الشعار إلى Base64 مع خصائص دمج ذكية للخلفية
     import base64
     logo_base64 = ""
     if active_logo and os.path.exists(active_logo):
@@ -161,7 +161,7 @@ if active_data_file is not None and active_template_file is not None:
     total_packages_count = 0
     total_weight_sum = 0.0
     total_cbm_sum = 0.0
-    total_sales_sum = 0.0
+    total_sales_sum =.0
 
     receipts_data_list = []
     all_receipts_html_for_print = ""
@@ -186,7 +186,6 @@ if active_data_file is not None and active_template_file is not None:
       weight = float(row.get("الوزن", 0) or 0)
       total_weight_sum += weight
 
-      # التقاط الحجم بمرونة تامة من أي عمود تقريبي
       cbm_value = 0.0
       for col in df.columns:
         col_lower = str(col).lower()
@@ -275,7 +274,8 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      logo_img_tag = f'<img src="data:image/png;base64,{logo_base64}" style="max-height: 45px; max-width: 50px; margin-left: 10px; vertical-align: middle;">' if logo_base64 else ''
+      # تعديل تنسيق الشعار ليتم دمج الخلفية الداكنة تلقائياً مع الخلفية البيضاء (mix-blend-mode: multiply)
+      logo_img_tag = f'<img src="data:image/png;base64,{logo_base64}" style="max-height: 50px; max-width: 55px; margin-left: 10px; vertical-align: middle; mix-blend-mode: multiply; background: transparent;">' if logo_base64 else ''
 
       single_receipt_html = f"""
             <div class="receipt-page" style="
