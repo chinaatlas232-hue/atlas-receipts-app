@@ -144,7 +144,7 @@ if active_data_file is not None and active_template_file is not None:
 
     today_date = datetime.date.today().strftime("%Y-%m-%d")
 
-    # تحويل الشعار إلى Base64 مع خصائص دمج ذكية للخلفية
+    # تحويل الشعار إلى Base64 بدون أي دمج ألوان أو فلاتر خلفية (عرض الصورة الأصلية تماماً)
     import base64
     logo_base64 = ""
     if active_logo and os.path.exists(active_logo):
@@ -161,7 +161,7 @@ if active_data_file is not None and active_template_file is not None:
     total_packages_count = 0
     total_weight_sum = 0.0
     total_cbm_sum = 0.0
-    total_sales_sum =.0
+    total_sales_sum = 0.0
 
     receipts_data_list = []
     all_receipts_html_for_print = ""
@@ -274,8 +274,8 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      # تعديل تنسيق الشعار ليتم دمج الخلفية الداكنة تلقائياً مع الخلفية البيضاء (mix-blend-mode: multiply)
-      logo_img_tag = f'<img src="data:image/png;base64,{logo_base64}" style="max-height: 50px; max-width: 55px; margin-left: 10px; vertical-align: middle; mix-blend-mode: multiply; background: transparent;">' if logo_base64 else ''
+      # عرض الشعار بشكل طبيعي ونظيف بدون تأثيرات دمج الخلفية
+      logo_img_tag = f'<img src="data:image/png;base64,{logo_base64}" style="max-height: 50px; max-width: 55px; margin-left: 10px; vertical-align: middle;">' if logo_base64 else ''
 
       single_receipt_html = f"""
             <div class="receipt-page" style="
