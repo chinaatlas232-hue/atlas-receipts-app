@@ -169,7 +169,6 @@ if active_data_file is not None and active_template_file is not None:
       shipment = str(row.get("الشحنة", "بدون شحنة")).strip()
       code = str(row.get("الكود", "بدون كود")).strip()
       
-      # إذا كانت القيمة النصية معالجة كـ "بدون..." نعرضها فارغة أو كما هي في الوصل حسب الرغبة، هنا نعرضها بوضوح
       display_code = "" if code == "بدون كود" else code
       display_shipment = "" if shipment == "بدون شحنة" else shipment
 
@@ -185,6 +184,18 @@ if active_data_file is not None and active_template_file is not None:
 
       weight = float(row.get("الوزن", 0) or 0)
       total_weight_sum += weight
+
+      # استخراج الحجم بأكثر من مسمى محتمل في الإكسل
+      cbm_value = 0.0
+      for col in ["الحجم", "الحجم ", "CBM", "cbm", "الحجم/CBM", "C.B.M"]:
+        if col in df.columns:
+          val = row.get(col, 0)
+          if pd.notna(val):
+            try:
+              cbm_value = float(val)
+            except:
+              pass
+            break
 
       packages = 0
       try:
@@ -314,7 +325,7 @@ if active_data_file is not None and active_template_file is not None:
                     </tr>
                     <tr>
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
-                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ</td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ &nbsp;|&nbsp; <strong>الحجم:</strong> {cbm_value} CBM</td>
                     </tr>
                     <tr style="background-color: #f0f4f8;">
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
@@ -426,6 +437,13 @@ if active_data_file is not None and active_template_file is not None:
         0, "التسلسل", range(1, len(display_table_df) + 1)
     )
 
+    # التحقق من اسم عمود الحجم الفعلي في الملف وإضافته للقائمة المعروضة إن وجد
+    detected_cbm_col = None
+    for col in ["الحجم", "الحجم ", "CBM", "cbm", "الحجم/CBM", "C.B.M"]:
+      if col in display_table_df.columns:
+        detected_cbm_col = col
+        break
+
     preferred_cols = [
         "التسلسل",
         "الكود",
@@ -433,9 +451,15 @@ if active_data_file is not None and active_template_file is not None:
         "رقم الهاتف",
         "عدد الطرود",
         "الوزن",
+    ]
+    if detected_cbm_col:
+      preferred_cols.append(detected_cbm_col)
+      
+    preferred_cols.extend([
         "عنوان استلام البظاعة",
         "نوع الشحنة",
-    ]
+    ])
+
     existing_cols = [
         col for col in preferred_cols if col in display_table_df.columns
     ]
@@ -453,6 +477,7 @@ if active_data_file is not None and active_template_file is not None:
     <style>
         .custom-table-container {{
             max-height: 450px;
+            overflow-x: auto;
             overflow-y: auto;
             border: 1px solid #bcccdc;
             border-radius: 8px;
@@ -467,6 +492,7 @@ if active_data_file is not None and active_template_file is not None:
             direction: rtl;
             background-color: #ffffff;
             color: #102a43;
+            white-space: nowrap;
         }}
         .custom-table th {{
             background-color: #102a43 !important;
