@@ -79,7 +79,7 @@ with st.sidebar:
       f.write(uploaded_logo.getbuffer())
     st.sidebar.success("تم حفظ الشعار بنجاح!")
 
-  # زر رفع معلومات العملاء بالاسم المطلوب
+  # زر رفع معلومات العملاء
   uploaded_customer_file = st.file_uploader("coustemr info", type=["xlsx", "csv"])
   if uploaded_customer_file is not None:
     with open(customer_info_path, "wb") as f:
@@ -93,6 +93,50 @@ with st.sidebar:
     st.sidebar.warning("تم مسح الملفات المحفوظة بنجاح.")
     st.rerun()
 
+  # --- دالة مساعدة لدمج وتعبئة بيانات الشحنات مع بيانات العملاء ---
+  def load_and_merge_data():
+    if not os.path.exists(shipment_path):
+      return None
+    
+    df_s = pd.read_excel(shipment_path)
+    df_s.columns = df_s.columns.str.strip()
+
+    if os.path.exists(customer_info_path):
+      try:
+        df_c = pd.read_excel(customer_info_path)
+        df_c.columns = df_c.columns.str.strip()
+
+        if "الكود" in df_s.columns:
+          df_s["الكود_clean"] = df_s["الكود"].astype(str).str.strip().str.replace(".0", "", regex=False)
+          
+          # تحديد عمود الكود في ملف العملاء (NEW CODE أو ATS)
+          cust_code_col = "NEW CODE" if "NEW CODE" in df_c.columns else (df_c.columns[1] if len(df_c.columns) > 1 else None)
+          if cust_code_col:
+            df_c["Cust_Code_clean"] = df_c[cust_code_col].astype(str).str.strip().str.replace(".0", "", regex=False)
+            
+            # دمج البيانات
+            merged = pd.merge(df_s, df_c, left_on="الكود_clean", right_on="Cust_Code_clean", how="left", suffixes=("", "_cust"))
+            
+            # تعبئة الحقول الفارغة (الاسم، رقم الهاتف، عنوان الاستلام)
+            for col, cust_cols in [
+                ("الاسم", ["الاسم", "الاسم_cust"]),
+                ("رقم الهاتف", ["رقم الهاتف", "رقم الهاتف_cust", "PHONE 1"]),
+                ("عنوان استلام البظاعة", ["عنوان استلام البظاعة", "عنوان استلام البظاعة_cust"])
+            ]:
+              if col in merged.columns:
+                for c_col in cust_cols:
+                  if c_col in merged.columns and c_col != col:
+                    merged[col] = merged[col].fillna(merged[c_col])
+            
+            # تنظيف الأعمدة المؤقتة
+            drop_cols = [c for c in merged.columns if c.endswith("_cust") or c in ["الكود_clean", "Cust_Code_clean"]]
+            merged.drop(columns=drop_cols, errors="ignore", inplace=True)
+            df_s = merged
+      except Exception:
+        pass
+        
+    return df_s
+
   # --- فلتر الشحنات في القائمة الجانبية ---
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
@@ -100,13 +144,11 @@ with st.sidebar:
   selected_code_filter = "الكل"
   selected_type_filter = "الكل"
 
-  if os.path.exists(shipment_path):
+  temp_df = load_and_merge_data()
+  if temp_df is not None and not temp_df.empty:
     try:
-      temp_df = pd.read_excel(shipment_path)
-      temp_df.columns = temp_df.columns.str.strip()
-      
       if "الشحنة" in temp_df.columns:
-        temp_df["الشحنة"] = temp_df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "")
+        temp_df["الشحنة"] = temp_df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False)
         shipment_list = ["الكل"] + sorted(temp_df["الشحنة"].unique().tolist())
         selected_shipment_filter = st.selectbox(
             "اختر الشحنة للعرض:", shipment_list
@@ -119,7 +161,7 @@ with st.sidebar:
         ]
 
       if "الكود" in filtered_temp_df.columns:
-        filtered_temp_df["الكود"] = filtered_temp_df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "")
+        filtered_temp_df["الكود"] = filtered_temp_df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False)
         code_list = ["الكل"] + sorted(filtered_temp_df["الكود"].unique().tolist())
         selected_code_filter = st.selectbox(
             "اختر أو ابحث برقم الكود:", code_list
@@ -153,13 +195,15 @@ active_logo = logo_path if os.path.exists(logo_path) else None
 
 if active_data_file is not None and active_template_file is not None:
   try:
-    df = pd.read_excel(active_data_file)
-    df.columns = df.columns.str.strip()
+    df = load_and_merge_data()
+    if df is None or df.empty:
+      st.warning("⚠️ ملف البيانات فارغ.")
+      st.stop()
 
     if "الشحنة" in df.columns:
-      df["الشحنة"] = df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "")
+      df["الشحنة"] = df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False)
     if "الكود" in df.columns:
-      df["الكود"] = df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "")
+      df["الكود"] = df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False)
 
     type_col_name = None
     for col in ["نوع الشحنة", "النوع"]:
@@ -193,7 +237,7 @@ if active_data_file is not None and active_template_file is not None:
         logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
     st.success(
-        f"✅ الملفات محفوظة بثبات على السيرفر. الشحنة المعروضة:"
+        f"✅ الملفات محفوظة بثبات على السيرفر (مع دمج معلومات العملاء تلقائياً). الشحنة المعروضة:"
         f" **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}** | تاريخ الإصدار: {today_date}"
     )
     st.markdown("---")
@@ -714,6 +758,5 @@ if active_data_file is not None and active_template_file is not None:
     st.error(f"حدث خطأ أثناء قراءة أو معالجة الملفات: {e}")
 else:
   st.info(
-      "الرجاء رفع ملف بيانات الشحنات وقالب الوصل من الشريط الجانبي لتظهر المعاينة"
-      " والطباعة."
+      "الرجاء رفع ملف بيانات الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي لتظهر المعاينة والطباعة."
   )
