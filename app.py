@@ -103,14 +103,12 @@ with st.sidebar:
             "اختر الشحنة للعرض:", shipment_list
         )
         
-      # تصفية المؤقت حسب الشحنة المحددة
       filtered_temp_df = temp_df.copy()
       if selected_shipment_filter != "الكل" and "الشحنة" in filtered_temp_df.columns:
         filtered_temp_df = filtered_temp_df[
             filtered_temp_df["الشحنة"] == selected_shipment_filter
         ]
 
-      # قائمة منسدلة للأكواد مع معالجة القيم الفارغة
       if "الكود" in filtered_temp_df.columns:
         filtered_temp_df["الكود"] = filtered_temp_df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "")
         code_list = ["الكل"] + sorted(filtered_temp_df["الكود"].unique().tolist())
@@ -120,14 +118,12 @@ with st.sidebar:
     except Exception:
       pass
 
-# تحديد الملفات النشطة
 active_data_file = shipment_path if os.path.exists(shipment_path) else None
 active_template_file = template_path if os.path.exists(template_path) else None
 active_logo = logo_path if os.path.exists(logo_path) else None
 
 if active_data_file is not None and active_template_file is not None:
   try:
-    # قراءة بيانات الشحنات ومعالجة الأعمدة الفارغة
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
@@ -136,11 +132,9 @@ if active_data_file is not None and active_template_file is not None:
     if "الكود" in df.columns:
       df["الكود"] = df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "")
 
-    # تطبيق الفلتر إذا تم اختيار شحنة معينة
     if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
       df = df[df["الشحنة"] == selected_shipment_filter]
 
-    # تطبيق الفلتر إذا تم اختيار كود معين
     if selected_code_filter != "الكل" and "الكود" in df.columns:
       df = df[df["الكود"] == selected_code_filter]
 
@@ -156,7 +150,6 @@ if active_data_file is not None and active_template_file is not None:
     )
     st.markdown("---")
 
-    # حساب الإحصائيات الشاملة
     total_clients_count = len(df)
     total_packages_count = 0
     total_weight_sum = 0.0
@@ -185,10 +178,10 @@ if active_data_file is not None and active_template_file is not None:
       weight = float(row.get("الوزن", 0) or 0)
       total_weight_sum += weight
 
-      # استخراج الحجم بأكثر من مسمى محتمل في الإكسل
+      # التقاط الحجم من أي عمود يحتوي على كلمة حجم أو cbm أو أبعاد
       cbm_value = 0.0
-      for col in ["الحجم", "الحجم ", "CBM", "cbm", "الحجم/CBM", "C.B.M"]:
-        if col in df.columns:
+      for col in df.columns:
+        if any(k in col.lower() for k in ["حجم", "cbm", "dimension", "الحجم"]):
           val = row.get(col, 0)
           if pd.notna(val):
             try:
@@ -204,7 +197,6 @@ if active_data_file is not None and active_template_file is not None:
         packages = 0
       total_packages_count += packages
 
-      # سعر الكيلو
       price_per_kg = 0
       for col in ["سعر الكيلو", "سعر الكيلو ", "السعر"]:
         if col in df.columns:
@@ -216,7 +208,6 @@ if active_data_file is not None and active_template_file is not None:
               pass
             break
 
-      # إجمالي المبيعات
       total_sales = 0
       for col in ["اجمالي مبيعات", "اجمالي مبيعات ", "الاجمالي", "المبلغ"]:
         if col in df.columns:
@@ -232,7 +223,6 @@ if active_data_file is not None and active_template_file is not None:
 
       total_sales_sum += total_sales
 
-      # رقم الهاتف
       phone_raw = row.get("رقم الهاتف", row.get("رقم الهاتف ", ""))
       phone = str(phone_raw).strip()
       if phone.endswith(".0"):
@@ -242,7 +232,6 @@ if active_data_file is not None and active_template_file is not None:
         phone = phone[3:]
       formatted_phone = f"+964 {phone}" if phone and phone != "nan" else ""
 
-      # العنوان ونوع الشحنة
       address = ""
       for col in ["عنوان استلام البظاعة", "العنوان", "عنوان"]:
         if col in df.columns:
@@ -259,7 +248,6 @@ if active_data_file is not None and active_template_file is not None:
       if shipment_type == "nan":
         shipment_type = ""
 
-      # تعبئة قالب الإكسل الرسمي
       wb = openpyxl.load_workbook(active_template_file)
       ws = wb.active
 
@@ -277,7 +265,6 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      # تصميم HTML للوصل الواحد بدقة مقاس A5
       single_receipt_html = f"""
             <div class="receipt-page" style="
                 padding: 15px; 
@@ -293,7 +280,6 @@ if active_data_file is not None and active_template_file is not None:
                 page-break-after: always;
                 break-after: page;
             ">
-                <!-- رأس الوصل مع الشعار -->
                 <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px; border-collapse: collapse;">
                     <tr>
                         <td style="text-align: right; vertical-align: middle;">
@@ -309,7 +295,6 @@ if active_data_file is not None and active_template_file is not None:
                     </tr>
                 </table>
 
-                <!-- تفاصيل الوصل الرئيسية -->
                 <table style="width: 100%; font-size: 11px; border-collapse: collapse; margin-bottom: 10px;">
                     <tr style="background-color: #f0f4f8;">
                         <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{display_code}</span></td>
@@ -325,7 +310,7 @@ if active_data_file is not None and active_template_file is not None:
                     </tr>
                     <tr>
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
-                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ &nbsp;|&nbsp; <strong>الحجم:</strong> {cbm_value} CBM</td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ &nbsp;|&nbsp; <strong>الحجم:</strong> {cbm_value}</td>
                     </tr>
                     <tr style="background-color: #f0f4f8;">
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
@@ -336,7 +321,6 @@ if active_data_file is not None and active_template_file is not None:
                     </tr>
                 </table>
 
-                <!-- إقرار الاستلام -->
                 <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 6px; border-radius: 4px; margin-bottom: 10px;">
                     <p style="margin: 0; font-size: 10px; color: #92400e; line-height: 1.3;">
                         <strong>إقرار الاستلام:</strong><br>
@@ -344,7 +328,6 @@ if active_data_file is not None and active_template_file is not None:
                     </p>
                 </div>
 
-                <!-- التواقيع -->
                 <table style="width: 100%; font-size: 11px; margin-top: 5px;">
                     <tr>
                         <td style="width: 50%; padding: 2px;">
@@ -372,7 +355,6 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- تنسيق ألوان مربعات الإحصائيات (KPI Cards Dashboard) ---
     st.markdown(
         """
         <style>
@@ -429,47 +411,13 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- جدول تفاصيل الشحنة ---
+    # --- جدول تفاصيل الشحنة (يعرض كافة الأعمدة المتوفرة في الملف بدون إخفاء) ---
     st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}]")
 
     display_table_df = df.copy()
-    display_table_df.insert(
-        0, "التسلسل", range(1, len(display_table_df) + 1)
-    )
+    display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
 
-    # التحقق من اسم عمود الحجم الفعلي في الملف وإضافته للقائمة المعروضة إن وجد
-    detected_cbm_col = None
-    for col in ["الحجم", "الحجم ", "CBM", "cbm", "الحجم/CBM", "C.B.M"]:
-      if col in display_table_df.columns:
-        detected_cbm_col = col
-        break
-
-    preferred_cols = [
-        "التسلسل",
-        "الكود",
-        "الاسم",
-        "رقم الهاتف",
-        "عدد الطرود",
-        "الوزن",
-    ]
-    if detected_cbm_col:
-      preferred_cols.append(detected_cbm_col)
-      
-    preferred_cols.extend([
-        "عنوان استلام البظاعة",
-        "نوع الشحنة",
-    ])
-
-    existing_cols = [
-        col for col in preferred_cols if col in display_table_df.columns
-    ]
-
-    final_table_df = (
-        display_table_df[existing_cols]
-        if existing_cols
-        else display_table_df
-    )
-    table_html = final_table_df.to_html(
+    table_html = display_table_df.to_html(
         classes="custom-table", index=False, escape=False
     )
 
@@ -525,7 +473,6 @@ if active_data_file is not None and active_template_file is not None:
     st.html(custom_table_styling)
     st.markdown("---")
 
-    # --- زر الطباعة الكلية ---
     master_payload = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -585,7 +532,6 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(master_payload, height=75)
     st.markdown("---")
 
-    # عرض الوصولات بداخل Expander
     for item in receipts_data_list:
       index = item["index"]
       shipment = item["shipment"]
