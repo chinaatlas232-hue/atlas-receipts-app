@@ -178,10 +178,11 @@ if active_data_file is not None and active_template_file is not None:
       weight = float(row.get("الوزن", 0) or 0)
       total_weight_sum += weight
 
-      # التقاط الحجم من أي عمود يحتوي على كلمة حجم أو cbm أو أبعاد
+      # التقاط الحجم بمرونة تامة من أي عمود تقريبي
       cbm_value = 0.0
       for col in df.columns:
-        if any(k in col.lower() for k in ["حجم", "cbm", "dimension", "الحجم"]):
+        col_lower = str(col).lower()
+        if any(k in col_lower for k in ["حجم", "cbm", "dimension", "C.B.M", "الحجم"]):
           val = row.get(col, 0)
           if pd.notna(val):
             try:
