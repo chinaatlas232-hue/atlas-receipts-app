@@ -42,7 +42,6 @@ st.markdown(
 
 st.title("📦 النظام المالي والفني - وصل تسليم البضائع")
 
-# إنشاء مجلد لحفظ الملفات بشكل دائم على السيرفر
 UPLOAD_DIR = "saved_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -104,12 +103,11 @@ with st.sidebar:
   if os.path.exists(shipment_path):
     try:
       temp_df = pd.read_excel(shipment_path)
-      temp_df.columns = temp_df.columns.str.strip()
+      temp_df.columns = temp_df.columns.astype(str).str.strip()
       
-      # البحث المرن عن عمود الشحنة والكود
       shipment_col_name = None
       for col in temp_df.columns:
-        if any(k in str(col).lower() for k in ["شحنة", "shipment", "batch"]):
+        if any(k in col.lower() for k in ["شحنة", "shipment", "batch"]):
           shipment_col_name = col
           break
       if not shipment_col_name and len(temp_df.columns) > 0:
@@ -126,7 +124,7 @@ with st.sidebar:
 
       code_col_name = None
       for col in filtered_temp_df.columns:
-        if any(k in str(col).lower() for k in ["كود", "code", "ats", "رقم العميل"]):
+        if any(k in col.lower() for k in ["كود", "code", "ats", "رقم العميل"]):
           code_col_name = col
           break
       if not code_col_name and len(filtered_temp_df.columns) > 1:
@@ -140,10 +138,9 @@ with st.sidebar:
       if selected_code_filter != "الكل" and code_col_name:
         filtered_temp_df = filtered_temp_df[filtered_temp_df["الكود_مفلتر"] == selected_code_filter]
 
-      # فلتر نوع الشحنة (بحري / جوي)
       type_col_name = None
       for col in filtered_temp_df.columns:
-        if any(k in str(col).lower() for k in ["نوع", "type", "طريقة"]):
+        if any(k in col.lower() for k in ["نوع", "type", "طريقة"]):
           type_col_name = col
           break
           
@@ -163,39 +160,35 @@ active_customers_db = customers_db_path if os.path.exists(customers_db_path) els
 if active_data_file is not None and active_template_file is not None:
   try:
     df = pd.read_excel(active_data_file)
-    df.columns = df.columns.str.strip()
+    df.columns = df.columns.astype(str).str.strip()
 
-    # تحديد أسماء الأعمدة بمرونة عالية في ملف الشحنات
-    s_col = next((c for c in df.columns if any(k in str(c).lower() for k in ["شحنة", "shipment"])), df.columns[0])
-    c_col = next((c for c in df.columns if any(k in str(c).lower() for k in ["كود", "code", "ats"])), df.columns[1] if len(df.columns)>1 else df.columns[0])
-    t_col = next((c for c in df.columns if any(k in str(c).lower() for k in ["نوع", "type"])), None)
+    # تحديد الأعمدة الأساسية بمرونة فائقة
+    s_col = next((c for c in df.columns if any(k in c.lower() for k in ["شحنة", "shipment"])), df.columns[0])
+    c_col = next((c for c in df.columns if any(k in c.lower() for k in ["كود", "code", "ats"])), df.columns[1] if len(df.columns)>1 else df.columns[0])
+    t_col = next((c for c in df.columns if any(k in c.lower() for k in ["نوع", "type"])), None)
 
-    # توحيد أعمدة الأساس في الجدول
     df["الشحنة"] = df[s_col].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False).str.strip()
     df["الكود"] = df[c_col].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False).str.strip()
-    if t_col:
-      df["نوع الشحنة"] = df[t_col].fillna("غير محدد").astype(str).str.strip()
-    else:
-      df["نوع الشحنة"] = "غير محدد"
+    df["نوع الشحنة"] = df[t_col].fillna("غير محدد").astype(str).str.strip() if t_col else "غير محدد"
 
-    # إنشاء أو تجهيز أعمدة الاسم والهاتف والعنوان إذا لم تكن موجودة
+    # تهيئة أعمدة البيانات الشخصية إذا لم تكن موجودة أساساً في جدول الشحنات
     for col_name in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
       if col_name not in df.columns:
         df[col_name] = ""
 
-    # --- ربط ملف العملاء (coustmer info.xlsx) لجلب البيانات المفقودة ---
+    # --- ربط ملف العملاء بذكاء ومطابقة مرنة للأكواد ---
     if active_customers_db is not None:
       try:
         cust_df = pd.read_excel(active_customers_db)
-        cust_df.columns = cust_df.columns.str.strip()
+        cust_df.columns = cust_df.columns.astype(str).str.strip()
         
-        cust_code_col = next((c for c in cust_df.columns if any(k in str(c).lower() for k in ["code", "ats", "كود"])), cust_df.columns[0])
+        cust_code_col = next((c for c in cust_df.columns if any(k in c.lower() for k in ["code", "ats", "كود"])), cust_df.columns[0])
         
-        name_cols_found = [c for c in cust_df.columns if any(k in str(c).lower() for k in ["name", "الاسم", "اسم"]) and "surname" not in str(c).lower()]
-        surname_cols_found = [c for c in cust_df.columns if any(k in str(c).lower() for k in ["surname", "family", "لقب", "عائلة"])]
+        name_cols_found = [c for c in cust_df.columns if any(k in c.lower() for k in ["name", "الاسم", "اسم"]) and "surname" not in c.lower()]
+        surname_cols_found = [c for c in cust_df.columns if any(k in c.lower() for k in ["surname", "family", "لقب", "عائلة"])]
         
-        cust_phone_col = next((c for c in cust_df.columns if any(k in str(c).lower() for k in ["phone", "tel", "mobile", "هاتف"])), None)
-        cust_address_col = next((c for c in cust_df.columns if any(k in str(c).lower() for k in ["address", "عنوان", "استلام"])), None)
+        cust_phone_col = next((c for c in cust_df.columns if any(k in c.lower() for k in ["phone", "tel", "mobile", "هاتف"])), None)
+        cust_address_col = next((c for c in cust_df.columns if any(k in c.lower() for k in ["address", "عنوان", "استلام"])), None)
 
         if cust_code_col:
           cust_df["clean_code"] = cust_df[cust_code_col].fillna("").astype(str).str.replace(".0", "", regex=False).str.strip().str.lower()
@@ -206,7 +199,6 @@ if active_data_file is not None and active_template_file is not None:
             c_code = c_row["clean_code"]
             if c_code and c_code != "nan" and c_code != "":
               
-              # دمج الاسم واللقب
               full_name_parts = []
               for nc in name_cols_found:
                 val = str(c_row.get(nc, "")).strip()
@@ -226,7 +218,7 @@ if active_data_file is not None and active_template_file is not None:
                 val_a = str(c_row[cust_address_col]).strip()
                 if val_a and val_a.lower() != "nan": address_dict[c_code] = val_a
 
-          # تحديث جدول الشحنات بالبيانات المسحوبة من قاعدة العملاء
+          # تعبئة الحقول الفارغة في جدول الشحنات بالاعتماد على مطابقة الكود
           for idx, row in df.iterrows():
             raw_code = str(row.get("الكود", "")).strip().replace(".0", "").lower()
             if raw_code and raw_code != "nan" and raw_code != "بدون كود":
@@ -243,11 +235,14 @@ if active_data_file is not None and active_template_file is not None:
               if (not curr_addr or curr_addr.lower() in ["nan", "none", ""]) and raw_code in address_dict:
                 df.at[idx, "عنوان استلام البظاعة"] = address_dict[raw_code]
                 
-        st.sidebar.info("📂 ملف العملاء: تم ربط الأكواد وجلب البيانات بنجاح.")
       except Exception as ex:
-        st.sidebar.warning(f"ملاحظة مطابقة العملاء: {ex}")
+        st.sidebar.warning(f"ملاحظة ملف العملاء: {ex}")
 
-    # تطبيق الفلاتر على الجدول الرئيسي
+    # تنظيف مظهر أي قيم متبقية تظهر كـ NaN أو None وتحويلها لنصوص فارغة
+    for col in df.columns:
+      df[col] = df[col].apply(lambda x: "" if pd.isna(x) or str(x).lower() == "nan" else x)
+
+    # تطبيق الفلاتر
     if selected_shipment_filter != "الكل":
       df = df[df["الشحنة"] == selected_shipment_filter]
     if selected_code_filter != "الكل":
@@ -267,7 +262,7 @@ if active_data_file is not None and active_template_file is not None:
       with open(active_logo, "rb") as img_file:
         logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
-    st.success(f"✅ تم تحميل وتصفية البيانات بنجاح. الشحنة: **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}**")
+    st.success(f"✅ تم تحميل وتصفية البيانات بنجاح | الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}")
     st.markdown("---")
 
     total_clients_count = len(df)
@@ -287,14 +282,13 @@ if active_data_file is not None and active_template_file is not None:
       display_shipment = "" if shipment == "بدون شحنة" else shipment
 
       name = str(row.get("الاسم", "")).strip()
-      if not name or name.lower() == "nan":
-        name = "عميل غير محدد"
+      if not name: name = "عميل غير محدد"
 
       file_name_id = f"Shipment_{shipment}_Client_{name}" if shipment and name else f"Receipt_{index}"
 
       weight = 0.0
       for col in df.columns:
-        if any(k in str(col).lower() for k in ["وزن", "weight"]):
+        if any(k in col.lower() for k in ["وزن", "weight"]):
           try: weight = float(row.get(col, 0) or 0)
           except: pass
           break
@@ -302,7 +296,7 @@ if active_data_file is not None and active_template_file is not None:
 
       cbm_value = 0.0
       for col in df.columns:
-        if any(k in str(col).lower() for k in ["حجم", "cbm", "dimension"]):
+        if any(k in col.lower() for k in ["حجم", "cbm"]):
           try: cbm_value = float(row.get(col, 0) or 0)
           except: pass
           break
@@ -310,7 +304,7 @@ if active_data_file is not None and active_template_file is not None:
 
       packages = 0
       for col in df.columns:
-        if any(k in str(col).lower() for k in ["طرود", "package", "pcs", "عدد"]):
+        if any(k in col.lower() for k in ["طرود", "package", "pcs", "عدد"]):
           try: packages = int(float(row.get(col, 0) or 0))
           except: pass
           break
@@ -318,14 +312,14 @@ if active_data_file is not None and active_template_file is not None:
 
       price_per_kg = 0.0
       for col in df.columns:
-        if any(k in str(col).lower() for k in ["سعر الكيلو", "price", "سعر"]):
+        if any(k in col.lower() for k in ["سعر الكيلو", "price"]):
           try: price_per_kg = float(row.get(col, 0) or 0)
           except: pass
           break
 
       total_sales = 0.0
       for col in df.columns:
-        if any(k in str(col).lower() for k in ["اجمالي مبيعات", "اجمالي", "total", "المبلغ"]):
+        if any(k in col.lower() for k in ["اجمالي", "total", "المبلغ"]):
           try: total_sales = float(row.get(col, 0) or 0)
           except: pass
           break
@@ -338,13 +332,10 @@ if active_data_file is not None and active_template_file is not None:
       if phone_raw.endswith(".0"): phone_raw = phone_raw[:-2]
       phone_raw = phone_raw.replace("+", "").strip()
       if phone_raw.startswith("964"): phone_raw = phone_raw[3:]
-      formatted_phone = f"+964 {phone_raw}" if phone_raw and phone_raw.lower() != "nan" else ""
+      formatted_phone = f"+964 {phone_raw}" if phone_raw else ""
 
       address = str(row.get("عنوان استلام البظاعة", "")).strip()
-      if address.lower() == "nan": address = ""
-
       shipment_type = str(row.get("نوع الشحنة", "")).strip()
-      if shipment_type.lower() == "nan": shipment_type = ""
 
       wb = openpyxl.load_workbook(active_template_file)
       ws = wb.active
@@ -718,4 +709,4 @@ if active_data_file is not None and active_template_file is not None:
   except Exception as e:
     st.error(f"حدث خطأ أثناء قراءة أو معالجة الملفات: {e}")
 else:
-  st.info("الرجاء رفع ملف بيانات الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي لتظهر المعاينة والطباعة.")
+  st.info("الرجاء التأكد من رفع ملف الشحنات وملف العملاء والقالب من الشريط الجانبي.")
