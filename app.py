@@ -91,7 +91,7 @@ with st.sidebar:
     st.sidebar.warning("تم مسح الملفات المحفوظة بنجاح.")
     st.rerun()
 
-  # --- دالة دمج ملف الشحنات مع ملف العملاء بمرونة تامة ---
+  # --- دالة دمج ملف الشحنات مع ملف العملاء بذكاء وتجنب تكرار الأعمدة ---
   def load_and_merge_data():
     if not os.path.exists(shipment_path):
       return None
@@ -130,17 +130,19 @@ with st.sidebar:
           
           merged = pd.merge(df_s, df_c, left_on='__s_code__', right_on='__c_code__', how='left', suffixes=('', '_cust'))
           
-          for target_col in ['الاسم', 'رقم الهاتف', 'عنوان استلام البظاعة']:
-            cust_alternatives = [c for c in merged.columns if target_col in c or c.endswith('_cust')]
-            for alt in cust_alternatives:
-              if alt != target_col and alt in merged.columns:
-                if target_col in merged.columns:
-                  merged[target_col] = merged[target_col].fillna(merged[alt])
-                else:
-                  merged[target_col] = merged[alt]
+          # تعبئة البيانات المفقودة من ملف العملاء بدقة وتجنب القيم الفارغة NaN
+          for target_key in ['اسم', 'هاتف', 'عنوان']:
+            s_col = next((c for c in df_s.columns if target_key in str(c)), None)
+            c_col = next((c for c in df_c.columns if target_key in str(c)), None)
+            if s_col and c_col and c_col in merged.columns:
+              if s_col in merged.columns:
+                merged[s_col] = merged[s_col].fillna(merged[c_col])
+              else:
+                merged[s_col] = merged[c_col]
 
-          drop_cols = [c for c in merged.columns if c.startswith('__') or c.endswith('_cust')]
-          merged.drop(columns=drop_cols, errors='ignore', inplace=True)
+          drop_cols = [c for c in merged.columns if c.startswith('__') or c.endswith('_cust') or c in ['CITY', 'COUNTY', 'PHONE 1', 'NEW CODE'] and c != ship_code_col]
+          # نحافظ على الأعمدة الأصلية ونظف المكررة الزائدة
+          merged.drop(columns=[c for c in merged.columns if c.endswith('_cust') or c.startswith('__')], errors='ignore', inplace=True)
           df_s = merged
       except Exception as e:
         print(f"Error merging customer info: {e}")
