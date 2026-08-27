@@ -144,6 +144,13 @@ if active_data_file is not None and active_template_file is not None:
 
     today_date = datetime.date.today().strftime("%Y-%m-%d")
 
+    # تحويل الشعار إلى Base64 لضمان ظهوره بسلاسة في الطباعة والـ HTML
+    import base64
+    logo_base64 = ""
+    if active_logo and os.path.exists(active_logo):
+      with open(active_logo, "rb") as img_file:
+        logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
+
     st.success(
         f"✅ الملفات محفوظة بثبات على السيرفر. الشحنة المعروضة:"
         f" **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | تاريخ الإصدار: {today_date}"
@@ -266,6 +273,8 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
+      logo_img_tag = f'<img src="data:image/png;base64,{logo_base64}" style="max-height: 45px; max-width: 50px; margin-left: 10px; vertical-align: middle;">' if logo_base64 else ''
+
       single_receipt_html = f"""
             <div class="receipt-page" style="
                 padding: 15px; 
@@ -284,9 +293,12 @@ if active_data_file is not None and active_template_file is not None:
                 <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px; border-collapse: collapse;">
                     <tr>
                         <td style="text-align: right; vertical-align: middle;">
-                            <div>
-                                <h2 style="margin: 0; font-size: 15px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
-                                <p style="margin: 2px 0 0; font-size: 10px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
+                            <div style="display: flex; align-items: center;">
+                                {logo_img_tag}
+                                <div>
+                                    <h2 style="margin: 0; font-size: 15px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
+                                    <p style="margin: 2px 0 0; font-size: 10px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
+                                </div>
                             </div>
                         </td>
                         <td style="text-align: left; vertical-align: middle;">
