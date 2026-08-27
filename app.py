@@ -4,28 +4,16 @@ import os
 import openpyxl
 import pandas as pd
 import streamlit as st
-import base64
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
-# --- إنشاء مجلد لحفظ الملفات وتعريف المسارات في البداية ---
-UPLOAD_DIR = "saved_files"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-shipment_path = os.path.join(UPLOAD_DIR, "shipments_data.xlsx")
-template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
-logo_path = os.path.join(UPLOAD_DIR, "logo.png")
-
-# --- تنسيق الألوان العام وتغيير لون الشريط الجانبي وزر المسح ---
 st.markdown(
     """
     <style>
-    /* لون الشريط الجانبي: رمادي غامق بدرجة متوسطة */
     [data-testid="stSidebar"] {
         background-color: #334155;
         color: #f8fafc;
     }
-    /* تغيير لون النصوص والعناوين داخل الشريط الجانبي لتكون واضحة */
     [data-testid="stSidebar"] h1, 
     [data-testid="stSidebar"] h2, 
     [data-testid="stSidebar"] h3, 
@@ -33,7 +21,6 @@ st.markdown(
     [data-testid="stSidebar"] .stMarkdown {
         color: #f8fafc !important;
     }
-    /* تخصيص زر مسح الذاكرة ليكون أحمر غامق */
     [data-testid="stSidebar"] button[kind="secondary"] {
         background-color: #991b1b !important;
         color: white !important;
@@ -49,9 +36,19 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("📦 وصل تسليم البضائع")
+st.title("📦 النظام المالي والفني - وصل تسليم البضائع")
 
-# شريط جانبي لإدارة الملفات والفلتر
+UPLOAD_DIR = "saved_files"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+shipment_path = os.path.join(UPLOAD_DIR, "shipments_data.xlsx")
+template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
+logo_path = os.path.join(UPLOAD_DIR, "logo.png")
+
+selected_shipment_filter = "الكل"
+selected_code_filter = "الكل"
+manual_volume_col = "تلقائي"
+
 with st.sidebar:
   st.header("⚙️ إدارة الملفات")
 
@@ -62,6 +59,26 @@ with st.sidebar:
     with open(shipment_path, "wb") as f:
       f.write(uploaded_data_file.getbuffer())
     st.sidebar.success("تم حفظ ملف الشحنات بنجاح!")
+    st.rerun()
+
+  # إظهار قائمة مطابقة الحجم إجبارياً فور توفر ملف الشحنات
+  if os.path.exists(shipment_path):
+    try:
+      temp_df = pd.read_excel(shipment_path)
+      temp_df.columns = temp_df.columns.astype(str).str.strip()
+
+      st.markdown("---")
+      st.markdown(
+          "<h3 style='color: #fbbf24; font-size:15px;'>🛠️ مطابقة عمود الحجم"
+          " يدوياً</h3>",
+          unsafe_allow_html=True,
+      )
+      cols_available = ["تلقائي"] + list(temp_df.columns)
+      manual_volume_col = st.selectbox(
+          "اختر العمود الذي يمثل الحجم (CBM):", cols_available
+      )
+    except Exception as e:
+      st.sidebar.error(f"خطأ في قراءة الأعمدة: {e}")
 
   uploaded_template_file = st.file_uploader(
       "2. قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)", type=["xlsx"]
@@ -70,6 +87,7 @@ with st.sidebar:
     with open(template_path, "wb") as f:
       f.write(uploaded_template_file.getbuffer())
     st.sidebar.success("تم حفظ القالب بنجاح!")
+    st.rerun()
 
   uploaded_logo = st.file_uploader(
       "3. شعار الشركة (Logo) - اختيارى", type=["png", "jpg", "jpeg"]
@@ -78,6 +96,7 @@ with st.sidebar:
     with open(logo_path, "wb") as f:
       f.write(uploaded_logo.getbuffer())
     st.sidebar.success("تم حفظ الشعار بنجاح!")
+    st.rerun()
 
   if st.button("🗑️ مسح الذاكرة ورفع ملفات جديدة"):
     for path in [shipment_path, template_path, logo_path]:
@@ -86,16 +105,14 @@ with st.sidebar:
     st.sidebar.warning("تم مسح الملفات المحفوظة بنجاح.")
     st.rerun()
 
-  # --- فلتر الشحنات في القائمة الجانبية ---
-  st.markdown("---")
-  st.header("🔍 فلتر الشحنات")
-  selected_shipment_filter = "الكل"
-  selected_code_filter = "الكل"
-
   if os.path.exists(shipment_path):
     try:
       temp_df = pd.read_excel(shipment_path)
-      temp_df.columns = temp_df.columns.str.strip()
+      temp_df.columns = temp_df.columns.astype(str).str.strip()
+
+      st.markdown("---")
+      st.header("🔍 فلتر الشحنات")
+
       if "الشحنة" in temp_df.columns:
         shipment_list = ["الكل"] + sorted(
             temp_df["الشحنة"]
@@ -108,9 +125,12 @@ with st.sidebar:
         selected_shipment_filter = st.selectbox(
             "اختر الشحنة للعرض:", shipment_list
         )
-        
+
       filtered_temp_df = temp_df.copy()
-      if selected_shipment_filter != "الكل" and "الشحنة" in filtered_temp_df.columns:
+      if (
+          selected_shipment_filter != "الكل"
+          and "الشحنة" in filtered_temp_df.columns
+      ):
         filtered_temp_df = filtered_temp_df[
             filtered_temp_df["الشحنة"].astype(str).str.replace(".0", "")
             == selected_shipment_filter
@@ -131,14 +151,41 @@ with st.sidebar:
     except Exception:
       pass
 
-# تحديد الملفات النشطة
 active_data_file = shipment_path if os.path.exists(shipment_path) else None
 active_template_file = template_path if os.path.exists(template_path) else None
+active_logo = logo_path if os.path.exists(logo_path) else None
 
 if active_data_file is not None and active_template_file is not None:
   try:
     df = pd.read_excel(active_data_file)
-    df.columns = df.columns.str.strip()
+    df.columns = df.columns.astype(str).str.strip()
+
+    # معالجة عمود الحجم بناءً على الاختيار اليدوي أو البحث التلقائي
+    if manual_volume_col != "تلقائي" and manual_volume_col in df.columns:
+      df.rename(columns={manual_volume_col: "الحجم"}, inplace=True)
+    else:
+      found_vol_col = None
+      for col in df.columns:
+        clean_c = col.lower().strip()
+        if any(
+            k in clean_c
+            for k in [
+                "cbm",
+                "vol",
+                "volume",
+                "حجم",
+                "فاليوم",
+                "فاليم",
+                "حج",
+                "الابعاد",
+            ]
+        ):
+          found_vol_col = col
+          break
+      if found_vol_col:
+        df.rename(columns={found_vol_col: "الحجم"}, inplace=True)
+      else:
+        df["الحجم"] = 0.0
 
     if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
       df = df[
@@ -158,38 +205,14 @@ if active_data_file is not None and active_template_file is not None:
 
     today_date = datetime.date.today().strftime("%Y-%m-%d")
 
-    st.success(
-        f"✅ الملفات محفوظة بثبات على السيرفر. الشحنة المعروضة:"
-        f" **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | تاريخ الإصدار: {today_date}"
-    )
-    st.markdown("---")
-
     total_clients_count = len(df)
     total_packages_count = 0
     total_weight_sum = 0.0
+    total_volume_sum = 0.0
     total_sales_sum = 0.0
 
     receipts_data_list = []
     all_receipts_html_for_print = ""
-
-    # تصميم إطار الشعار الفخم والمتناسق
-    logo_html = ""
-    if os.path.exists(logo_path):
-      with open(logo_path, "rb") as lf:
-        encoded_logo = base64.b64encode(lf.read()).decode("utf-8")
-        logo_html = f'''
-            <div style="
-                border: 2px solid #102a43; 
-                padding: 4px; 
-                border-radius: 8px; 
-                display: inline-block; 
-                background: #ffffff; 
-                box-shadow: 0 2px 5px rgba(16,42,67,0.15);
-                vertical-align: middle;
-            ">
-                <img src="data:image/png;base64,{encoded_logo}" style="height: 42px; width: auto; display: block;" />
-            </div>
-        '''
 
     for index, row in df.iterrows():
       shipment = str(row.get("الشحنة", "")).strip()
@@ -200,7 +223,10 @@ if active_data_file is not None and active_template_file is not None:
       if code.endswith(".0"):
         code = code[:-2]
 
-      name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
+      name = str(row.get("الاسم", ""))
+      if name.endswith(".0"):
+        name = name[:-2]
+      name = name.strip()
 
       file_name_id = (
           f"Shipment_{shipment}_Client_{name}"
@@ -211,6 +237,15 @@ if active_data_file is not None and active_template_file is not None:
       weight = float(row.get("الوزن", 0) or 0)
       total_weight_sum += weight
 
+      volume = 0.0
+      val = row.get("الحجم", 0)
+      if pd.notna(val):
+        try:
+          volume = float(val)
+        except:
+          volume = 0.0
+      total_volume_sum += volume
+
       packages = 0
       try:
         packages = int(row.get("عدد الطرود", 0) or 0)
@@ -219,7 +254,7 @@ if active_data_file is not None and active_template_file is not None:
       total_packages_count += packages
 
       price_per_kg = 0
-      for col in ["سعر الكيلو", "سعر الكيلو ", "السعر"]:
+      for col in ["سعر الكيلو", "السعر"]:
         if col in df.columns:
           val = row.get(col, 0)
           if pd.notna(val):
@@ -227,7 +262,7 @@ if active_data_file is not None and active_template_file is not None:
             break
 
       total_sales = 0
-      for col in ["اجمالي مبيعات", "اجمالي مبيعات ", "الاجمالي", "المبلغ"]:
+      for col in ["اجمالي مبيعات", "الاجمالي", "المبلغ"]:
         if col in df.columns:
           val = row.get(col, 0)
           if pd.notna(val):
@@ -238,28 +273,19 @@ if active_data_file is not None and active_template_file is not None:
 
       total_sales_sum += total_sales
 
-      phone_raw = row.get("رقم الهاتف", row.get("رقم الهاتف ", ""))
+      phone_raw = row.get("رقم الهاتف", "")
       phone = str(phone_raw).strip()
       if phone.endswith(".0"):
         phone = phone[:-2]
-
       phone = phone.replace("+", "").strip()
       if phone.startswith("964"):
         phone = phone[3:]
-
       formatted_phone = f"+964 {phone}" if phone else ""
 
-      address = ""
-      for col in ["عنوان استلام البظاعة", "العنوان", "عنوان"]:
-        if col in df.columns:
-          address = str(row.get(col, "")).strip()
-          break
-
-      shipment_type = ""
-      for col in ["نوع الشحنة", "النوع"]:
-        if col in df.columns:
-          shipment_type = str(row.get(col, "")).strip()
-          break
+      address = str(
+          row.get("عنوان استلام البظاعة", row.get("العنوان", ""))
+      ).strip()
+      shipment_type = str(row.get("نوع الشحنة", "")).strip()
 
       wb = openpyxl.load_workbook(active_template_file)
       ws = wb.active
@@ -270,7 +296,7 @@ if active_data_file is not None and active_template_file is not None:
       ws["B6"] = address
       ws["D5"] = formatted_phone
       ws["B7"] = shipment
-      ws["D6"]  = packages
+      ws["D6"] = packages
       ws["B8"] = shipment_type
       ws["D7"] = weight
 
@@ -293,23 +319,17 @@ if active_data_file is not None and active_template_file is not None:
                 page-break-after: always;
                 break-after: page;
             ">
-                <!-- رأس الوصل الفخم: الشعار يمين وعنوان الوصل يسار -->
-                <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 10px; margin-bottom: 12px; border-collapse: collapse;">
+                <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px; border-collapse: collapse;">
                     <tr>
-                        <td style="text-align: right; vertical-align: middle; width: 60%;">
-                            <table style="border-collapse: collapse;">
-                                <tr>
-                                    <td style="padding-left: 10px; vertical-align: middle;">{logo_html}</td>
-                                    <td style="vertical-align: middle; text-align: right;">
-                                        <h2 style="margin: 0; font-size: 15px; color: #102a43; font-weight: bold;">أطلس المحيط للتجارة العامة</h2>
-                                        <p style="margin: 2px 0 0; font-size: 9px; color: #627d98; letter-spacing: 0.5px;">OCEAN ATLAS GENERAL TRADING</p>
-                                    </td>
-                                </tr>
-                            </table>
+                        <td style="text-align: right; vertical-align: middle;">
+                            <div>
+                                <h2 style="margin: 0; font-size: 15px; color: #102a43;">أطلس المحيط للتجارة العامة</h2>
+                                <p style="margin: 2px 0 0; font-size: 10px; color: #627d98;">OCEAN ATLAS GENERAL TRADING</p>
+                            </div>
                         </td>
-                        <td style="text-align: left; vertical-align: middle; width: 40%;">
-                            <h3 style="margin: 0; font-size: 14px; color: #b45309; font-weight: bold;">وصل تسليم بضاعة</h3>
-                            <p style="margin: 2px 0 0; font-size: 9px; color: #334e68;">Cargo Delivery Receipt</p>
+                        <td style="text-align: left; vertical-align: middle;">
+                            <h3 style="margin: 0; font-size: 13px; color: #b45309;">وصل تسليم بضاعة</h3>
+                            <p style="margin: 2px 0 0; font-size: 10px; color: #334e68;">Cargo Delivery Receipt</p>
                         </td>
                     </tr>
                 </table>
@@ -329,7 +349,7 @@ if active_data_file is not None and active_template_file is not None:
                     </tr>
                     <tr>
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
-                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ</td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> {weight} كغ &nbsp;|&nbsp; <strong>الحجم:</strong> {volume}</td>
                     </tr>
                     <tr style="background-color: #f0f4f8;">
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
@@ -380,19 +400,20 @@ if active_data_file is not None and active_template_file is not None:
         .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
         .metric-card-2 { background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 10px; text-align: center; }
         .metric-card-3 { background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-5 { background-color: #f3e8ff; border: 1px solid #d8b4fe; padding: 15px; border-radius: 10px; text-align: center; }
         .metric-card-4 { background-color: #fdf2f8; border: 1px solid #fbcfe8; padding: 15px; border-radius: 10px; text-align: center; }
         </style>
     """,
         unsafe_allow_html=True,
     )
 
-    m1, m2, m3, m4 = st.columns(4)
+    m1, m2, m3, m5, m4 = st.columns(5)
     with m1:
       st.markdown(
           f"""
             <div class="metric-card-1">
-                <p style="margin: 0; color: #1e40af; font-weight: bold; font-size: 14px;">👥 عدد العملاء</p>
-                <h3 style="margin: 5px 0 0; color: #1e3a8a; font-size: 20px;">{total_clients_count} عميل</h3>
+                <p style="margin: 0; color: #1e40af; font-weight: bold; font-size: 13px;">👥 عدد العملاء</p>
+                <h3 style="margin: 5px 0 0; color: #1e3a8a; font-size: 18px;">{total_clients_count} عميل</h3>
             </div>
         """,
           unsafe_allow_html=True,
@@ -401,8 +422,8 @@ if active_data_file is not None and active_template_file is not None:
       st.markdown(
           f"""
             <div class="metric-card-2">
-                <p style="margin: 0; color: #166534; font-weight: bold; font-size: 14px;">📦 إجمالي الطرود</p>
-                <h3 style="margin: 5px 0 0; color: #14532d; font-size: 20px;">{total_packages_count} طرد</h3>
+                <p style="margin: 0; color: #166534; font-weight: bold; font-size: 13px;">📦 إجمالي الطرود</p>
+                <h3 style="margin: 5px 0 0; color: #14532d; font-size: 18px;">{total_packages_count} طرد</h3>
             </div>
         """,
           unsafe_allow_html=True,
@@ -411,8 +432,18 @@ if active_data_file is not None and active_template_file is not None:
       st.markdown(
           f"""
             <div class="metric-card-3">
-                <p style="margin: 0; color: #92400e; font-weight: bold; font-size: 14px;">⚖️ الوزن الكلي</p>
-                <h3 style="margin: 5px 0 0; color: #78350f; font-size: 20px;">{total_weight_sum:,.2f} كغ</h3>
+                <p style="margin: 0; color: #92400e; font-weight: bold; font-size: 13px;">⚖️ الوزن الكلي</p>
+                <h3 style="margin: 5px 0 0; color: #78350f; font-size: 18px;">{total_weight_sum:,.2f} كغ</h3>
+            </div>
+        """,
+          unsafe_allow_html=True,
+      )
+    with m5:
+      st.markdown(
+          f"""
+            <div class="metric-card-5">
+                <p style="margin: 0; color: #6b21a8; font-weight: bold; font-size: 13px;">📐 الحجم الكلي</p>
+                <h3 style="margin: 5px 0 0; color: #581c87; font-size: 18px;">{total_volume_sum:,.2f} CBM</h3>
             </div>
         """,
           unsafe_allow_html=True,
@@ -421,8 +452,8 @@ if active_data_file is not None and active_template_file is not None:
       st.markdown(
           f"""
             <div class="metric-card-4">
-                <p style="margin: 0; color: #9d174d; font-weight: bold; font-size: 14px;">💰 المبلغ الإجمالي</p>
-                <h3 style="margin: 5px 0 0; color: #831843; font-size: 20px;">{total_sales_sum:,.2f} $</h3>
+                <p style="margin: 0; color: #9d174d; font-weight: bold; font-size: 13px;">💰 المبلغ الإجمالي</p>
+                <h3 style="margin: 5px 0 0; color: #831843; font-size: 18px;">{total_sales_sum:,.2f} $</h3>
             </div>
         """,
           unsafe_allow_html=True,
@@ -438,21 +469,24 @@ if active_data_file is not None and active_template_file is not None:
 
     preferred_cols = [
         "التسلسل",
+        "الشحنة",
         "الكود",
         "الاسم",
         "رقم الهاتف",
         "عدد الطرود",
         "الوزن",
+        "الحجم",
+        "سعر الكيلو",
+        "اجمالي مبيعات",
         "عنوان استلام البظاعة",
         "نوع الشحنة",
     ]
-    existing_cols = [
+    actual_cols = [
         col for col in preferred_cols if col in display_table_df.columns
     ]
+
     final_table_df = (
-        display_table_df[existing_cols]
-        if existing_cols
-        else display_table_df
+        display_table_df[actual_cols] if actual_cols else display_table_df
     )
     table_html = final_table_df.to_html(
         classes="custom-table", index=False, escape=False
@@ -462,6 +496,7 @@ if active_data_file is not None and active_template_file is not None:
     <style>
         .custom-table-container {{
             max-height: 450px;
+            overflow-x: auto;
             overflow-y: auto;
             border: 1px solid #bcccdc;
             border-radius: 8px;
@@ -476,6 +511,7 @@ if active_data_file is not None and active_template_file is not None:
             direction: rtl;
             background-color: #ffffff;
             color: #102a43;
+            white-space: nowrap;
         }}
         .custom-table th {{
             background-color: #102a43 !important;
@@ -543,17 +579,17 @@ if active_data_file is not None and active_template_file is not None:
             </style>
         </head>
         <body>
+            <div id="master-content" style="display:none;">{all_receipts_html_for_print}</div>
             <button class="master-btn" onclick="printAllReceipts()">
                 🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)
             </button>
 
             <script>
-                const allReceiptsContent = `{all_receipts_html_for_print.replace('`', '\\`').replace('$', '\\$')}`;
-
                 function printAllReceipts() {{
+                    var content = document.getElementById('master-content').innerHTML;
                     var printWin = window.open('', '', 'height=900,width=800');
                     printWin.document.write('<html><head><title>طباعة الوصولات</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }} .receipt-page {{ page-break-after: always; break-after: page; margin-bottom: 20px; }}</style></head><body>');
-                    printWin.document.write(allReceiptsContent);
+                    printWin.document.write(content);
                     printWin.document.write('</body></html>');
                     printWin.document.close();
                     printWin.focus();
@@ -571,7 +607,6 @@ if active_data_file is not None and active_template_file is not None:
       index = item["index"]
       shipment = item["shipment"]
       file_name_id = item["file_name_id"]
-      single_html_content = item["single_html"]
 
       expander_label = f"📄 وصل العميل: {item['name']}  |  كود: {item['code']}  |  الشحنة: {shipment}  |  الإجمالي: {item['total_sales']:,.2f} دولار"
 
@@ -588,6 +623,7 @@ if active_data_file is not None and active_template_file is not None:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
+        single_html_content = item["single_html"]
         safe_html_payload = f"""
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
@@ -625,7 +661,7 @@ if active_data_file is not None and active_template_file is not None:
                 </style>
             </head>
             <body>
-                {single_html_content}
+                <div id="single-receipt-container">{single_html_content}</div>
                 
                 <div class="btn-container">
                     <button class="action-btn" onclick="printReceipt()">
@@ -637,13 +673,13 @@ if active_data_file is not None and active_template_file is not None:
                 </div>
 
                 <script>
-                    const receiptContent = `{single_html_content.replace('`', '\\`').replace('$', '\\$')}`;
                     const fileNameId = '{file_name_id}';
 
                     function printReceipt() {{
+                        var content = document.getElementById('single-receipt-container').innerHTML;
                         var printWin = window.open('', '', 'height=800,width=800');
                         printWin.document.write('<html><head><title>طباعة الشحنة</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
-                        printWin.document.write(receiptContent);
+                        printWin.document.write(content);
                         printWin.document.write('</body></html>');
                         printWin.document.close();
                         printWin.focus();
@@ -651,9 +687,10 @@ if active_data_file is not None and active_template_file is not None:
                     }}
 
                     function savePdfReceipt() {{
+                        var content = document.getElementById('single-receipt-container').innerHTML;
                         var printWin = window.open('', '', 'height=800,width=800');
                         printWin.document.write('<html><head><title>' + fileNameId + '</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
-                        printWin.document.write(receiptContent);
+                        printWin.document.write(content);
                         printWin.document.write('</body></html>');
                         printWin.document.close();
                         printWin.focus();
