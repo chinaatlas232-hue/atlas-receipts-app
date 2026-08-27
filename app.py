@@ -49,6 +49,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 shipment_path = os.path.join(UPLOAD_DIR, "shipments_data.xlsx")
 template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
 logo_path = os.path.join(UPLOAD_DIR, "logo.png")
+customers_db_path = "coustmer info.xlsx"
 
 # شريط جانبي لإدارة الملفات والفلتر
 with st.sidebar:
@@ -148,6 +149,81 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
+    # --- دمج بيانات قاعدة بيانات العملاء تلقائياً بناءً على الكود ---
+    if os.path.exists(customers_db_path):
+      try:
+        cust_df = pd.read_excel(customers_db_path)
+        cust_df.columns = cust_df.columns.str.strip()
+        
+        # البحث عن عمود الكود في ملف قاعدة البيانات وعمود الاسم والهاتف والعنوان
+        cust_code_col = None
+        for col in ["NEW CODE", "ATS NEW CODE", "ATS", "الكود"]:
+          if col in cust_df.columns:
+            cust_code_col = col
+            break
+            
+        cust_name_col = None
+        for col in ["NAME SURNAME", "الاسم"]:
+          if col in cust_df.columns:
+            cust_name_col = col
+            break
+
+        cust_phone_col = None
+        for col in ["PHONE 1", "رقم الهاتف"]:
+          if col in cust_df.columns:
+            cust_phone_col = col
+            break
+
+        cust_address_col = None
+        for col in ["ADDRESS", "العنوان", "عنوان استلام البظاعة"]:
+          if col in cust_df.columns:
+            cust_address_col = col
+            break
+
+        if cust_code_col:
+          cust_df["clean_code"] = cust_df[cust_code_col].fillna("").astype(str).str.strip().str.replace(".0", "").str.upper()
+          
+          # إنشاء قواميس للمطابقة السريعة
+          name_dict = {}
+          phone_dict = {}
+          address_dict = {}
+          
+          for _, c_row in cust_df.iterrows():
+            c_code = c_row["clean_code"]
+            if c_code and c_code != "NAN":
+              if cust_name_col and pd.notna(c_row.get(cust_name_col)):
+                name_dict[c_code] = str(c_row[cust_name_col]).strip()
+              if cust_phone_col and pd.notna(c_row.get(cust_phone_col)):
+                phone_dict[c_code] = str(c_row[cust_phone_col]).strip()
+              if cust_address_col and pd.notna(c_row.get(cust_address_col)):
+                address_dict[c_code] = str(c_row[cust_address_col]).strip()
+
+          # التأكد من وجود أعمدة الاسم، الهاتف، والعنوان في جدول الشحنات وإنشائها إن لم تكن موجودة
+          for col_name in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
+            if col_name not in df.columns:
+              df[col_name] = ""
+
+          # تعبئة الحقول الفارغة أو غير الموجودة من قاعدة البيانات عبر مطابقة الكود
+          for idx, row in df.iterrows():
+            raw_c = str(row.get("الكود", "")).strip().replace(".0", "").upper()
+            if raw_c and raw_c != "NAN" and raw_c != "بدون كود":
+              # تعبئة الاسم إذا كان فارغاً
+              curr_name = str(row.get("الاسم", "")).strip()
+              if (not curr_name or curr_name == "nan") and raw_c in name_dict:
+                df.at[idx, "الاسم"] = name_dict[raw_c]
+                
+              # تعبئة رقم الهاتف إذا كان فارغاً
+              curr_phone = str(row.get("رقم الهاتف", "")).strip()
+              if (not curr_phone or curr_phone == "nan") and raw_c in phone_dict:
+                df.at[idx, "رقم الهاتف"] = phone_dict[raw_c]
+
+              # تعبئة العنوان إذا كان فارغاً
+              curr_addr = str(row.get("عنوان استلام البظاعة", "")).strip()
+              if (not curr_addr or curr_addr == "nan") and raw_c in address_dict:
+                df.at[idx, "عنوان استلام البظاعة"] = address_dict[raw_c]
+      except Exception as ex:
+        st.sidebar.warning(f"ملاحظة حول قراءة قاعدة بيانات العملاء: {ex}")
+
     if "الشحنة" in df.columns:
       df["الشحنة"] = df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "")
     if "الكود" in df.columns:
@@ -207,7 +283,7 @@ if active_data_file is not None and active_template_file is not None:
       display_shipment = "" if shipment == "بدون شحنة" else shipment
 
       name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
-      if name == "nan":
+      if name == "nan" or not name:
         name = "عميل غير محدد"
 
       file_name_id = (
