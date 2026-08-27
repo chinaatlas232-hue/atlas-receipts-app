@@ -183,39 +183,24 @@ if active_data_file is not None and active_template_file is not None:
     df["الكود"] = df[c_col].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False).str.strip()
     df["نوع الشحنة"] = df[t_col].fillna("غير محدد").astype(str).str.strip() if t_col else "غير محدد"
 
-    # البحث عن أعمدة الاسم والهاتف والعنوان لو كانت موجودة مباشرة في ملف الشحنات
-    direct_name_col = next((c for c in df.columns if any(k in c.lower() for k in ["name", "الاسم", "اسم"]) and "surname" not in c.lower()), None)
-    direct_phone_col = next((c for c in df.columns if any(k in c.lower() for k in ["phone", "tel", "mobile", "هاتف"])), None)
-    direct_addr_col = next((c for c in df.columns if any(k in c.lower() for k in ["address", "عنوان", "استلام"])), None)
+    # تهيئة أعمدة البيانات الفارغة لتعبئتها لاحقاً
+    df["الاسم"] = ""
+    df["رقم الهاتف"] = ""
+    df["عنوان استلام البظاعة"] = ""
 
-    if direct_name_col:
-      df["الاسم"] = df[direct_name_col].fillna("").astype(str).str.strip()
-    else:
-      df["الاسم"] = ""
-
-    if direct_phone_col:
-      df["رقم الهاتف"] = df[direct_phone_col].fillna("").astype(str).str.strip()
-    else:
-      df["رقم الهاتف"] = ""
-
-    if direct_addr_col:
-      df["عنوان استلام البظاعة"] = df[direct_addr_col].fillna("").astype(str).str.strip()
-    else:
-      df["عنوان استلام البظاعة"] = ""
-
-    # --- ربط ملف العملاء (coustmer info.xlsx) لجلب أو استكمال البيانات الناقصة ---
+    # --- ربط ملف العملاء (coustmer info.xlsx) بدقة مع الأعمدة الجديدة (NEW CODE و NAME SURNAME) ---
     if active_customers_db is not None:
       try:
         cust_df = pd.read_excel(active_customers_db)
         cust_df.columns = cust_df.columns.astype(str).str.strip()
         
-        cust_code_col = next((c for c in cust_df.columns if any(k in c.lower() for k in ["code", "ats", "كود"])), cust_df.columns[0])
+        # البحث عن عمود الكود (سيلتقط NEW CODE أو ATS أو كود)
+        cust_code_col = next((c for c in cust_df.columns if any(k in c.lower() for k in ["new code", "code", "ats", "كود"])), cust_df.columns[0])
         
-        name_cols_found = [c for c in cust_df.columns if any(k in c.lower() for k in ["name", "الاسم", "اسم"]) and "surname" not in c.lower()]
-        surname_cols_found = [c for c in cust_df.columns if any(k in c.lower() for k in ["surname", "family", "لقب", "عائلة"])]
-        
+        # البحث عن الأعمدة في ملف العملاء
+        cust_name_col = next((c for c in cust_df.columns if any(k in c.lower() for k in ["name", "الاسم", "اسم"])), None)
         cust_phone_col = next((c for c in cust_df.columns if any(k in c.lower() for k in ["phone", "tel", "mobile", "هاتف"])), None)
-        cust_address_col = next((c for c in cust_df.columns if any(k in c.lower() for k in ["address", "عنوان", "استلام"])), None)
+        cust_address_col = next((c for c in cust_df.columns if any(k in c.lower() for k in ["address", "عنوان", "city", "county"])), None)
 
         if cust_code_col:
           cust_df["clean_code"] = cust_df[cust_code_col].fillna("").astype(str).str.replace(".0", "", regex=False).str.strip().str.lower()
@@ -226,16 +211,9 @@ if active_data_file is not None and active_template_file is not None:
             c_code = c_row["clean_code"]
             if c_code and c_code != "nan" and c_code != "":
               
-              full_name_parts = []
-              for nc in name_cols_found:
-                val = str(c_row.get(nc, "")).strip()
-                if val and val.lower() != "nan": full_name_parts.append(val)
-              for sc in surname_cols_found:
-                val = str(c_row.get(sc, "")).strip()
-                if val and val.lower() != "nan": full_name_parts.append(val)
-              
-              if full_name_parts:
-                name_dict[c_code] = " ".join(full_name_parts)
+              if cust_name_col:
+                val_n = str(c_row.get(cust_name_col, "")).strip()
+                if val_n and val_n.lower() != "nan": name_dict[c_code] = val_n
                   
               if cust_phone_col and pd.notna(c_row.get(cust_phone_col)):
                 val_p = str(c_row[cust_phone_col]).strip()
@@ -245,25 +223,20 @@ if active_data_file is not None and active_template_file is not None:
                 val_a = str(c_row[cust_address_col]).strip()
                 if val_a and val_a.lower() != "nan": address_dict[c_code] = val_a
 
-          # دمج واستكمال البيانات المفقودة بناءً على تطابق الأكواد
+          # جلب واستكمال البيانات في الجدول الأساسي
           for idx, row in df.iterrows():
             raw_code = str(row.get("الكود", "")).strip().replace(".0", "").lower()
             if raw_code and raw_code != "nan" and raw_code != "بدون كود":
               
-              curr_name = str(row.get("الاسم", "")).strip()
-              if (not curr_name or curr_name.lower() in ["nan", "none", ""]) and raw_code in name_dict:
+              if raw_code in name_dict:
                 df.at[idx, "الاسم"] = name_dict[raw_code]
-                
-              curr_phone = str(row.get("رقم الهاتف", "")).strip()
-              if (not curr_phone or curr_phone.lower() in ["nan", "none", ""]) and raw_code in phone_dict:
+              if raw_code in phone_dict:
                 df.at[idx, "رقم الهاتف"] = phone_dict[raw_code]
-
-              curr_addr = str(row.get("عنوان استلام البظاعة", "")).strip()
-              if (not curr_addr or curr_addr.lower() in ["nan", "none", ""]) and raw_code in address_dict:
+              if raw_code in address_dict:
                 df.at[idx, "عنوان استلام البظاعة"] = address_dict[raw_code]
                 
       except Exception as ex:
-        st.sidebar.warning(f"ملاحظة ملف العملاء: {ex}")
+        st.warning(f"ملاحظة ملف العملاء: {ex}")
 
     # تنظيف شامل لأي قيم غير صالحة
     for col in df.columns:
