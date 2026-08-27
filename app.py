@@ -107,7 +107,7 @@ with st.sidebar:
       temp_df.columns = temp_df.columns.str.strip()
       
       if "الشحنة" in temp_df.columns:
-        temp_df["الشحنة"] = temp_df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "").str.strip()
+        temp_df["الشحنة"] = temp_df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False).str.strip()
         shipment_list = ["الكل"] + sorted(temp_df["الشحنة"].unique().tolist())
         selected_shipment_filter = st.selectbox(
             "اختر الشحنة للعرض:", shipment_list
@@ -120,7 +120,7 @@ with st.sidebar:
         ]
 
       if "الكود" in filtered_temp_df.columns:
-        filtered_temp_df["الكود"] = filtered_temp_df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "").str.strip()
+        filtered_temp_df["الكود"] = filtered_temp_df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False).str.strip()
         code_list = ["الكل"] + sorted(filtered_temp_df["الكود"].unique().tolist())
         selected_code_filter = st.selectbox(
             "اختر أو ابحث برقم الكود:", code_list
@@ -158,13 +158,18 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
+    # التأكد من وجود أعمدة رئيسية لتجنب أي أخطاء عرض
+    for target_col in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
+      if target_col not in df.columns:
+        df[target_col] = ""
+
     # --- المعالجة الذكية والمطابقة المتقدمة لبيانات العملاء من coustmer info.xlsx ---
     if active_customers_db is not None:
       try:
         cust_df = pd.read_excel(active_customers_db)
         cust_df.columns = cust_df.columns.str.strip()
         
-        # البحث الذكي عن أعمدة الكود والاسم والهاتف والعنوان بغض النظر عن حالة الأحرف أو اللغة
+        # البحث الذكي عن أعمدة الكود والاسم والهاتف والعنوان
         cust_code_col = None
         for col in cust_df.columns:
           c_lower = str(col).lower()
@@ -196,7 +201,7 @@ if active_data_file is not None and active_template_file is not None:
             break
 
         if cust_code_col:
-          cust_df["clean_code"] = cust_df[cust_code_col].fillna("").astype(str).str.replace(".0", "").str.strip().str.lower()
+          cust_df["clean_code"] = cust_df[cust_code_col].fillna("").astype(str).str.replace(".0", "", regex=False).str.strip().str.lower()
           
           name_dict = {}
           phone_dict = {}
@@ -220,10 +225,6 @@ if active_data_file is not None and active_template_file is not None:
                 if val_a and val_a.lower() != "nan":
                   address_dict[c_code] = val_a
 
-          for col_name in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
-            if col_name not in df.columns:
-              df[col_name] = ""
-
           for idx, row in df.iterrows():
             raw_code_val = str(row.get("الكود", "")).strip().replace(".0", "").lower()
             if raw_code_val and raw_code_val != "nan" and raw_code_val != "بدون كود" and raw_code_val != "":
@@ -245,9 +246,9 @@ if active_data_file is not None and active_template_file is not None:
         st.sidebar.warning(f"ملاحظة حول مطابقة قاعدة بيانات العملاء: {ex}")
 
     if "الشحنة" in df.columns:
-      df["الشحنة"] = df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "").str.strip()
+      df["الشحنة"] = df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False).str.strip()
     if "الكود" in df.columns:
-      df["الكود"] = df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "").str.strip()
+      df["الكود"] = df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False).str.strip()
 
     type_col_name = None
     for col in ["نوع الشحنة", "النوع"]:
