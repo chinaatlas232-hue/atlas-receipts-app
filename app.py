@@ -490,7 +490,7 @@ if active_data_file is not None and active_template_file is not None:
     custom_table_styling = f"""
     <style>
         .custom-table-container {{
-            max-height: 450px;
+            max-height: 650px;
             overflow-x: auto;
             overflow-y: auto;
             border: 1px solid #bcccdc;
