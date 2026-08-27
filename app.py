@@ -158,7 +158,6 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
-    # التأكد من وجود أعمدة رئيسية لتجنب أي أخطاء عرض
     for target_col in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
       if target_col not in df.columns:
         df[target_col] = ""
@@ -169,7 +168,7 @@ if active_data_file is not None and active_template_file is not None:
         cust_df = pd.read_excel(active_customers_db)
         cust_df.columns = cust_df.columns.str.strip()
         
-        # البحث الذكي عن أعمدة الكود والاسم والهاتف والعنوان
+        # البحث الذكي عن عمود الكود
         cust_code_col = None
         for col in cust_df.columns:
           c_lower = str(col).lower()
@@ -179,12 +178,15 @@ if active_data_file is not None and active_template_file is not None:
         if not cust_code_col and len(cust_df.columns) > 0:
           cust_code_col = cust_df.columns[0]
 
-        cust_name_col = None
+        # البحث عن الاسم الأول واللقب (Surname) لدمجهما
+        name_cols_found = []
+        surname_cols_found = []
         for col in cust_df.columns:
           c_lower = str(col).lower()
-          if any(k in c_lower for k in ["name", "surname", "الاسم", "اسم"]):
-            cust_name_col = col
-            break
+          if any(k in c_lower for k in ["name", "الاسم", "اسم"]) and "surname" not in c_lower:
+            name_cols_found.append(col)
+          if any(k in c_lower for k in ["surname", "family", "لقب", "عائلة"]):
+            surname_cols_found.append(col)
 
         cust_phone_col = None
         for col in cust_df.columns:
@@ -210,10 +212,21 @@ if active_data_file is not None and active_template_file is not None:
           for _, c_row in cust_df.iterrows():
             c_code = c_row["clean_code"]
             if c_code and c_code != "nan" and c_code != "":
-              if cust_name_col and pd.notna(c_row.get(cust_name_col)):
-                val_n = str(c_row[cust_name_col]).strip()
-                if val_n and val_n.lower() != "nan":
-                  name_dict[c_code] = val_n
+              
+              # تجميع الاسم واللقب معاً بشكل ذكي
+              full_name_parts = []
+              for nc in name_cols_found:
+                val = str(c_row.get(nc, "")).strip()
+                if val and val.lower() != "nan":
+                  full_name_parts.append(val)
+              for sc in surname_cols_found:
+                val = str(c_row.get(sc, "")).strip()
+                if val and val.lower() != "nan":
+                  full_name_parts.append(val)
+              
+              if full_name_parts:
+                combined_name = " ".join(full_name_parts)
+                name_dict[c_code] = combined_name
                   
               if cust_phone_col and pd.notna(c_row.get(cust_phone_col)):
                 val_p = str(c_row[cust_phone_col]).strip()
@@ -241,7 +254,7 @@ if active_data_file is not None and active_template_file is not None:
               if (not curr_addr or curr_addr.lower() in ["nan", "none", ""]) and raw_code_val in address_dict:
                 df.at[idx, "عنوان استلام البظاعة"] = address_dict[raw_code_val]
                 
-        st.sidebar.info(f"📂 ملف العملاء: تم ربط الكود بـ ({cust_name_col}, {cust_phone_col}, {cust_address_col})")
+        st.sidebar.info("📂 ملف العملاء: تم ربط الكود ودمج الاسم واللقب بنجاح.")
       except Exception as ex:
         st.sidebar.warning(f"ملاحظة حول مطابقة قاعدة بيانات العملاء: {ex}")
 
@@ -281,7 +294,7 @@ if active_data_file is not None and active_template_file is not None:
         logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
     st.success(
-        f"✅ تم دمج البيانات بنجاح وسحب الحقول المفقودة. الشحنة المعروضة:"
+        f"✅ تم دمج البيانات وسحب الاسم الثلاثي/اللقب بنجاح. الشحنة:"
         f" **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}**"
     )
     st.markdown("---")
