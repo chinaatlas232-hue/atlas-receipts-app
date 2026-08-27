@@ -158,34 +158,38 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
-    # --- دمج بيانات قاعدة بيانات العملاء تلقائياً بناءً على الكود ---
+    # --- المعالجة السحرية الفائقة لدمج بيانات العملاء ---
     if active_customers_db is not None:
       try:
         cust_df = pd.read_excel(active_customers_db)
         cust_df.columns = cust_df.columns.str.strip()
         
-        # البحث عن عمود الكود في ملف قاعدة البيانات وعمود الاسم والهاتف والعنوان
+        # البحث الذكي عن عمود الكود والاسم والهاتف والعنوان أينما وجد في ملف العملاء
         cust_code_col = None
-        for col in ["NEW CODE", "ATS NEW CODE", "ATS", "الكود", "Code"]:
-          if col in cust_df.columns:
+        for col in cust_df.columns:
+          c_lower = str(col).lower()
+          if any(k in c_lower for k in ["code", "ats", "كود"]):
             cust_code_col = col
             break
-            
+
         cust_name_col = None
-        for col in ["NAME SURNAME", "الاسم", "Name"]:
-          if col in cust_df.columns:
+        for col in cust_df.columns:
+          c_lower = str(col).lower()
+          if any(k in c_lower for k in ["name", "surname", "الاسم", "اسم"]):
             cust_name_col = col
             break
 
         cust_phone_col = None
-        for col in ["PHONE 1", "رقم الهاتف", "Phone"]:
-          if col in cust_df.columns:
+        for col in cust_df.columns:
+          c_lower = str(col).lower()
+          if any(k in c_lower for k in ["phone", "tel", "mobile", "هاتف", "موبايل", "رقم"]):
             cust_phone_col = col
             break
 
         cust_address_col = None
-        for col in ["ADDRESS", "العنوان", "عنوان استلام البظاعة", "Address"]:
-          if col in cust_df.columns:
+        for col in cust_df.columns:
+          c_lower = str(col).lower()
+          if any(k in c_lower for k in ["address", "عنوان", "استلام"]):
             cust_address_col = col
             break
 
@@ -198,31 +202,42 @@ if active_data_file is not None and active_template_file is not None:
           
           for _, c_row in cust_df.iterrows():
             c_code = c_row["clean_code"]
-            if c_code and c_code != "NAN":
+            if c_code and c_code != "NAN" and c_code != "":
               if cust_name_col and pd.notna(c_row.get(cust_name_col)):
-                name_dict[c_code] = str(c_row[cust_name_col]).strip()
+                val_n = str(c_row[cust_name_col]).strip()
+                if val_n and val_n.lower() != "nan":
+                  name_dict[c_code] = val_n
+                  
               if cust_phone_col and pd.notna(c_row.get(cust_phone_col)):
-                phone_dict[c_code] = str(c_row[cust_phone_col]).strip()
+                val_p = str(c_row[cust_phone_col]).strip()
+                if val_p and val_p.lower() != "nan":
+                  phone_dict[c_code] = val_p
+                  
               if cust_address_col and pd.notna(c_row.get(cust_address_col)):
-                address_dict[c_code] = str(c_row[cust_address_col]).strip()
+                val_a = str(c_row[cust_address_col]).strip()
+                if val_a and val_a.lower() != "nan":
+                  address_dict[c_code] = val_a
 
+          # التأكد من وجود الأعمدة في شحنات الأطلس
           for col_name in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
             if col_name not in df.columns:
               df[col_name] = ""
 
+          # التعبئة السحرية التلقائية لكل قيمة فارغة أو NaN
           for idx, row in df.iterrows():
             raw_c = str(row.get("الكود", "")).strip().replace(".0", "").upper()
-            if raw_c and raw_c != "NAN" and raw_c != "بدون كود":
+            if raw_c and raw_c != "NAN" and raw_c != "بدون كود" and raw_c != "":
+              
               curr_name = str(row.get("الاسم", "")).strip()
-              if (not curr_name or curr_name == "nan" or curr_name.lower() == "nan") and raw_c in name_dict:
+              if (not curr_name or curr_name.lower() in ["nan", "none", ""]) and raw_c in name_dict:
                 df.at[idx, "الاسم"] = name_dict[raw_c]
                 
               curr_phone = str(row.get("رقم الهاتف", "")).strip()
-              if (not curr_phone or curr_phone == "nan" or curr_phone.lower() == "nan") and raw_c in phone_dict:
+              if (not curr_phone or curr_phone.lower() in ["nan", "none", ""]) and raw_c in phone_dict:
                 df.at[idx, "رقم الهاتف"] = phone_dict[raw_c]
 
               curr_addr = str(row.get("عنوان استلام البظاعة", "")).strip()
-              if (not curr_addr or curr_addr == "nan" or curr_addr.lower() == "nan") and raw_c in address_dict:
+              if (not curr_addr or curr_addr.lower() in ["nan", "none", ""]) and raw_c in address_dict:
                 df.at[idx, "عنوان استلام البظاعة"] = address_dict[raw_c]
       except Exception as ex:
         st.sidebar.warning(f"ملاحظة حول قراءة قاعدة بيانات العملاء: {ex}")
@@ -264,8 +279,8 @@ if active_data_file is not None and active_template_file is not None:
         logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
     st.success(
-        f"✅ الملفات محفوظة بثبات على السيرفر. الشحنة المعروضة:"
-        f" **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}** | تاريخ الإصدار: {today_date}"
+        f"✅ تم دمج البيانات بنجاح وسحب الحقول المفقودة. الشحنة المعروضة:"
+        f" **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}**"
     )
     st.markdown("---")
 
@@ -286,7 +301,7 @@ if active_data_file is not None and active_template_file is not None:
       display_shipment = "" if shipment == "بدون شحنة" else shipment
 
       name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
-      if name == "nan" or not name:
+      if name.lower() == "nan" or not name:
         name = "عميل غير محدد"
 
       file_name_id = (
@@ -351,20 +366,20 @@ if active_data_file is not None and active_template_file is not None:
       phone = phone.replace("+", "").strip()
       if phone.startswith("964"):
         phone = phone[3:]
-      formatted_phone = f"+964 {phone}" if phone and phone != "nan" else ""
+      formatted_phone = f"+964 {phone}" if phone and phone.lower() != "nan" else ""
 
       address = ""
       for col in ["عنوان استلام البظاعة", "العنوان", "عنوان"]:
         if col in df.columns:
           address = str(row.get(col, "")).strip()
           break
-      if address == "nan":
+      if address.lower() == "nan":
         address = ""
 
       shipment_type = ""
       if type_col_name:
         shipment_type = str(row.get(type_col_name, "")).strip()
-      if shipment_type == "nan":
+      if shipment_type.lower() == "nan":
         shipment_type = ""
 
       wb = openpyxl.load_workbook(active_template_file)
