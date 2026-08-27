@@ -106,44 +106,51 @@ with st.sidebar:
       temp_df = pd.read_excel(shipment_path)
       temp_df.columns = temp_df.columns.str.strip()
       
-      if "الشحنة" in temp_df.columns:
-        temp_df["الشحنة"] = temp_df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False).str.strip()
-        shipment_list = ["الكل"] + sorted(temp_df["الشحنة"].unique().tolist())
-        selected_shipment_filter = st.selectbox(
-            "اختر الشحنة للعرض:", shipment_list
-        )
+      # البحث المرن عن عمود الشحنة والكود
+      shipment_col_name = None
+      for col in temp_df.columns:
+        if any(k in str(col).lower() for k in ["شحنة", "shipment", "batch"]):
+          shipment_col_name = col
+          break
+      if not shipment_col_name and len(temp_df.columns) > 0:
+        shipment_col_name = temp_df.columns[0]
+
+      if shipment_col_name:
+        temp_df["الشحنة_مفلترة"] = temp_df[shipment_col_name].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False).str.strip()
+        shipment_list = ["الكل"] + sorted(temp_df["الشحنة_مفلترة"].unique().tolist())
+        selected_shipment_filter = st.selectbox("اختر الشحنة للعرض:", shipment_list)
         
       filtered_temp_df = temp_df.copy()
-      if selected_shipment_filter != "الكل" and "الشحنة" in filtered_temp_df.columns:
-        filtered_temp_df = filtered_temp_df[
-            filtered_temp_df["الشحنة"] == selected_shipment_filter
-        ]
+      if selected_shipment_filter != "الكل" and shipment_col_name:
+        filtered_temp_df = filtered_temp_df[filtered_temp_df["الشحنة_مفلترة"] == selected_shipment_filter]
 
-      if "الكود" in filtered_temp_df.columns:
-        filtered_temp_df["الكود"] = filtered_temp_df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False).str.strip()
-        code_list = ["الكل"] + sorted(filtered_temp_df["الكود"].unique().tolist())
-        selected_code_filter = st.selectbox(
-            "اختر أو ابحث برقم الكود:", code_list
-        )
+      code_col_name = None
+      for col in filtered_temp_df.columns:
+        if any(k in str(col).lower() for k in ["كود", "code", "ats", "رقم العميل"]):
+          code_col_name = col
+          break
+      if not code_col_name and len(filtered_temp_df.columns) > 1:
+        code_col_name = filtered_temp_df.columns[1]
+
+      if code_col_name:
+        filtered_temp_df["الكود_مفلتر"] = filtered_temp_df[code_col_name].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False).str.strip()
+        code_list = ["الكل"] + sorted(filtered_temp_df["الكود_مفلتر"].unique().tolist())
+        selected_code_filter = st.selectbox("اختر أو ابحث برقم الكود:", code_list)
         
-      if selected_code_filter != "الكل" and "الكود" in filtered_temp_df.columns:
-        filtered_temp_df = filtered_temp_df[
-            filtered_temp_df["الكود"] == selected_code_filter
-        ]
+      if selected_code_filter != "الكل" and code_col_name:
+        filtered_temp_df = filtered_temp_df[filtered_temp_df["الكود_مفلتر"] == selected_code_filter]
 
       # فلتر نوع الشحنة (بحري / جوي)
-      type_col = None
-      for col in ["نوع الشحنة", "النوع"]:
-        if col in filtered_temp_df.columns:
-          type_col = col
+      type_col_name = None
+      for col in filtered_temp_df.columns:
+        if any(k in str(col).lower() for k in ["نوع", "type", "طريقة"]):
+          type_col_name = col
           break
           
-      if type_col:
-        filtered_temp_df[type_col] = filtered_temp_df[type_col].fillna("غير محدد").astype(str).str.strip()
-        type_list = ["الكل"] + sorted(filtered_temp_df[type_col].unique().tolist())
-        selected_type_filter = st.selectbox(
-            "اختر نوع الشحنة:", type_list
-        )
+      if type_col_name:
+        filtered_temp_df["النوع_مفلتر"] = filtered_temp_df[type_col_name].fillna("غير محدد").astype(str).str.strip()
+        type_list = ["الكل"] + sorted(filtered_temp_df["النوع_مفلتر"].unique().tolist())
+        selected_type_filter = st.selectbox("اختر نوع الشحنة:", type_list)
 
     except Exception:
       pass
@@ -158,128 +165,95 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
-    for target_col in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
-      if target_col not in df.columns:
-        df[target_col] = ""
+    # تحديد أسماء الأعمدة بمرونة عالية في ملف الشحنات
+    s_col = next((c for c in df.columns if any(k in str(c).lower() for k in ["شحنة", "shipment"])), df.columns[0])
+    c_col = next((c for c in df.columns if any(k in str(c).lower() for k in ["كود", "code", "ats"])), df.columns[1] if len(df.columns)>1 else df.columns[0])
+    t_col = next((c for c in df.columns if any(k in str(c).lower() for k in ["نوع", "type"])), None)
 
-    # --- المعالجة الذكية والمطابقة المتقدمة لبيانات العملاء من coustmer info.xlsx ---
+    # توحيد أعمدة الأساس في الجدول
+    df["الشحنة"] = df[s_col].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False).str.strip()
+    df["الكود"] = df[c_col].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False).str.strip()
+    if t_col:
+      df["نوع الشحنة"] = df[t_col].fillna("غير محدد").astype(str).str.strip()
+    else:
+      df["نوع الشحنة"] = "غير محدد"
+
+    # إنشاء أو تجهيز أعمدة الاسم والهاتف والعنوان إذا لم تكن موجودة
+    for col_name in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
+      if col_name not in df.columns:
+        df[col_name] = ""
+
+    # --- ربط ملف العملاء (coustmer info.xlsx) لجلب البيانات المفقودة ---
     if active_customers_db is not None:
       try:
         cust_df = pd.read_excel(active_customers_db)
         cust_df.columns = cust_df.columns.str.strip()
         
-        # البحث الذكي عن عمود الكود
-        cust_code_col = None
-        for col in cust_df.columns:
-          c_lower = str(col).lower()
-          if any(k in c_lower for k in ["code", "ats", "كود", "رقم العميل"]):
-            cust_code_col = col
-            break
-        if not cust_code_col and len(cust_df.columns) > 0:
-          cust_code_col = cust_df.columns[0]
-
-        # البحث عن الاسم الأول واللقب (Surname) لدمجهما
-        name_cols_found = []
-        surname_cols_found = []
-        for col in cust_df.columns:
-          c_lower = str(col).lower()
-          if any(k in c_lower for k in ["name", "الاسم", "اسم"]) and "surname" not in c_lower:
-            name_cols_found.append(col)
-          if any(k in c_lower for k in ["surname", "family", "لقب", "عائلة"]):
-            surname_cols_found.append(col)
-
-        cust_phone_col = None
-        for col in cust_df.columns:
-          c_lower = str(col).lower()
-          if any(k in c_lower for k in ["phone", "tel", "mobile", "هاتف", "موبايل"]):
-            cust_phone_col = col
-            break
-
-        cust_address_col = None
-        for col in cust_df.columns:
-          c_lower = str(col).lower()
-          if any(k in c_lower for k in ["address", "عنوان", "استلام", "مكان"]):
-            cust_address_col = col
-            break
+        cust_code_col = next((c for c in cust_df.columns if any(k in str(c).lower() for k in ["code", "ats", "كود"])), cust_df.columns[0])
+        
+        name_cols_found = [c for c in cust_df.columns if any(k in str(c).lower() for k in ["name", "الاسم", "اسم"]) and "surname" not in str(c).lower()]
+        surname_cols_found = [c for c in cust_df.columns if any(k in str(c).lower() for k in ["surname", "family", "لقب", "عائلة"])]
+        
+        cust_phone_col = next((c for c in cust_df.columns if any(k in str(c).lower() for k in ["phone", "tel", "mobile", "هاتف"])), None)
+        cust_address_col = next((c for c in cust_df.columns if any(k in str(c).lower() for k in ["address", "عنوان", "استلام"])), None)
 
         if cust_code_col:
           cust_df["clean_code"] = cust_df[cust_code_col].fillna("").astype(str).str.replace(".0", "", regex=False).str.strip().str.lower()
           
-          name_dict = {}
-          phone_dict = {}
-          address_dict = {}
+          name_dict, phone_dict, address_dict = {}, {}, {}
           
           for _, c_row in cust_df.iterrows():
             c_code = c_row["clean_code"]
             if c_code and c_code != "nan" and c_code != "":
               
-              # تجميع الاسم واللقب معاً بشكل ذكي
+              # دمج الاسم واللقب
               full_name_parts = []
               for nc in name_cols_found:
                 val = str(c_row.get(nc, "")).strip()
-                if val and val.lower() != "nan":
-                  full_name_parts.append(val)
+                if val and val.lower() != "nan": full_name_parts.append(val)
               for sc in surname_cols_found:
                 val = str(c_row.get(sc, "")).strip()
-                if val and val.lower() != "nan":
-                  full_name_parts.append(val)
+                if val and val.lower() != "nan": full_name_parts.append(val)
               
               if full_name_parts:
-                combined_name = " ".join(full_name_parts)
-                name_dict[c_code] = combined_name
+                name_dict[c_code] = " ".join(full_name_parts)
                   
               if cust_phone_col and pd.notna(c_row.get(cust_phone_col)):
                 val_p = str(c_row[cust_phone_col]).strip()
-                if val_p and val_p.lower() != "nan":
-                  phone_dict[c_code] = val_p
+                if val_p and val_p.lower() != "nan": phone_dict[c_code] = val_p
                   
               if cust_address_col and pd.notna(c_row.get(cust_address_col)):
                 val_a = str(c_row[cust_address_col]).strip()
-                if val_a and val_a.lower() != "nan":
-                  address_dict[c_code] = val_a
+                if val_a and val_a.lower() != "nan": address_dict[c_code] = val_a
 
+          # تحديث جدول الشحنات بالبيانات المسحوبة من قاعدة العملاء
           for idx, row in df.iterrows():
-            raw_code_val = str(row.get("الكود", "")).strip().replace(".0", "").lower()
-            if raw_code_val and raw_code_val != "nan" and raw_code_val != "بدون كود" and raw_code_val != "":
+            raw_code = str(row.get("الكود", "")).strip().replace(".0", "").lower()
+            if raw_code and raw_code != "nan" and raw_code != "بدون كود":
               
               curr_name = str(row.get("الاسم", "")).strip()
-              if (not curr_name or curr_name.lower() in ["nan", "none", ""]) and raw_code_val in name_dict:
-                df.at[idx, "الاسم"] = name_dict[raw_code_val]
+              if (not curr_name or curr_name.lower() in ["nan", "none", ""]) and raw_code in name_dict:
+                df.at[idx, "الاسم"] = name_dict[raw_code]
                 
               curr_phone = str(row.get("رقم الهاتف", "")).strip()
-              if (not curr_phone or curr_phone.lower() in ["nan", "none", ""]) and raw_code_val in phone_dict:
-                df.at[idx, "رقم الهاتف"] = phone_dict[raw_code_val]
+              if (not curr_phone or curr_phone.lower() in ["nan", "none", ""]) and raw_code in phone_dict:
+                df.at[idx, "رقم الهاتف"] = phone_dict[raw_code]
 
               curr_addr = str(row.get("عنوان استلام البظاعة", "")).strip()
-              if (not curr_addr or curr_addr.lower() in ["nan", "none", ""]) and raw_code_val in address_dict:
-                df.at[idx, "عنوان استلام البظاعة"] = address_dict[raw_code_val]
+              if (not curr_addr or curr_addr.lower() in ["nan", "none", ""]) and raw_code in address_dict:
+                df.at[idx, "عنوان استلام البظاعة"] = address_dict[raw_code]
                 
-        st.sidebar.info("📂 ملف العملاء: تم ربط الكود ودمج الاسم واللقب بنجاح.")
+        st.sidebar.info("📂 ملف العملاء: تم ربط الأكواد وجلب البيانات بنجاح.")
       except Exception as ex:
-        st.sidebar.warning(f"ملاحظة حول مطابقة قاعدة بيانات العملاء: {ex}")
+        st.sidebar.warning(f"ملاحظة مطابقة العملاء: {ex}")
 
-    if "الشحنة" in df.columns:
-      df["الشحنة"] = df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False).str.strip()
-    if "الكود" in df.columns:
-      df["الكود"] = df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False).str.strip()
-
-    type_col_name = None
-    for col in ["نوع الشحنة", "النوع"]:
-      if col in df.columns:
-        type_col_name = col
-        break
-        
-    if type_col_name:
-      df[type_col_name] = df[type_col_name].fillna("غير محدد").astype(str).str.strip()
-
-    if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
+    # تطبيق الفلاتر على الجدول الرئيسي
+    if selected_shipment_filter != "الكل":
       df = df[df["الشحنة"] == selected_shipment_filter]
-
-    if selected_code_filter != "الكل" and "الكود" in df.columns:
+    if selected_code_filter != "الكل":
       df = df[df["الكود"] == selected_code_filter]
-
-    if selected_type_filter != "الكل" and type_col_name:
-      df = df[df[type_col_name] == selected_type_filter]
+    if selected_type_filter != "الكل":
+      df = df[df["نوع الشحنة"] == selected_type_filter]
 
     if df.empty:
       st.warning("⚠️ لا توجد بيانات مطابقة للفلاتر المحددة.")
@@ -293,10 +267,7 @@ if active_data_file is not None and active_template_file is not None:
       with open(active_logo, "rb") as img_file:
         logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
-    st.success(
-        f"✅ تم دمج البيانات وسحب الاسم الثلاثي/اللقب بنجاح. الشحنة:"
-        f" **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}**"
-    )
+    st.success(f"✅ تم تحميل وتصفية البيانات بنجاح. الشحنة: **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}**")
     st.markdown("---")
 
     total_clients_count = len(df)
@@ -309,101 +280,71 @@ if active_data_file is not None and active_template_file is not None:
     all_receipts_html_for_print = ""
 
     for index, row in df.iterrows():
-      shipment = str(row.get("الشحنة", "بدون شحنة")).strip()
-      code = str(row.get("الكود", "بدون كود")).strip()
+      shipment = str(row.get("الشحنة", "")).strip()
+      code = str(row.get("الكود", "")).strip()
       
       display_code = "" if code == "بدون كود" else code
       display_shipment = "" if shipment == "بدون شحنة" else shipment
 
-      name = ""
-      for col in ["الاسم", "الاسم "]:
-        if col in df.columns and pd.notna(row.get(col)):
-          name = str(row.get(col)).strip()
-          break
+      name = str(row.get("الاسم", "")).strip()
       if not name or name.lower() == "nan":
         name = "عميل غير محدد"
 
-      file_name_id = (
-          f"Shipment_{shipment}_Client_{name}"
-          if shipment and name
-          else (shipment if shipment else f"Receipt_{index}")
-      )
+      file_name_id = f"Shipment_{shipment}_Client_{name}" if shipment and name else f"Receipt_{index}"
 
-      weight = float(row.get("الوزن", 0) or 0)
+      weight = 0.0
+      for col in df.columns:
+        if any(k in str(col).lower() for k in ["وزن", "weight"]):
+          try: weight = float(row.get(col, 0) or 0)
+          except: pass
+          break
       total_weight_sum += weight
 
       cbm_value = 0.0
       for col in df.columns:
-        col_lower = str(col).lower()
-        if any(k in col_lower for k in ["حجم", "cbm", "dimension", "C.B.M", "الحجم"]):
-          val = row.get(col, 0)
-          if pd.notna(val):
-            try:
-              cbm_value = float(val)
-            except:
-              pass
-            break
+        if any(k in str(col).lower() for k in ["حجم", "cbm", "dimension"]):
+          try: cbm_value = float(row.get(col, 0) or 0)
+          except: pass
+          break
       total_cbm_sum += cbm_value
 
       packages = 0
-      try:
-        packages = int(row.get("عدد الطرود", 0) or 0)
-      except Exception:
-        packages = 0
+      for col in df.columns:
+        if any(k in str(col).lower() for k in ["طرود", "package", "pcs", "عدد"]):
+          try: packages = int(float(row.get(col, 0) or 0))
+          except: pass
+          break
       total_packages_count += packages
 
-      price_per_kg = 0
-      for col in ["سعر الكيلو", "سعر الكيلو ", "السعر"]:
-        if col in df.columns:
-          val = row.get(col, 0)
-          if pd.notna(val):
-            try:
-              price_per_kg = float(val)
-            except:
-              pass
-            break
+      price_per_kg = 0.0
+      for col in df.columns:
+        if any(k in str(col).lower() for k in ["سعر الكيلو", "price", "سعر"]):
+          try: price_per_kg = float(row.get(col, 0) or 0)
+          except: pass
+          break
 
-      total_sales = 0
-      for col in ["اجمالي مبيعات", "اجمالي مبيعات ", "الاجمالي", "المبلغ"]:
-        if col in df.columns:
-          val = row.get(col, 0)
-          if pd.notna(val):
-            try:
-              total_sales = float(val)
-            except:
-              pass
-            break
+      total_sales = 0.0
+      for col in df.columns:
+        if any(k in str(col).lower() for k in ["اجمالي مبيعات", "اجمالي", "total", "المبلغ"]):
+          try: total_sales = float(row.get(col, 0) or 0)
+          except: pass
+          break
       if total_sales == 0 and price_per_kg > 0 and weight > 0:
         total_sales = weight * price_per_kg
 
       total_sales_sum += total_sales
 
-      phone_raw = ""
-      for col in ["رقم الهاتف", "رقم الهاتف "]:
-        if col in df.columns:
-          phone_raw = row.get(col, "")
-          break
-      phone = str(phone_raw).strip()
-      if phone.endswith(".0"):
-        phone = phone[:-2]
-      phone = phone.replace("+", "").strip()
-      if phone.startswith("964"):
-        phone = phone[3:]
-      formatted_phone = f"+964 {phone}" if phone and phone.lower() != "nan" else ""
+      phone_raw = str(row.get("رقم الهاتف", "")).strip()
+      if phone_raw.endswith(".0"): phone_raw = phone_raw[:-2]
+      phone_raw = phone_raw.replace("+", "").strip()
+      if phone_raw.startswith("964"): phone_raw = phone_raw[3:]
+      formatted_phone = f"+964 {phone_raw}" if phone_raw and phone_raw.lower() != "nan" else ""
 
-      address = ""
-      for col in ["عنوان استلام البظاعة", "العنوان", "عنوان"]:
-        if col in df.columns:
-          address = str(row.get(col, "")).strip()
-          break
-      if address.lower() == "nan":
-        address = ""
+      address = str(row.get("عنوان استلام البظاعة", "")).strip()
+      if address.lower() == "nan": address = ""
 
-      shipment_type = ""
-      if type_col_name:
-        shipment_type = str(row.get(type_col_name, "")).strip()
-      if shipment_type.lower() == "nan":
-        shipment_type = ""
+      shipment_type = str(row.get("نوع الشحنة", "")).strip()
+      if shipment_type.lower() == "nan": shipment_type = ""
 
       wb = openpyxl.load_workbook(active_template_file)
       ws = wb.active
@@ -541,55 +482,15 @@ if active_data_file is not None and active_template_file is not None:
 
     m1, m2, m3, m4, m5 = st.columns(5)
     with m1:
-      st.markdown(
-          f"""
-            <div class="metric-card-1">
-                <p style="margin: 0; color: #1e40af; font-weight: bold; font-size: 14px;">👥 عدد العملاء</p>
-                <h3 style="margin: 5px 0 0; color: #1e3a8a; font-size: 20px;">{total_clients_count} عميل</h3>
-            </div>
-        """,
-          unsafe_allow_html=True,
-      )
+      st.markdown(f"""<div class="metric-card-1"><p style="margin: 0; color: #1e40af; font-weight: bold; font-size: 14px;">👥 عدد العملاء</p><h3 style="margin: 5px 0 0; color: #1e3a8a; font-size: 20px;">{total_clients_count} عميل</h3></div>""", unsafe_allow_html=True)
     with m2:
-      st.markdown(
-          f"""
-            <div class="metric-card-2">
-                <p style="margin: 0; color: #166534; font-weight: bold; font-size: 14px;">📦 إجمالي الطرود</p>
-                <h3 style="margin: 5px 0 0; color: #14532d; font-size: 20px;">{total_packages_count} طرد</h3>
-            </div>
-        """,
-          unsafe_allow_html=True,
-      )
+      st.markdown(f"""<div class="metric-card-2"><p style="margin: 0; color: #166534; font-weight: bold; font-size: 14px;">📦 إجمالي الطرود</p><h3 style="margin: 5px 0 0; color: #14532d; font-size: 20px;">{total_packages_count} طرد</h3></div>""", unsafe_allow_html=True)
     with m3:
-      st.markdown(
-          f"""
-            <div class="metric-card-3">
-                <p style="margin: 0; color: #5b21b6; font-weight: bold; font-size: 14px;">📐 إجمالي الحجم</p>
-                <h3 style="margin: 5px 0 0; color: #4c1d95; font-size: 20px;">{total_cbm_sum:,.2f} CBM</h3>
-            </div>
-        """,
-          unsafe_allow_html=True,
-      )
+      st.markdown(f"""<div class="metric-card-3"><p style="margin: 0; color: #5b21b6; font-weight: bold; font-size: 14px;">📐 إجمالي الحجم</p><h3 style="margin: 5px 0 0; color: #4c1d95; font-size: 20px;">{total_cbm_sum:,.2f} CBM</h3></div>""", unsafe_allow_html=True)
     with m4:
-      st.markdown(
-          f"""
-            <div class="metric-card-4">
-                <p style="margin: 0; color: #92400e; font-weight: bold; font-size: 14px;">⚖️ الوزن الكلي</p>
-                <h3 style="margin: 5px 0 0; color: #78350f; font-size: 20px;">{total_weight_sum:,.2f} كغ</h3>
-            </div>
-        """,
-          unsafe_allow_html=True,
-      )
+      st.markdown(f"""<div class="metric-card-4"><p style="margin: 0; color: #92400e; font-weight: bold; font-size: 14px;">⚖️ الوزن الكلي</p><h3 style="margin: 5px 0 0; color: #78350f; font-size: 20px;">{total_weight_sum:,.2f} كغ</h3></div>""", unsafe_allow_html=True)
     with m5:
-      st.markdown(
-          f"""
-            <div class="metric-card-5">
-                <p style="margin: 0; color: #9d174d; font-weight: bold; font-size: 14px;">💰 المبلغ الإجمالي</p>
-                <h3 style="margin: 5px 0 0; color: #831843; font-size: 20px;">{total_sales_sum:,.2f} $</h3>
-            </div>
-        """,
-          unsafe_allow_html=True,
-      )
+      st.markdown(f"""<div class="metric-card-5"><p style="margin: 0; color: #9d174d; font-weight: bold; font-size: 14px;">💰 المبلغ الإجمالي</p><h3 style="margin: 5px 0 0; color: #831843; font-size: 20px;">{total_sales_sum:,.2f} $</h3></div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -599,9 +500,7 @@ if active_data_file is not None and active_template_file is not None:
     display_table_df = df.copy()
     display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
 
-    table_html = display_table_df.to_html(
-        classes="custom-table", index=False, escape=False
-    )
+    table_html = display_table_df.to_html(classes="custom-table", index=False, escape=False)
 
     custom_table_styling = f"""
     <style>
@@ -727,9 +626,7 @@ if active_data_file is not None and active_template_file is not None:
             label=f"📥 تنزيل إكسل الوصل (الشحنة: {shipment})",
             data=item["output"],
             file_name=f"Delivery_Receipt_{file_name_id}.xlsx",
-            mime=(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"download_excel_{index}",
         )
 
@@ -814,15 +711,11 @@ if active_data_file is not None and active_template_file is not None:
             </html>
             """
 
-        st.components.v1.html(
-            safe_html_payload, height=750, scrolling=True
-        )
+        st.components.v1.html(safe_html_payload, height=750, scrolling=True)
 
       st.markdown("---")
 
   except Exception as e:
     st.error(f"حدث خطأ أثناء قراءة أو معالجة الملفات: {e}")
 else:
-  st.info(
-      "الرجاء رفع ملف بيانات الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي لتظهر المعاينة والطباعة."
-  )
+  st.info("الرجاء رفع ملف بيانات الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي لتظهر المعاينة والطباعة.")
