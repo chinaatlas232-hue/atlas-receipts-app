@@ -49,7 +49,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 shipment_path = os.path.join(UPLOAD_DIR, "shipments_data.xlsx")
 template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
 logo_path = os.path.join(UPLOAD_DIR, "logo.png")
-customers_db_path = "coustmer info.xlsx"
+customers_db_path = os.path.join(UPLOAD_DIR, "coustmer_info.xlsx")
 
 # شريط جانبي لإدارة الملفات والفلتر
 with st.sidebar:
@@ -63,8 +63,16 @@ with st.sidebar:
       f.write(uploaded_data_file.getbuffer())
     st.sidebar.success("تم حفظ ملف الشحنات بنجاح!")
 
+  uploaded_cust_file = st.file_uploader(
+      "2. ملف معلومات العملاء (coustmer info.xlsx)", type=["xlsx"]
+  )
+  if uploaded_cust_file is not None:
+    with open(customers_db_path, "wb") as f:
+      f.write(uploaded_cust_file.getbuffer())
+    st.sidebar.success("تم حفظ ملف العملاء بنجاح!")
+
   uploaded_template_file = st.file_uploader(
-      "2. قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)", type=["xlsx"]
+      "3. قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)", type=["xlsx"]
   )
   if uploaded_template_file is not None:
     with open(template_path, "wb") as f:
@@ -72,7 +80,7 @@ with st.sidebar:
     st.sidebar.success("تم حفظ القالب بنجاح!")
 
   uploaded_logo = st.file_uploader(
-      "3. شعار الشركة (Logo) - اختيارى", type=["png", "jpg", "jpeg"]
+      "4. شعار الشركة (Logo) - اختيارى", type=["png", "jpg", "jpeg"]
   )
   if uploaded_logo is not None:
     with open(logo_path, "wb") as f:
@@ -80,7 +88,7 @@ with st.sidebar:
     st.sidebar.success("تم حفظ الشعار بنجاح!")
 
   if st.button("🗑️ مسح الذاكرة ورفع ملفات جديدة"):
-    for path in [shipment_path, template_path, logo_path]:
+    for path in [shipment_path, template_path, logo_path, customers_db_path]:
       if os.path.exists(path):
         os.remove(path)
     st.sidebar.warning("تم مسح الملفات المحفوظة بنجاح.")
@@ -143,6 +151,7 @@ with st.sidebar:
 active_data_file = shipment_path if os.path.exists(shipment_path) else None
 active_template_file = template_path if os.path.exists(template_path) else None
 active_logo = logo_path if os.path.exists(logo_path) else None
+active_customers_db = customers_db_path if os.path.exists(customers_db_path) else None
 
 if active_data_file is not None and active_template_file is not None:
   try:
@@ -150,32 +159,32 @@ if active_data_file is not None and active_template_file is not None:
     df.columns = df.columns.str.strip()
 
     # --- دمج بيانات قاعدة بيانات العملاء تلقائياً بناءً على الكود ---
-    if os.path.exists(customers_db_path):
+    if active_customers_db is not None:
       try:
-        cust_df = pd.read_excel(customers_db_path)
+        cust_df = pd.read_excel(active_customers_db)
         cust_df.columns = cust_df.columns.str.strip()
         
         # البحث عن عمود الكود في ملف قاعدة البيانات وعمود الاسم والهاتف والعنوان
         cust_code_col = None
-        for col in ["NEW CODE", "ATS NEW CODE", "ATS", "الكود"]:
+        for col in ["NEW CODE", "ATS NEW CODE", "ATS", "الكود", "Code"]:
           if col in cust_df.columns:
             cust_code_col = col
             break
             
         cust_name_col = None
-        for col in ["NAME SURNAME", "الاسم"]:
+        for col in ["NAME SURNAME", "الاسم", "Name"]:
           if col in cust_df.columns:
             cust_name_col = col
             break
 
         cust_phone_col = None
-        for col in ["PHONE 1", "رقم الهاتف"]:
+        for col in ["PHONE 1", "رقم الهاتف", "Phone"]:
           if col in cust_df.columns:
             cust_phone_col = col
             break
 
         cust_address_col = None
-        for col in ["ADDRESS", "العنوان", "عنوان استلام البظاعة"]:
+        for col in ["ADDRESS", "العنوان", "عنوان استلام البظاعة", "Address"]:
           if col in cust_df.columns:
             cust_address_col = col
             break
@@ -183,7 +192,6 @@ if active_data_file is not None and active_template_file is not None:
         if cust_code_col:
           cust_df["clean_code"] = cust_df[cust_code_col].fillna("").astype(str).str.strip().str.replace(".0", "").str.upper()
           
-          # إنشاء قواميس للمطابقة السريعة
           name_dict = {}
           phone_dict = {}
           address_dict = {}
@@ -198,28 +206,23 @@ if active_data_file is not None and active_template_file is not None:
               if cust_address_col and pd.notna(c_row.get(cust_address_col)):
                 address_dict[c_code] = str(c_row[cust_address_col]).strip()
 
-          # التأكد من وجود أعمدة الاسم، الهاتف، والعنوان في جدول الشحنات وإنشائها إن لم تكن موجودة
           for col_name in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
             if col_name not in df.columns:
               df[col_name] = ""
 
-          # تعبئة الحقول الفارغة أو غير الموجودة من قاعدة البيانات عبر مطابقة الكود
           for idx, row in df.iterrows():
             raw_c = str(row.get("الكود", "")).strip().replace(".0", "").upper()
             if raw_c and raw_c != "NAN" and raw_c != "بدون كود":
-              # تعبئة الاسم إذا كان فارغاً
               curr_name = str(row.get("الاسم", "")).strip()
-              if (not curr_name or curr_name == "nan") and raw_c in name_dict:
+              if (not curr_name or curr_name == "nan" or curr_name.lower() == "nan") and raw_c in name_dict:
                 df.at[idx, "الاسم"] = name_dict[raw_c]
                 
-              # تعبئة رقم الهاتف إذا كان فارغاً
               curr_phone = str(row.get("رقم الهاتف", "")).strip()
-              if (not curr_phone or curr_phone == "nan") and raw_c in phone_dict:
+              if (not curr_phone or curr_phone == "nan" or curr_phone.lower() == "nan") and raw_c in phone_dict:
                 df.at[idx, "رقم الهاتف"] = phone_dict[raw_c]
 
-              # تعبئة العنوان إذا كان فارغاً
               curr_addr = str(row.get("عنوان استلام البظاعة", "")).strip()
-              if (not curr_addr or curr_addr == "nan") and raw_c in address_dict:
+              if (not curr_addr or curr_addr == "nan" or curr_addr.lower() == "nan") and raw_c in address_dict:
                 df.at[idx, "عنوان استلام البظاعة"] = address_dict[raw_c]
       except Exception as ex:
         st.sidebar.warning(f"ملاحظة حول قراءة قاعدة بيانات العملاء: {ex}")
@@ -465,7 +468,6 @@ if active_data_file is not None and active_template_file is not None:
                     </tr>
                 </table>
 
-                <!-- تذيل الوصل (Footer) -->
                 <div style="border-top: 1px dashed #bcccdc; margin-top: 10px; padding-top: 6px; text-align: center; font-size: 9.5px; color: #334e68;">
                     <span>📍 العنوان: بغداد - المنصور - تقاطع الواد</span>
                     <span style="margin: 0 10px;">|</span>
@@ -784,6 +786,5 @@ if active_data_file is not None and active_template_file is not None:
     st.error(f"حدث خطأ أثناء قراءة أو معالجة الملفات: {e}")
 else:
   st.info(
-      "الرجاء رفع ملف بيانات الشحنات وقالب الوصل من الشريط الجانبي لتظهر المعاينة"
-      " والطباعة."
+      "الرجاء رفع ملف بيانات الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي لتظهر المعاينة والطباعة."
   )
