@@ -4,19 +4,17 @@ import os
 import openpyxl
 import pandas as pd
 import streamlit as st
+from PIL import Image
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
-# --- تنسيق الألوان العام وتغيير لون الشريط الجانبي وزر المسح ---
 st.markdown(
     """
     <style>
-    /* لون الشريط الجانبي: رمادي غامق بدرجة متوسطة */
     [data-testid="stSidebar"] {
         background-color: #334155;
         color: #f8fafc;
     }
-    /* تغيير لون النصوص والعناوين داخل الشريط الجانبي لتكون واضحة */
     [data-testid="stSidebar"] h1, 
     [data-testid="stSidebar"] h2, 
     [data-testid="stSidebar"] h3, 
@@ -24,7 +22,6 @@ st.markdown(
     [data-testid="stSidebar"] .stMarkdown {
         color: #f8fafc !important;
     }
-    /* تخصيص زر مسح الذاكرة ليكون أحمر غامق */
     [data-testid="stSidebar"] button[kind="secondary"] {
         background-color: #991b1b !important;
         color: white !important;
@@ -42,7 +39,6 @@ st.markdown(
 
 st.title("📦 النظام المالي والفني - وصل تسليم البضائع")
 
-# إنشاء مجلد لحفظ الملفات بشكل دائم على السيرفر
 UPLOAD_DIR = "saved_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -50,7 +46,6 @@ shipment_path = os.path.join(UPLOAD_DIR, "shipments_data.xlsx")
 template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
 logo_path = os.path.join(UPLOAD_DIR, "logo.png")
 
-# شريط جانبي لإدارة الملفات والفلتر
 with st.sidebar:
   st.header("⚙️ إدارة الملفات")
 
@@ -74,9 +69,24 @@ with st.sidebar:
       "3. شعار الشركة (Logo) - اختيارى", type=["png", "jpg", "jpeg"]
   )
   if uploaded_logo is not None:
-    with open(logo_path, "wb") as f:
-      f.write(uploaded_logo.getbuffer())
-    st.sidebar.success("تم حفظ الشعار بنجاح!")
+    try:
+      # معالجة الشعار وإزالة الخلفية السوداء وتحويلها لشفافة تلقائياً
+      img = Image.open(uploaded_logo).convert("RGBA")
+      datas = img.getdata()
+      new_data = []
+      for item in datas:
+        # إذا كان اللون أسود أو قريب جداً من الأسود، نحوله إلى شفاف
+        if item[0] < 40 and item[1] < 40 and item[2] < 40:
+          new_data.append((255, 255, 255, 0))
+        else:
+          new_data.append(item)
+      img.putdata(new_data)
+      img.save(logo_path, "PNG")
+      st.sidebar.success("تم معالجة وحفظ الشعار بدون خلفية بنجاح!")
+    except Exception as e:
+      with open(logo_path, "wb") as f:
+        f.write(uploaded_logo.getbuffer())
+      st.sidebar.success("تم حفظ الشعار بنجاح!")
 
   if st.button("🗑️ مسح الذاكرة ورفع ملفات جديدة"):
     for path in [shipment_path, template_path, logo_path]:
@@ -85,7 +95,6 @@ with st.sidebar:
     st.sidebar.warning("تم مسح الملفات المحفوظة بنجاح.")
     st.rerun()
 
-  # --- فلتر الشحنات في القائمة الجانبية ---
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
   selected_shipment_filter = "الكل"
@@ -144,7 +153,6 @@ if active_data_file is not None and active_template_file is not None:
 
     today_date = datetime.date.today().strftime("%Y-%m-%d")
 
-    # تحويل الشعار إلى Base64 مع خصائص دمج ذكية للخلفية
     import base64
     logo_base64 = ""
     if active_logo and os.path.exists(active_logo):
@@ -161,7 +169,7 @@ if active_data_file is not None and active_template_file is not None:
     total_packages_count = 0
     total_weight_sum = 0.0
     total_cbm_sum = 0.0
-    total_sales_sum =.0
+    total_sales_sum = 0.0
 
     receipts_data_list = []
     all_receipts_html_for_print = ""
@@ -274,8 +282,7 @@ if active_data_file is not None and active_template_file is not None:
       wb.save(output)
       output.seek(0)
 
-      # تعديل تنسيق الشعار ليتم دمج الخلفية الداكنة تلقائياً مع الخلفية البيضاء (mix-blend-mode: multiply)
-      logo_img_tag = f'<img src="data:image/png;base64,{logo_base64}" style="max-height: 50px; max-width: 55px; margin-left: 10px; vertical-align: middle; mix-blend-mode: multiply; background: transparent;">' if logo_base64 else ''
+      logo_img_tag = f'<img src="data:image/png;base64,{logo_base64}" style="max-height: 50px; max-width: 55px; margin-left: 10px; vertical-align: middle;">' if logo_base64 else ''
 
       single_receipt_html = f"""
             <div class="receipt-page" style="
@@ -440,7 +447,6 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- جدول تفاصيل الشحنة ---
     st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}]")
 
     display_table_df = df.copy()
@@ -638,8 +644,7 @@ if active_data_file is not None and active_template_file is not None:
                         var printWin = window.open('', '', 'height=800,width=800');
                         printWin.document.write('<html><head><title>طباعة الشحنة</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
                         printWin.document.write(receiptContent);
-                        printWin.document.write('</body></html>');
-                        printWin.document.close();
+                        printWin.document.write('printWin.document.close();');
                         printWin.focus();
                         setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
                     }}
@@ -648,7 +653,6 @@ if active_data_file is not None and active_template_file is not None:
                         var printWin = window.open('', '', 'height=800,width=800');
                         printWin.document.write('<html><head><title>' + fileNameId + '</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
                         printWin.document.write(receiptContent);
-                        printWin.document.write('</body></html>');
                         printWin.document.close();
                         printWin.focus();
                         setTimeout(function(){{ 
