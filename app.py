@@ -95,77 +95,59 @@ with st.sidebar:
     try:
       temp_df = pd.read_excel(shipment_path)
       temp_df.columns = temp_df.columns.str.strip()
+      
       if "الشحنة" in temp_df.columns:
-        shipment_list = ["الكل"] + sorted(
-            temp_df["الشحنة"]
-            .dropna()
-            .astype(str)
-            .str.replace(".0", "")
-            .unique()
-            .tolist()
-        )
+        temp_df["الشحنة"] = temp_df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "")
+        shipment_list = ["الكل"] + sorted(temp_df["الشحنة"].unique().tolist())
         selected_shipment_filter = st.selectbox(
             "اختر الشحنة للعرض:", shipment_list
         )
         
-      # تصفية المؤقت حسب الشحنة المحددة لإعطاء الأكواد الخاصة بها فقط
+      # تصفية المؤقت حسب الشحنة المحددة
       filtered_temp_df = temp_df.copy()
       if selected_shipment_filter != "الكل" and "الشحنة" in filtered_temp_df.columns:
         filtered_temp_df = filtered_temp_df[
-            filtered_temp_df["الشحنة"].astype(str).str.replace(".0", "")
-            == selected_shipment_filter
+            filtered_temp_df["الشحنة"] == selected_shipment_filter
         ]
 
-      # قائمة منسدلة تلقائية للكودات (بدون الحاجة للضغط على زر إنتر)
+      # قائمة منسدلة للأكواد مع معالجة القيم الفارغة
       if "الكود" in filtered_temp_df.columns:
-        code_list = ["الكل"] + sorted(
-            filtered_temp_df["الكود"]
-            .dropna()
-            .astype(str)
-            .str.replace(".0", "")
-            .unique()
-            .tolist()
-        )
+        filtered_temp_df["الكود"] = filtered_temp_df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "")
+        code_list = ["الكل"] + sorted(filtered_temp_df["الكود"].unique().tolist())
         selected_code_filter = st.selectbox(
             "اختر أو ابحث برقم الكود:", code_list
         )
     except Exception:
       pass
 
-# تحديد الملفات النشطة (سواء المرفوعة حالياً أو المخزنة مسبقاً على السيرفر)
-active_data_file = (
-    shipment_path if os.path.exists(shipment_path) else None
-)
-active_template_file = (
-    template_path if os.path.exists(template_path) else None
-)
+# تحديد الملفات النشطة
+active_data_file = shipment_path if os.path.exists(shipment_path) else None
+active_template_file = template_path if os.path.exists(template_path) else None
 active_logo = logo_path if os.path.exists(logo_path) else None
 
 if active_data_file is not None and active_template_file is not None:
   try:
-    # قراءة بيانات الشحنات
+    # قراءة بيانات الشحنات ومعالجة الأعمدة الفارغة
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
+    if "الشحنة" in df.columns:
+      df["الشحنة"] = df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "")
+    if "الكود" in df.columns:
+      df["الكود"] = df["الكود"].fillna("بدون كود").astype(str).str.replace(".0", "")
+
     # تطبيق الفلتر إذا تم اختيار شحنة معينة
     if selected_shipment_filter != "الكل" and "الشحنة" in df.columns:
-      df = df[
-          df["الشحنة"].astype(str).str.replace(".0", "")
-          == selected_shipment_filter
-      ]
+      df = df[df["الشحنة"] == selected_shipment_filter]
 
-    # تطبيق الفلتر إذا تم اختيار كود معين من القائمة المنسدلة
+    # تطبيق الفلتر إذا تم اختيار كود معين
     if selected_code_filter != "الكل" and "الكود" in df.columns:
-      df = df[
-          df["الكود"].astype(str).str.replace(".0", "")
-          == selected_code_filter
-      ]
+      df = df[df["الكود"] == selected_code_filter]
 
     if df.empty:
       st.warning("⚠️ لا توجد بيانات مطابقة للشحنة أو الكود المحدد.")
       st.stop()
 
-    # الحصول على تاريخ اليوم تلقائياً
     today_date = datetime.date.today().strftime("%Y-%m-%d")
 
     st.success(
@@ -174,7 +156,7 @@ if active_data_file is not None and active_template_file is not None:
     )
     st.markdown("---")
 
-    # حساب الإحصائيات الشاملة للشحنات المعروضة
+    # حساب الإحصائيات الشاملة
     total_clients_count = len(df)
     total_packages_count = 0
     total_weight_sum = 0.0
@@ -184,15 +166,16 @@ if active_data_file is not None and active_template_file is not None:
     all_receipts_html_for_print = ""
 
     for index, row in df.iterrows():
-      shipment = str(row.get("الشحنة", "")).strip()
-      if shipment.endswith(".0"):
-        shipment = shipment[:-2]
-
-      code = str(row.get("الكود", "")).strip()
-      if code.endswith(".0"):
-        code = code[:-2]
+      shipment = str(row.get("الشحنة", "بدون شحنة")).strip()
+      code = str(row.get("الكود", "بدون كود")).strip()
+      
+      # إذا كانت القيمة النصية معالجة كـ "بدون..." نعرضها فارغة أو كما هي في الوصل حسب الرغبة، هنا نعرضها بوضوح
+      display_code = "" if code == "بدون كود" else code
+      display_shipment = "" if shipment == "بدون شحنة" else shipment
 
       name = str(row.get("الاسم", row.get("الاسم ", ""))).strip()
+      if name == "nan":
+        name = "عميل غير محدد"
 
       file_name_id = (
           f"Shipment_{shipment}_Client_{name}"
@@ -210,63 +193,71 @@ if active_data_file is not None and active_template_file is not None:
         packages = 0
       total_packages_count += packages
 
-      # استخراج سعر الكيلو
+      # سعر الكيلو
       price_per_kg = 0
       for col in ["سعر الكيلو", "سعر الكيلو ", "السعر"]:
         if col in df.columns:
           val = row.get(col, 0)
           if pd.notna(val):
-            price_per_kg = float(val)
+            try:
+              price_per_kg = float(val)
+            except:
+              pass
             break
 
-      # استخراج إجمالي المبيعات أو حسابه تلقائياً
+      # إجمالي المبيعات
       total_sales = 0
       for col in ["اجمالي مبيعات", "اجمالي مبيعات ", "الاجمالي", "المبلغ"]:
         if col in df.columns:
           val = row.get(col, 0)
           if pd.notna(val):
-            total_sales = float(val)
+            try:
+              total_sales = float(val)
+            except:
+              pass
             break
       if total_sales == 0 and price_per_kg > 0 and weight > 0:
         total_sales = weight * price_per_kg
 
       total_sales_sum += total_sales
 
-      # تنظيف رقم الهاتف وإضافة تنسيق +964
+      # رقم الهاتف
       phone_raw = row.get("رقم الهاتف", row.get("رقم الهاتف ", ""))
       phone = str(phone_raw).strip()
       if phone.endswith(".0"):
         phone = phone[:-2]
-
       phone = phone.replace("+", "").strip()
       if phone.startswith("964"):
         phone = phone[3:]
+      formatted_phone = f"+964 {phone}" if phone and phone != "nan" else ""
 
-      formatted_phone = f"+964 {phone}" if phone else ""
-
-      # استخراج العنوان ونوع الشحنة
+      # العنوان ونوع الشحنة
       address = ""
       for col in ["عنوان استلام البظاعة", "العنوان", "عنوان"]:
         if col in df.columns:
           address = str(row.get(col, "")).strip()
           break
+      if address == "nan":
+        address = ""
 
       shipment_type = ""
       for col in ["نوع الشحنة", "النوع"]:
         if col in df.columns:
           shipment_type = str(row.get(col, "")).strip()
           break
+      if shipment_type == "nan":
+        shipment_type = ""
 
       # تعبئة قالب الإكسل الرسمي
       wb = openpyxl.load_workbook(active_template_file)
       ws = wb.active
 
-      ws["B4"] = code
+      ws["B4"] = display_code
       ws["D4"] = today_date
       ws["B5"] = name
       ws["B6"] = address
       ws["D5"] = formatted_phone
-      ws["B7"] = shipment
+      ws["B7"] = display_shipment
       ws["D6"] = packages
       ws["B8"] = shipment_type
       ws["D7"] = weight
@@ -310,8 +301,8 @@ if active_data_file is not None and active_template_file is not None:
                 <!-- تفاصيل الوصل الرئيسية -->
                 <table style="width: 100%; font-size: 11px; border-collapse: collapse; margin-bottom: 10px;">
                     <tr style="background-color: #f0f4f8;">
-                        <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{code}</span></td>
-                        <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{shipment}</span></td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{display_code}</span></td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{display_shipment}</span></td>
                     </tr>
                     <tr>
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
@@ -362,8 +353,8 @@ if active_data_file is not None and active_template_file is not None:
       receipts_data_list.append({
           "index": index,
           "name": name,
-          "code": code,
-          "shipment": shipment,
+          "code": display_code,
+          "shipment": display_shipment,
           "total_sales": total_sales,
           "output": output,
           "file_name_id": file_name_id,
@@ -575,7 +566,7 @@ if active_data_file is not None and active_template_file is not None:
       file_name_id = item["file_name_id"]
       single_html_content = item["single_html"]
 
-      expander_label = f"📄 وصل العميل: {item['name']}  |  كود: {item['code']}  |  الشحنة: {shipment}  |  الإجمالي: {item['total_sales']:,.2f} دولار"
+      expander_label = f"📄 وصل العميل: {item['name']}  |  كود: {item['code'] if item['code'] else 'بدون'}  |  الشحنة: {shipment}  |  الإجمالي: {item['total_sales']:,.2f} دولار"
 
       with st.expander(expander_label, expanded=False):
         st.download_button(
@@ -647,7 +638,7 @@ if active_data_file is not None and active_template_file is not None:
                         printWin.document.write('<html><head><title>طباعة الشحنة</title><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma, sans-serif; background: #fff; margin: 0; padding: 0; }}</style></head><body>');
                         printWin.document.write(receiptContent);
                         printWin.document.write('</body></html>');
-                        printWin.documen�t.close();
+                        printWin.document.close();
                         printWin.focus();
                         setTimeout(function(){{ printWin.print(); printWin.close(); }}, 500);
                     }}
