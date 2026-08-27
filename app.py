@@ -188,7 +188,7 @@ if active_data_file is not None and active_template_file is not None:
     df["رقم الهاتف"] = ""
     df["عنوان استلام البظاعة"] = ""
 
-    # --- ربط ملف العملاء (coustmer info.xlsx) بدقة مع الأعمدة الجديدة (NEW CODE و NAME SURNAME) ---
+    # --- ربط ملف العملاء (coustmer info.xlsx) بدقة مع الأعمدة (NEW CODE و NAME SURNAME) ---
     if active_customers_db is not None:
       try:
         cust_df = pd.read_excel(active_customers_db)
@@ -223,17 +223,27 @@ if active_data_file is not None and active_template_file is not None:
                 val_a = str(c_row[cust_address_col]).strip()
                 if val_a and val_a.lower() != "nan": address_dict[c_code] = val_a
 
-          # جلب واستكمال البيانات في الجدول الأساسي
+          # جلب واستكمال البيانات في الجدول الأساسي مع مطابقة مرنة ومباشرة
           for idx, row in df.iterrows():
             raw_code = str(row.get("الكود", "")).strip().replace(".0", "").lower()
             if raw_code and raw_code != "nan" and raw_code != "بدون كود":
               
-              if raw_code in name_dict:
-                df.at[idx, "الاسم"] = name_dict[raw_code]
-              if raw_code in phone_dict:
-                df.at[idx, "رقم الهاتف"] = phone_dict[raw_code]
-              if raw_code in address_dict:
-                df.at[idx, "عنوان استلام البظاعة"] = address_dict[raw_code]
+              matched_key = None
+              if raw_code in name_dict or raw_code in phone_dict:
+                matched_key = raw_code
+              else:
+                for k in name_dict.keys():
+                  if raw_code in k or k in raw_code:
+                    matched_key = k
+                    break
+              
+              if matched_key:
+                if matched_key in name_dict:
+                  df.at[idx, "الاسم"] = name_dict[matched_key]
+                if matched_key in phone_dict:
+                  df.at[idx, "رقم الهاتف"] = phone_dict[matched_key]
+                if matched_key in address_dict:
+                  df.at[idx, "عنوان استلام البظاعة"] = address_dict[matched_key]
                 
       except Exception as ex:
         st.warning(f"ملاحظة ملف العملاء: {ex}")
