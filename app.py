@@ -85,7 +85,7 @@ with st.sidebar:
         os.remove(path)
     st.rerun()
 
-  # --- دالة الدمج والمعالجة الدقيقة ---
+  # --- دالة الدمج والمعالجة الجذرية للأعمدة ---
   def load_and_merge_data():
     if not os.path.exists(shipment_path):
       return None
@@ -109,41 +109,47 @@ with st.sidebar:
           df_s['__s_code__'] = df_s[ship_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
           df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
           
+          # الدمج الخارجي
           merged = pd.merge(df_s, df_c, left_on='__s_code__', right_on='__c_code__', how='left', suffixes=('', '_cust'))
           
-          # توحيد وتعبئة الأعمدة الأساسية (الاسم، الهاتف، العنوان) لمنع التكرار وظهر قيمة NaN
-          # الاسم
-          s_name = next((c for c in df_s.columns if c in ['الاسم', 'name']), None)
-          c_name = next((c for c in df_c.columns if c in ['الاسم', 'name']), None)
-          if c_name and c_name in merged.columns:
-            if s_name and s_name in merged.columns:
-              merged[s_name] = merged[s_name].fillna(merged[c_name])
-            else:
-              merged['الاسم'] = merged[c_name]
-
-          # الهاتف (يشمل 'رقم الهاتف' و 'رقم العاتف')
-          s_phone = next((c for c in df_s.columns if 'هاتف' in c or 'phone' in c), None)
-          c_phone = next((c for c in df_c.columns if 'هاتف' in c or 'عاتف' in c or 'phone' in c), None)
-          if c_phone and c_phone in merged.columns:
-            if s_phone and s_phone in merged.columns:
-              merged[s_phone] = merged[s_phone].fillna(merged[c_phone])
-            else:
-              merged['رقم الهاتف'] = merged[c_phone]
-
-          # العنوان
-          s_addr = next((c for c in df_s.columns if 'عنوان' in c or 'address' in c), None)
-          c_addr = next((c for c in df_c.columns if 'عنوان' in c or 'address' in c), None)
-          if c_addr and c_addr in merged.columns:
-            if s_addr and s_addr in merged.columns:
-              merged[s_addr] = merged[s_addr].fillna(merged[c_addr])
-            else:
-              merged['عنوان استلام البظاعة'] = merged[c_addr]
-
-          # تنظيف الأعمدة المؤقتة والمكررة الناشئة عن الدمج
-          cols_to_drop = [c for c in merged.columns if c.startswith('__') or c.endswith('_cust') or c.endswith('_ship')]
-          merged.drop(columns=cols_to_drop, errors='ignore', inplace=True)
+          # استخراج ومعالجة الأعمدة بدقة لمنع التكرار وملء الفراغ (NaN)
+          # 1. الاسم
+          c_name_col = next((c for c in df_c.columns if any(k in c for k in ['الاسم', 'name'])), None)
+          s_name_col = next((c for c in df_s.columns if any(k in c for k in ['الاسم', 'name']) and c != '__s_code__'), 'الاسم')
           
-          # التأكد من عدم وجود أعمدة مكررة بالاسم تماماً
+          if c_name_col and c_name_col in merged.columns:
+            if s_name_col in merged.columns and s_name_col != c_name_col:
+              merged[s_name_col] = merged[s_name_col].fillna(merged[c_name_col])
+            else:
+              merged['الاسم'] = merged[c_name_col]
+
+          # 2. الهاتف (معالجة 'رقم الهاتف' و 'رقم العاتف')
+          c_phone_col = next((c for c in df_c.columns if any(k in c for k in ['هاتف', 'عاتف', 'phone'])), None)
+          s_phone_col = next((c for c in df_s.columns if any(k in c for k in ['هاتف', 'عاتف', 'phone'])), 'رقم الهاتف')
+          
+          if c_phone_col and c_phone_col in merged.columns:
+            if s_phone_col in merged.columns and s_phone_col != c_phone_col:
+              merged[s_phone_col] = merged[s_phone_col].fillna(merged[c_phone_col])
+            else:
+              merged['رقم الهاتف'] = merged[c_phone_col]
+
+          # 3. العنوان
+          c_addr_col = next((c for c in df_c.columns if any(k in c for k in ['عنوان', 'address'])), None)
+          s_addr_col = next((c for c in df_s.columns if any(k in c for k in ['عنوان', 'address'])), 'عنوان استلام البظاعة')
+          
+          if c_addr_col and c_addr_col in merged.columns:
+            if s_addr_col in merged.columns and s_addr_col != c_addr_col:
+              merged[s_addr_col] = merged[s_addr_col].fillna(merged[c_addr_col])
+            else:
+              merged['عنوان استلام البظاعة'] = merged[c_addr_col]
+
+          # تنظيف الأعمدة المؤقتة والمكررة
+          cols_to_drop = [c for c in merged.columns if c.startswith('__') or c.endswith('_cust') or c == c_phone_col]
+          # نحرص على عدم حذف عمود رقم الهاتف الأساسي إذا كان هو نفسه
+          if c_phone_col in cols_to_drop and c_phone_col == s_phone_col:
+            cols_to_drop.remove(c_phone_col)
+            
+          merged.drop(columns=cols_to_drop, errors='ignore', inplace=True)
           merged = merged.loc[:, ~merged.columns.duplicated()]
           df_s = merged
       except Exception as e:
@@ -247,7 +253,7 @@ if active_data_file is not None and active_template_file is not None:
       display_code = "" if code in ["بدون كود", "nan", "None"] else code
       display_shipment = "" if shipment in ["بدون شحنة", "nan", "None"] else shipment
 
-      # جلب اسم العميل المحدث بدقة
+      # جلب الاسم المعالج بدقة
       name_col = next((c for c in df.columns if any(k in c for k in ["الاسم", "name"])), None)
       name = str(row.get(name_col, "عميل غير محدد")).strip() if name_col else "عميل غير محدد"
       if name in ["nan", "None", ""]:
@@ -285,7 +291,7 @@ if active_data_file is not None and active_template_file is not None:
 
       total_sales_sum += total_sales
 
-      # جلب الهاتف المحدث بدقة ومنع التكرار
+      # جلب رقم الهاتف الموحد وتجنب التكرار
       phone_col = next((c for c in df.columns if any(k in c for k in ["رقم الهاتف", "رقم العاتف", "هاتف", "عاتف", "phone"])), None)
       phone = str(row.get(phone_col, "")).strip() if phone_col else ""
       if phone.endswith(".0"):
