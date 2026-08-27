@@ -158,46 +158,45 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.str.strip()
 
-    # --- المعالجة الدقيقة والمطابقة الذكية لبيانات العملاء من coustmer info.xlsx ---
+    # --- المعالجة الذكية والمطابقة المتقدمة لبيانات العملاء من coustmer info.xlsx ---
     if active_customers_db is not None:
       try:
         cust_df = pd.read_excel(active_customers_db)
         cust_df.columns = cust_df.columns.str.strip()
         
+        # البحث الذكي عن أعمدة الكود والاسم والهاتف والعنوان بغض النظر عن حالة الأحرف أو اللغة
         cust_code_col = None
         for col in cust_df.columns:
           c_lower = str(col).lower()
-          if any(k in c_lower for k in ["new code", "code", "ats", "كود"]):
+          if any(k in c_lower for k in ["code", "ats", "كود", "رقم العميل"]):
             cust_code_col = col
             break
-        if not cust_code_col and len(cust_df.columns) > 1:
-          cust_code_col = cust_df.columns[1]
+        if not cust_code_col and len(cust_df.columns) > 0:
+          cust_code_col = cust_df.columns[0]
 
         cust_name_col = None
         for col in cust_df.columns:
           c_lower = str(col).lower()
-          if any(k in c_lower for k in ["name surname", "name", "surname", "الاسم", "اسم"]):
+          if any(k in c_lower for k in ["name", "surname", "الاسم", "اسم"]):
             cust_name_col = col
             break
-        if not cust_name_col and len(cust_df.columns) > 2:
-          cust_name_col = cust_df.columns[2]
 
         cust_phone_col = None
         for col in cust_df.columns:
           c_lower = str(col).lower()
-          if any(k in c_lower for k in ["phone 1", "phone", "tel", "mobile", "هاتف", "موبايل", "رقم"]):
+          if any(k in c_lower for k in ["phone", "tel", "mobile", "هاتف", "موبايل"]):
             cust_phone_col = col
             break
 
         cust_address_col = None
         for col in cust_df.columns:
           c_lower = str(col).lower()
-          if any(k in c_lower for k in ["address", "عنوان", "استلام"]):
+          if any(k in c_lower for k in ["address", "عنوان", "استلام", "مكان"]):
             cust_address_col = col
             break
 
         if cust_code_col:
-          cust_df["clean_code"] = cust_df[cust_code_col].fillna("").astype(str).str.strip().str.replace(".0", "").str.lower()
+          cust_df["clean_code"] = cust_df[cust_code_col].fillna("").astype(str).str.replace(".0", "").str.strip().str.lower()
           
           name_dict = {}
           phone_dict = {}
@@ -240,8 +239,10 @@ if active_data_file is not None and active_template_file is not None:
               curr_addr = str(row.get("عنوان استلام البظاعة", "")).strip()
               if (not curr_addr or curr_addr.lower() in ["nan", "none", ""]) and raw_code_val in address_dict:
                 df.at[idx, "عنوان استلام البظاعة"] = address_dict[raw_code_val]
+                
+        st.sidebar.info(f"📂 ملف العملاء: تم ربط الكود بـ ({cust_name_col}, {cust_phone_col}, {cust_address_col})")
       except Exception as ex:
-        st.sidebar.warning(f"ملاحظة حول قراءة قاعدة بيانات العملاء: {ex}")
+        st.sidebar.warning(f"ملاحظة حول مطابقة قاعدة بيانات العملاء: {ex}")
 
     if "الشحنة" in df.columns:
       df["الشحنة"] = df["الشحنة"].fillna("بدون شحنة").astype(str).str.replace(".0", "").str.strip()
