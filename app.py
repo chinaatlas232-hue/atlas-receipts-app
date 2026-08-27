@@ -11,12 +11,10 @@ st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout=
 st.markdown(
     """
     <style>
-    /* لون الشريط الجانبي: رمادي غامق بدرجة متوسطة */
     [data-testid="stSidebar"] {
         background-color: #334155;
         color: #f8fafc;
     }
-    /* تغيير لون النصوص والعناوين داخل الشريط الجانبي لتكون واضحة */
     [data-testid="stSidebar"] h1, 
     [data-testid="stSidebar"] h2, 
     [data-testid="stSidebar"] h3, 
@@ -24,7 +22,6 @@ st.markdown(
     [data-testid="stSidebar"] .stMarkdown {
         color: #f8fafc !important;
     }
-    /* تخصيص زر مسح الذاكرة ليكون أحمر غامق */
     [data-testid="stSidebar"] button[kind="secondary"] {
         background-color: #991b1b !important;
         color: white !important;
@@ -93,7 +90,6 @@ with st.sidebar:
     st.sidebar.warning("تم مسح الملفات المحفوظة بنجاح.")
     st.rerun()
 
-  # --- فلتر الشحنات في القائمة الجانبية ---
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
   selected_shipment_filter = "الكل"
@@ -162,6 +158,17 @@ if active_data_file is not None and active_template_file is not None:
     df = pd.read_excel(active_data_file)
     df.columns = df.columns.astype(str).str.strip()
 
+    # --- لوحة تشخيصية تظهر أعلى الصفحة لتتأكد من أسماء الأعمدة وكيفية قراءتها ---
+    with st.expander("🛠️ لوحة التشخيص الفني للملفات (اضغط للعرض)", expanded=False):
+      st.write("أعمدة ملف الشحنات المكتشفة:", list(df.columns))
+      if active_customers_db:
+        try:
+          c_debug_df = pd.read_excel(active_customers_db)
+          c_debug_df.columns = c_debug_df.columns.astype(str).str.strip()
+          st.write("أعمدة ملف العملاء المكتشفة:", list(c_debug_df.columns))
+        except Exception as d_ex:
+          st.write("خطأ في قراءة ملف العملاء للتشخيص:", d_ex)
+
     # تحديد الأعمدة الأساسية بمرونة فائقة
     s_col = next((c for c in df.columns if any(k in c.lower() for k in ["شحنة", "shipment"])), df.columns[0])
     c_col = next((c for c in df.columns if any(k in c.lower() for k in ["كود", "code", "ats"])), df.columns[1] if len(df.columns)>1 else df.columns[0])
@@ -171,12 +178,27 @@ if active_data_file is not None and active_template_file is not None:
     df["الكود"] = df[c_col].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False).str.strip()
     df["نوع الشحنة"] = df[t_col].fillna("غير محدد").astype(str).str.strip() if t_col else "غير محدد"
 
-    # تهيئة أعمدة البيانات الشخصية إذا لم تكن موجودة أساساً في جدول الشحنات
-    for col_name in ["الاسم", "رقم الهاتف", "عنوان استلام البظاعة"]:
-      if col_name not in df.columns:
-        df[col_name] = ""
+    # البحث عن أعمدة الاسم والهاتف والعنوان لو كانت موجودة مباشرة في ملف الشحنات
+    direct_name_col = next((c for c in df.columns if any(k in c.lower() for k in ["name", "الاسم", "اسم"]) and "surname" not in c.lower()), None)
+    direct_phone_col = next((c for c in df.columns if any(k in c.lower() for k in ["phone", "tel", "mobile", "هاتف"])), None)
+    direct_addr_col = next((c for c in df.columns if any(k in c.lower() for k in ["address", "عنوان", "استلام"])), None)
 
-    # --- ربط ملف العملاء بذكاء ومطابقة مرنة للأكواد ---
+    if direct_name_col:
+      df["الاسم"] = df[direct_name_col].fillna("").astype(str).str.strip()
+    else:
+      df["الاسم"] = ""
+
+    if direct_phone_col:
+      df["رقم الهاتف"] = df[direct_phone_col].fillna("").astype(str).str.strip()
+    else:
+      df["رقم الهاتف"] = ""
+
+    if direct_addr_col:
+      df["عنوان استلام البظاعة"] = df[direct_addr_col].fillna("").astype(str).str.strip()
+    else:
+      df["عنوان استلام البظاعة"] = ""
+
+    # --- ربط ملف العملاء (coustmer info.xlsx) لجلب أو استكمال البيانات الناقصة ---
     if active_customers_db is not None:
       try:
         cust_df = pd.read_excel(active_customers_db)
@@ -218,7 +240,7 @@ if active_data_file is not None and active_template_file is not None:
                 val_a = str(c_row[cust_address_col]).strip()
                 if val_a and val_a.lower() != "nan": address_dict[c_code] = val_a
 
-          # تعبئة الحقول الفارغة في جدول الشحنات بالاعتماد على مطابقة الكود
+          # دمج واستكمال البيانات المفقودة بناءً على تطابق الأكواد
           for idx, row in df.iterrows():
             raw_code = str(row.get("الكود", "")).strip().replace(".0", "").lower()
             if raw_code and raw_code != "nan" and raw_code != "بدون كود":
@@ -238,7 +260,7 @@ if active_data_file is not None and active_template_file is not None:
       except Exception as ex:
         st.sidebar.warning(f"ملاحظة ملف العملاء: {ex}")
 
-    # تنظيف مظهر أي قيم متبقية تظهر كـ NaN أو None وتحويلها لنصوص فارغة
+    # تنظيف شامل لأي قيم غير صالحة
     for col in df.columns:
       df[col] = df[col].apply(lambda x: "" if pd.isna(x) or str(x).lower() == "nan" else x)
 
@@ -709,4 +731,4 @@ if active_data_file is not None and active_template_file is not None:
   except Exception as e:
     st.error(f"حدث خطأ أثناء قراءة أو معالجة الملفات: {e}")
 else:
-  st.info("الرجاء التأكد من رفع ملف الشحنات وملف العملاء والقالب من الشريط الجانبي.")
+  st.info("الرجاء رفع ملف بيانات الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي.")
