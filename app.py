@@ -7,7 +7,7 @@ import streamlit as st
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
-# --- تعريف مسار المجلد الأساسي للملفات ---
+# --- مسارات الملفات ---
 UPLOAD_DIR = "saved_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -16,7 +16,7 @@ template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
 logo_path = os.path.join(UPLOAD_DIR, "logo.png")
 customer_info_path = os.path.join(UPLOAD_DIR, "customer_info.xlsx")
 
-# --- تنسيق الألوان والشريط الجانبي ---
+# --- تنسيق الشريط الجانبي ---
 st.markdown(
     """
     <style>
@@ -37,10 +37,6 @@ st.markdown(
         border: 1px solid #7f1d1d !important;
         font-weight: bold !important;
     }
-    [data-testid="stSidebar"] button[kind="secondary"]:hover {
-        background-color: #7f1d1d !important;
-        color: white !important;
-    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -48,7 +44,6 @@ st.markdown(
 
 st.title("📦 النظام المالي والفني - وصل تسليم البضائع (شركة أطلس المحيط)")
 
-# الشريط الجانبي لرفع الملفات والتحكم
 with st.sidebar:
   st.header("⚙️ إدارة الملفات")
 
@@ -58,7 +53,7 @@ with st.sidebar:
   if uploaded_data_file is not None:
     with open(shipment_path, "wb") as f:
       f.write(uploaded_data_file.getbuffer())
-    st.sidebar.success("تم حفظ ملف الشحنات بنجاح!")
+    st.success("تم حفظ ملف الشحنات بنجاح!")
 
   uploaded_template_file = st.file_uploader(
       "2. قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)", type=["xlsx"]
@@ -66,15 +61,15 @@ with st.sidebar:
   if uploaded_template_file is not None:
     with open(template_path, "wb") as f:
       f.write(uploaded_template_file.getbuffer())
-    st.sidebar.success("تم حفظ القالب بنجاح!")
+    st.success("تم حفظ القالب بنجاح!")
 
   uploaded_logo = st.file_uploader(
-      "3. شعار الشركة (Logo) - اختيارى", type=["png", "jpg", "jpeg"]
+      "3. شعار الشركة (Logo)", type=["png", "jpg", "jpeg"]
   )
   if uploaded_logo is not None:
     with open(logo_path, "wb") as f:
       f.write(uploaded_logo.getbuffer())
-    st.sidebar.success("تم حفظ الشعار بنجاح!")
+    st.success("تم حفظ الشعار بنجاح!")
 
   uploaded_customer_file = st.file_uploader(
       "4. ملف معلومات العملاء (coustmer info)", type=["xlsx", "csv"]
@@ -82,22 +77,20 @@ with st.sidebar:
   if uploaded_customer_file is not None:
     with open(customer_info_path, "wb") as f:
       f.write(uploaded_customer_file.getbuffer())
-    st.sidebar.success("تم حفظ ملف معلومات العملاء بنجاح!")
+    st.success("تم حفظ ملف معلومات العملاء بنجاح!")
 
   if st.button("🗑️ مسح الذاكرة ورفع ملفات جديدة"):
     for path in [shipment_path, template_path, logo_path, customer_info_path]:
       if os.path.exists(path):
         os.remove(path)
-    st.sidebar.warning("تم مسح الملفات المحفوظة بنجاح.")
     st.rerun()
 
-  # --- دالة دمج ملف الشحنات مع ملف العملاء بدقة تامة ---
+  # --- دالة الدمج الذكية والمعدلة ---
   def load_and_merge_data():
     if not os.path.exists(shipment_path):
       return None
-    
+
     df_s = pd.read_excel(shipment_path)
-    # تنظيف أسماء الأعمدة في ملف الشحنات
     df_s.columns = df_s.columns.astype(str).str.strip()
 
     if os.path.exists(customer_info_path):
@@ -109,43 +102,41 @@ with st.sidebar:
           
         df_c.columns = df_c.columns.astype(str).str.strip()
 
-        # إيجاد عمود الكود في الملفين
-        ship_code_col = next((c for c in df_s.columns if "كود" in c or "code" in c.lower()), df_s.columns[1] if len(df_s.columns) > 1 else None)
-        cust_code_col = next((c for c in df_c.columns if "كود" in c or "code" in c.lower()), df_c.columns[0] if len(df_c.columns) > 0 else None)
+        ship_code_col = next((c for c in df_s.columns if "كود" in c or "code" in c.lower()), "الكود")
+        cust_code_col = next((c for c in df_c.columns if "كود" in c or "code" in c.lower()), "الكود")
 
-        if ship_code_col and cust_code_col:
-          df_s['__s_code__'] = df_s[ship_code_col].astype(str).str.strip().str.replace('.0', '', regex=False)
-          df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.replace('.0', '', regex=False)
+        if ship_code_col in df_s.columns and cust_code_col in df_c.columns:
+          # تنظيف رموز الكود لضمان التطابق التام
+          df_s['__s_code__'] = df_s[ship_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
+          df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
           
-          # إجراء دمج ايسر بناءً على الكود
           merged = pd.merge(df_s, df_c, left_on='__s_code__', right_on='__c_code__', how='left', suffixes=('', '_cust'))
           
-          # مطابقة وتعبئة الأعمدة الفارغة (الاسم، الهاتف، العنوان) من ملف العملاء
-          mapping_fields = [
-              (['الاسم', 'name'], ['الاسم', 'name']),
-              (['رقم الهاتف', 'الهاتف', 'phone', 'رقم العاتف'], ['رقم الهاتف', 'رقم العاتف', 'phone']),
-              (['عنوان استلام', 'address', 'عنوان'], ['عنوان استلام', 'عنوان استلام البظاعة', 'address'])
+          # تعبئة البيانات الفارغة (الاسم، الهاتف، العنوان) من ملف العملاء
+          fields_to_map = [
+              ('الاسم', ['الاسم', 'name']),
+              ('رقم الهاتف', ['رقم الهاتف', 'رقم العاتف', 'هاتف', 'phone']),
+              ('عنوان استلام البظاعة', ['عنوان استلام البظاعة', 'عنوان استلام', 'عنوان', 'address'])
           ]
           
-          for s_keywords, c_keywords in mapping_fields:
-            s_col = next((c for c in df_s.columns if any(k in c for k in s_keywords)), None)
-            c_col = next((c for c in df_c.columns if any(k in c for k in c_keywords)), None)
+          for target_field, keywords in fields_to_map:
+            s_col = next((c for c in df_s.columns if any(k in c for k in keywords)), None)
+            c_col = next((c for c in df_c.columns if any(k in c for k in keywords)), None)
             
             if c_col and c_col in merged.columns:
               if s_col and s_col in merged.columns:
                 merged[s_col] = merged[s_col].fillna(merged[c_col])
               else:
-                merged[c_keywords[0]] = merged[c_col]
+                merged[target_field] = merged[c_col]
 
-          # تنظيف الأعمدة المؤقتة
           merged.drop(columns=[c for c in merged.columns if c.startswith('__') or c.endswith('_cust')], errors='ignore', inplace=True)
           df_s = merged
       except Exception as e:
-        print(f"Error merging customer info: {e}")
+        print(f"Merge error: {e}")
         
     return df_s
 
-  # --- خيارات التصفية (Filters) ---
+  # --- الفلاتر ---
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
   selected_shipment_filter = "الكل"
@@ -177,7 +168,6 @@ with st.sidebar:
         filtered_temp_df[type_col] = filtered_temp_df[type_col].fillna("غير محدد").astype(str).str.strip()
         type_list = ["الكل"] + sorted(filtered_temp_df[type_col].unique().tolist())
         selected_type_filter = st.selectbox("اختر نوع الشحنة:", type_list)
-
     except Exception:
       pass
 
@@ -223,7 +213,7 @@ if active_data_file is not None and active_template_file is not None:
       with open(active_logo, "rb") as img_file:
         logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
-    st.success(f"✅ تم دمج وتحديث البيانات بنجاح. الشحنة المعروضة: **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}** | التاريخ: {today_date}")
+    st.success(f"✅ تمت المطابقة بنجاح. الشحنة: **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}**")
     st.markdown("---")
 
     total_clients_count = len(df)
@@ -279,7 +269,7 @@ if active_data_file is not None and active_template_file is not None:
 
       total_sales_sum += total_sales
 
-      phone_col = next((c for c in df.columns if any(k in c for k in ["رقم الهاتف", "رقم العاتف", "الهاتف", "phone"])), None)
+      phone_col = next((c for c in df.columns if any(k in c for k in ["رقم الهاتف", "رقم العاتف", "هاتف", "phone"])), None)
       phone = str(row.get(phone_col, "")).strip() if phone_col else ""
       if phone.endswith(".0"):
         phone = phone[:-2]
@@ -390,7 +380,7 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- بطاقات الإحصائيات الملونة (Metrics Cards) ---
+    # --- بطاقات الإحصائيات ---
     st.markdown("""
         <style>
         .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
@@ -416,7 +406,6 @@ if active_data_file is not None and active_template_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع: [{selected_type_filter}]")
 
-    # --- جدول البيانات المنسق بالكامل ---
     display_table_df = df.copy()
     display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
     table_html = display_table_df.to_html(classes="custom-table", index=False, escape=False)
@@ -472,7 +461,6 @@ if active_data_file is not None and active_template_file is not None:
     st.html(custom_table_styling)
     st.markdown("---")
 
-    # زر الطباعة الجماعية
     master_payload = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -515,4 +503,4 @@ if active_data_file is not None and active_template_file is not None:
   except Exception as e:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
-  st.info("الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي لتظهر المعاينة والطباعة بالتنسيق الكامل.")
+  st.info("الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي.")
