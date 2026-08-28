@@ -566,12 +566,6 @@ if active_data_file is not None and active_template_file is not None:
         )
         st.markdown("<br>", unsafe_allow_html=True)
         st.html(f"""<div style="direction:rtl">{item['single_html']}</div>""")
-        if st.button("🖨️ طباعة هذا الوصل", key=f"print_btn_{item['index']}"):
-            st.markdown("""
-                <script>
-                    window.print();
-                </script>
-            """, unsafe_allow_html=True)
       st.markdown("---")
 
   except Exception as e:
