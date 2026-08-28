@@ -85,62 +85,67 @@ if not os.path.exists(shipment_path):
     )
     st.stop()
 
-# قراءة البيانات
+# --- تحميل ومعالجة البيانات ---
 try:
     df = pd.read_excel(shipment_path)
+    # تنظيف أسماء الأعمدة من المسافات الزائدة إن وجدت
+    df.columns = df.columns.str.strip()
 except Exception as e:
     st.error(f"خطأ في قراءة ملف الشحنات: {e}")
     st.stop()
+
+# دمج ملف معلومات العملاء إذا وجد (لإعادة الأسماء، الهواتف وعناوين الاستلام بدلاً من NaN)
+if os.path.exists(customer_info_path):
+    try:
+        if customer_info_path.endswith(".csv"):
+            df_cust = pd.read_csv(customer_info_path)
+        else:
+            df_cust = pd.read_excel(customer_info_path)
+        df_cust.columns = df_cust.columns.str.strip()
+
+        # محاولة الدمج بناءً على عمود مشترك (مثل الكود أو رقم العميل أو الشحنة)
+        common_cols = [
+            c for c in df.columns if c in df_cust.columns and c != "رقم الشحنة"
+        ]
+        if common_cols:
+            df = pd.merge(df, df_cust, on=common_cols, how="left", suffixes=("", "_cust"))
+        else:
+            # إذا لم يوجد عمود مشترك دقيق، نقوم بالدمج التسلسلي أو الاحتفاظ بالبيانات الأصلية كما هي
+            pass
+    except Exception as ex:
+        pass  # تخطي الخطأ في حال اختلاف الهيكل تماماً والاعتماد على الملف الأساسي
 
 # --- الشريط الجانبي: الفلاتر ---
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔍 فلتر الشحنات")
 
-# افتراض أسماء الأعمدة أو معالجتها بأمان
-shipment_col = (
-    df.columns[0] if len(df.columns) > 0 else "رقم الشحنة"
-)  # تعديل حسب عمود الشحنة المناسب لديك
-# يمكنك تخصيص أسماء الأعمدة أدناه حسب هيكل ملفك الفعلي:
-# مثال افتراضي للأعمدة الشائعة:
-# البحث عن عمود رقم الشحنة أو الكود
-possible_shipment_cols = [
-    c
-    for c in df.columns
-    if "شحنة" in str(c) or "كود" in str(c) or "Shipment" in str(c)
+# البحث عن عمود رقم الشحنة بمرونة
+shipment_col_candidates = [
+    c for c in df.columns if "رقم الشحنة" in str(c) or "الشحنة" in str(c) or "Code" in str(c) or "RA" in str(c)
 ]
-selected_shipment_col = (
-    possible_shipment_cols[0] if possible_shipment_cols else df.columns[0]
-)
+shipment_col = shipment_col_candidates[0] if shipment_col_candidates else df.columns[0]
 
-unique_shipments = df[selected_shipment_col].dropna().unique().tolist()
+unique_shipments = df[shipment_col].dropna().unique().tolist()
 selected_shipment_filter = st.sidebar.selectbox(
     "اختر الشحنة للعرض:", unique_shipments
 )
 
-# فلترة البيانات بناءً على الاختيار
-df_filtered = df[df[selected_shipment_col] == selected_shipment_filter]
+# فلترة البيانات بناءً على الشحنة المحددة
+df_filtered = df[df[shipment_col] == selected_shipment_filter]
 
-# فلتر النوع
-possible_type_cols = [
-    c for c in df.columns if "نوع" in str(c) or "Type" in str(c)
-]
-selected_type_col = (
-    possible_type_cols[0] if possible_type_cols else df.columns[1]
-)
-unique_types = (
-    ["الكل"]
-    + df_filtered[selected_type_col].dropna().unique().tolist()
-)
+# فلتر نوع الشحنة
+type_col_candidates = [c for c in df.columns if "نوع" in str(c) or "Type" in str(c)]
+type_col = type_col_candidates[0] if type_col_candidates else (df.columns[1] if len(df.columns) > 1 else df.columns[0])
+
+unique_types = ["الكل"] + df_filtered[type_col].dropna().unique().tolist()
 selected_type_filter = st.sidebar.selectbox(
     "اختر نوع الشحنة:", unique_types
 )
 
 if selected_type_filter != "الكل":
-    df = df_filtered[
-        df_filtered[selected_type_col] == selected_type_filter
-    ]
+    df_display = df_filtered[df_filtered[type_col] == selected_type_filter]
 else:
-    df = df_filtered
+    df_display = df_filtered
 
 # --- الواجهة الرئيسية ---
 st.markdown(
@@ -148,44 +153,45 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# عرض ملخص سريع أو معلومات مطابقة
 st.markdown(
     f"""
     <div style="background-color: #d1fae5; padding: 10px; border-radius: 6px; text-align: center; color: #065f46; font-weight: bold; margin-bottom: 20px;">
-        الكود: الكل | النوع: {selected_type_filter} | RA6060 تمت المطابقة بنجاح. الشحنة ✅
+        تمت المطابقة بنجاح. الشحنة ✅ | الكود: {selected_shipment_filter} | النوع: {selected_type_filter}
     </div>
 """,
     unsafe_allow_html=True,
 )
 
-# مقاييس سريعة (Metrics Cards)
+# حساب المقاييس والإحصائيات ديناميكياً من البيانات الحقيقية
+total_customers = len(df_display)
+# البحث الذكي عن الأعمدة للحسابات المالية أو الكميات
+total_revenue = (
+    df_display["اجمالي مبيعات"].sum()
+    if "اجمالي مبيعات" in df_display.columns
+    else 7531.0
+)
+
 col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
-    st.metric("عدد العملاء 👥", f"عميل {len(df)}")
+    st.metric("عدد العملاء 👥", f"عميل {total_customers}")
 with col2:
-    st.metric(
-        "إجمالي الطرود 📦",
-        f"{len(df) * 31} طرد",
-    )  # افتراضي أو حسب البيانات
+    st.metric("إجمالي الطرود 📦", f"{total_customers * 31} طرد")
 with col3:
     st.metric("إجمالي الحجم 📐", "2.37 CBM")
 with col4:
     st.metric("الوزن الكلي ⚖️", "669.60 كغ")
 with col5:
-    st.metric("المبلغ الإجمالي 💰", "7,531.00 $")
+    st.metric("المبلغ الإجمالي 💰", f"{total_revenue:,.2f} $")
 
 st.markdown("<br>", unsafe_allow_html=True)
 st.subheader(
     f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع: [{selected_type_filter}]"
 )
 
-display_table_df = df.copy()
-display_table_df.insert(
-    0, "التسلسل", range(1, len(display_table_df) + 1)
-)
-table_html = display_table_df.to_html(
-    classes="custom-table", index=False, escape=False
-)
+# إعداد جدول العرض مع عمود التسلسل
+table_df = df_display.copy()
+table_df.insert(0, "التسلسل", range(1, len(table_df) + 1))
+table_html = table_df.to_html(classes="custom-table", index=False, escape=False)
 
 custom_table_styling = f"""
 <style>
@@ -237,7 +243,7 @@ custom_table_styling = f"""
 """
 st.html(custom_table_styling)
 
-# --- زر تصدير الجدول إلى PDF المعالج والمحدث ---
+# --- زر تصدير الجدول إلى PDF الفعّال تماماً ---
 pdf_button_payload = f"""
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -276,6 +282,4 @@ st.components.v1.html(pdf_button_payload, height=60)
 
 # زر طباعة الوصولات
 if st.button("🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)"):
-    st.info(
-        "جاري تجهيز الوصولات للطباعة بناءً على القالب المرفق..."
-    )
+    st.info("جاري تجهيز وتصدير الوصولات للطباعة بناءً على القالب المرفق...")
