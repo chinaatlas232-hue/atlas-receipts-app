@@ -565,7 +565,7 @@ if active_data_file is not None and active_template_file is not None:
             key=f"dl_{item['index']}",
         )
         st.markdown("<br>", unsafe_allow_html=True)
-        # تم استبدال st.components.v1.html بـ st.html لمنع خطأ الذاكرة المفرطة
+        # تم استبدال st.components.v1.html بـ st.html لتفادي الخطأ
         st.html(f"""<div style="direction:rtl">{item['single_html']}</div>""")
         if st.button("🖨️ طباعة هذا الوصل", key=f"print_btn_{item['index']}"):
             st.markdown("""
