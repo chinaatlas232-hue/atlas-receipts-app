@@ -78,7 +78,7 @@ if not os.path.exists(shipment_path):
     st.warning("⚠️ يرجى رفع ملف بيانات الشحنات (.xlsx) من الشريط الجانبي للبدء.")
     st.stop()
 
-# قراءة الملفات الأصلية مع الحفاظ على الهيكل الدقيق
+# --- قراءة ودمج البيانات بالطريقة الصحيحة لاستعادة الأعمدة ---
 try:
     df = pd.read_excel(shipment_path)
     df.columns = df.columns.str.strip()
@@ -86,7 +86,7 @@ except Exception as e:
     st.error(f"خطأ في قراءة ملف الشحنات: {e}")
     st.stop()
 
-# دمج معلومات العملاء إن وجدت دون المساس بالأعمدة الأساسية
+# دمج ملف معلومات العملاء بدقة لضمان عدم ظهور NaN
 if os.path.exists(customer_info_path):
     try:
         if customer_info_path.endswith(".csv"):
@@ -95,16 +95,22 @@ if os.path.exists(customer_info_path):
             df_cust = pd.read_excel(customer_info_path)
         df_cust.columns = df_cust.columns.str.strip()
         
-        # البحث عن عمود مشترك للربط (مثل رقم الشحنة أو الكود)
-        merge_col = None
-        for col in ["رقم الشحنة", "كود الشحنة", "Shipment"]:
+        # البحث عن عمود مشترك للربط (مثل اسم العميل، الكود، أو رقم الهاتف)
+        common_key = None
+        for col in ["الاسم", "اسم العميل", "Customer", "كود", "رقم الشحنة"]:
             if col in df.columns and col in df_cust.columns:
-                merge_col = col
+                common_key = col
                 break
         
-        if merge_col:
-            df = pd.merge(df, df_cust, on=merge_col, how="left", suffixes=("", "_dup"))
+        if common_key:
+            df = pd.merge(df, df_cust, on=common_key, how="left", suffixes=("", "_dup"))
             df = df.loc[:, ~df.columns.duplicated()]
+        else:
+            # إذا لم يوجد مفتاح تطابق مباشر، دمج تسلسلي إذا تساوت الأسطر
+            if len(df) == len(df_cust):
+                for col in df_cust.columns:
+                    if col not in df.columns:
+                        df[col] = df_cust[col].values
     except Exception:
         pass
 
@@ -224,7 +230,7 @@ custom_table_styling = f"""
 """
 st.html(custom_table_styling)
 
-# --- زر تصدير الجدول إلى PDF مع الحفاظ على التنسيق ---
+# --- زر تصدير الجدول إلى PDF مع الحفاظ على التنسيق والجدول بالكامل ---
 pdf_button_payload = f"""
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
