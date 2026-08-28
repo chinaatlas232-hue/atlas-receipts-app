@@ -211,7 +211,17 @@ if active_data_file is not None and active_template_file is not None:
     st.success(f"✅ تمت المطابقة بنجاح. الشحنة: **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}**")
     st.markdown("---")
 
-    total_clients_count = len(df)
+    # --- تعديل حساب عدد العملاء الفريدين بناءً على الكود والاسم ---
+    name_col = next((c for c in df.columns if 'الاسم' in c or 'name' in c.lower()), None)
+    if code_col and name_col:
+      total_clients_count = df[[code_col, name_col]].drop_duplicates().shape[0]
+    elif code_col:
+      total_clients_count = df[code_col].nunique()
+    elif name_col:
+      total_clients_count = df[name_col].nunique()
+    else:
+      total_clients_count = len(df)
+
     total_packages_count = 0
     total_weight_sum = 0.0
     total_cbm_sum = 0.0
@@ -227,7 +237,6 @@ if active_data_file is not None and active_template_file is not None:
       display_code = "" if code in ["بدون كود", "nan", "None"] else code
       display_shipment = "" if shipment in ["بدون شحنة", "nan", "None"] else shipment
 
-      name_col = next((c for c in df.columns if 'الاسم' in c or 'name' in c.lower()), None)
       name = str(row.get(name_col, "عميل غير محدد")).strip() if name_col else "عميل غير محدد"
       if name in ["nan", "None", ""]:
         name = "عميل غير محدد"
@@ -455,7 +464,7 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
     
-    # --- زر تصدير الجدول إلى PDF فعال ومباشر (يعمل بضغطة زر واحدة دون إعادة تحميل) ---
+    # --- زر تصدير الجدول إلى PDF فعال ومباشر ---
     table_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -567,5 +576,3 @@ if active_data_file is not None and active_template_file is not None:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
   st.info("الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي.")
-    
-
