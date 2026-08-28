@@ -460,6 +460,52 @@ if active_data_file is not None and active_template_file is not None:
     </div>
     """
     st.html(custom_table_styling)
+    
+    # --- إضافة زر تصدير الجدول إلى PDF مع الحفاظ على التنسيقات تماماً ---
+    table_pdf_payload = f"""
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page {{ size: A4 landscape; margin: 10mm; }}
+                body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 15px; }}
+                h2 {{ text-align: center; color: #102a43; margin-bottom: 20px; font-size: 18px; }}
+                table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }}
+                th {{ background-color: #102a43 !important; color: #ffffff !important; text-align: right; padding: 10px; border: 1px solid #0b1e33; font-weight: bold; }}
+                td {{ padding: 8px 10px; border: 1px solid #cbd5e1; text-align: right; }}
+                tr:nth-child(even) {{ background-color: #f8fafc; }}
+            </style>
+        </head>
+        <body>
+            <h2>تقرير جدول تفاصيل الشحنة - شركة أطلس المحيط (الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter})</h2>
+            {table_html}
+            <script>
+                function exportTablePDF() {{
+                    var w = window.open('', '', 'height=900,width=1200');
+                    w.document.write('<html><head><title>تقرير جدول الشحنات</title>' + document.head.innerHTML + '</style></head><body>' + document.body.innerHTML + '</body></html>');
+                    w.document.close();
+                    w.focus();
+                    setTimeout(() => {{ w.print(); w.close(); }}, 600);
+                }}
+            </script>
+        </body>
+        </html>
+    """
+    
+    col_pdf_btn, _ = st.columns([1, 3])
+    with col_pdf_btn:
+      if st.button("📄 تصدير الجدول الحالي إلى PDF"):
+        st.components.v1.html(f"""
+            <script>
+                var w = window.open('', '', 'height=900,width=1200');
+                w.document.write(`{table_pdf_payload.replace('`', '\\`').replace('$', '\\$')}`);
+                w.document.close();
+                w.focus();
+                setTimeout(() => {{ w.print(); w.close(); }}, 600);
+            </script>
+        """, height=0)
+
     st.markdown("---")
 
     master_payload = f"""
@@ -505,4 +551,3 @@ if active_data_file is not None and active_template_file is not None:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
   st.info("الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي.")
-
