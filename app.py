@@ -211,7 +211,7 @@ if active_data_file is not None and active_template_file is not None:
     st.success(f"✅ تمت المطابقة بنجاح. الشحنة: **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}**")
     st.markdown("---")
 
-    # --- تعديل حساب عدد العملاء الفريدين بناءً على الكود والاسم ---
+    # --- حساب عدد العملاء الفريدين بشكل صحيح ---
     name_col = next((c for c in df.columns if 'الاسم' in c or 'name' in c.lower()), None)
     if code_col and name_col:
       total_clients_count = df[[code_col, name_col]].drop_duplicates().shape[0]
@@ -464,7 +464,7 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
     
-    # --- زر تصدير الجدول إلى PDF فعال ومباشر ---
+    # --- زر تصدير الجدول إلى PDF ---
     table_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -565,11 +565,14 @@ if active_data_file is not None and active_template_file is not None:
             key=f"dl_{item['index']}",
         )
         st.markdown("<br>", unsafe_allow_html=True)
-        st.components.v1.html(
-            f"""<div style="direction:rtl">{item['single_html']}</div><button style="background:#102a43;color:white;padding:12px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin-top:15px;" onclick="window.print()">🖨️ طباعة هذا الوصل</button>""",
-            height=700,
-            scrolling=True
-        )
+        # تم استبدال st.components.v1.html بـ st.html لمنع خطأ الذاكرة المفرطة
+        st.html(f"""<div style="direction:rtl">{item['single_html']}</div>""")
+        if st.button("🖨️ طباعة هذا الوصل", key=f"print_btn_{item['index']}"):
+            st.markdown("""
+                <script>
+                    window.print();
+                </script>
+            """, unsafe_allow_html=True)
       st.markdown("---")
 
   except Exception as e:
