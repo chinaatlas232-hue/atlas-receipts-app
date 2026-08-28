@@ -109,7 +109,6 @@ with st.sidebar:
           df_s['__s_code__'] = df_s[ship_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
           df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
           
-          # استخراج الأعمدة المطلوبة من ملف العملاء بشكل قواميس سريعة ومضمونة
           c_name_col = next((c for c in df_c.columns if 'الاسم' in c or 'name' in c.lower()), None)
           c_phone_col = next((c for c in df_c.columns if 'هاتف' in c or 'عاتف' in c or 'phone' in c.lower()), None)
           c_addr_col = next((c for c in df_c.columns if 'عنوان' in c or 'address' in c.lower()), None)
@@ -118,7 +117,6 @@ with st.sidebar:
           phone_dict = dict(zip(df_c['__c_code__'], df_c[c_phone_col])) if c_phone_col else {}
           addr_dict = dict(zip(df_c['__c_code__'], df_c[c_addr_col])) if c_addr_col else {}
 
-          # تحديث أعمدة الشحنات بشكل مباشر وتجنب الـ NaN
           s_name_col = next((c for c in df_s.columns if 'الاسم' in c and c != '__s_code__'), 'الاسم')
           s_phone_col = next((c for c in df_s.columns if 'هاتف' in c or 'عاتف' in c), 'رقم الهاتف')
           s_addr_col = next((c for c in df_s.columns if 'عنوان' in c), 'عنوان استلام البظاعة')
@@ -127,7 +125,6 @@ with st.sidebar:
           df_s[s_phone_col] = df_s['__s_code__'].map(phone_dict).fillna(df_s.get(s_phone_col))
           df_s[s_addr_col] = df_s['__s_code__'].map(addr_dict).fillna(df_s.get(s_addr_col))
 
-          # تنظيف الأعمدة المؤقتة
           df_s.drop(columns=['__s_code__'], errors='ignore', inplace=True)
       except Exception as e:
         print(f"Merge error: {e}")
@@ -230,7 +227,6 @@ if active_data_file is not None and active_template_file is not None:
       display_code = "" if code in ["بدون كود", "nan", "None"] else code
       display_shipment = "" if shipment in ["بدون شحنة", "nan", "None"] else shipment
 
-      # جلب اسم العميل
       name_col = next((c for c in df.columns if 'الاسم' in c or 'name' in c.lower()), None)
       name = str(row.get(name_col, "عميل غير محدد")).strip() if name_col else "عميل غير محدد"
       if name in ["nan", "None", ""]:
@@ -268,7 +264,6 @@ if active_data_file is not None and active_template_file is not None:
 
       total_sales_sum += total_sales
 
-      # جلب رقم الهاتف
       phone_col = next((c for c in df.columns if 'هاتف' in c or 'عاتف' in c or 'phone' in c.lower()), None)
       phone = str(row.get(phone_col, "")).strip() if phone_col else ""
       if phone.endswith(".0"):
@@ -278,7 +273,6 @@ if active_data_file is not None and active_template_file is not None:
         phone = phone[3:]
       formatted_phone = f"+964 {phone}" if phone and phone not in ["nan", "None"] else ""
 
-      # جلب العنوان
       address_col = next((c for c in df.columns if 'عنوان' in c or 'address' in c.lower()), None)
       address = str(row.get(address_col, "")).strip() if address_col else ""
       if address in ["nan", "None"]:
@@ -461,29 +455,64 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
     
-    # --- إضافة زر تصدير الجدول إلى PDF مع الحفاظ على التنسيقات تماماً ---
-    table_pdf_payload = f"""
+    # --- زر تصدير الجدول إلى PDF فعال ومباشر (يعمل بضغطة زر واحدة دون إعادة تحميل) ---
+    table_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
         <head>
             <meta charset="UTF-8">
             <style>
                 @page {{ size: A4 landscape; margin: 10mm; }}
-                body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 15px; }}
-                h2 {{ text-align: center; color: #102a43; margin-bottom: 20px; font-size: 18px; }}
-                table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }}
-                th {{ background-color: #102a43 !important; color: #ffffff !important; text-align: right; padding: 10px; border: 1px solid #0b1e33; font-weight: bold; }}
-                td {{ padding: 8px 10px; border: 1px solid #cbd5e1; text-align: right; }}
-                tr:nth-child(even) {{ background-color: #f8fafc; }}
+                body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 0; background: transparent; }}
+                .export-btn {{
+                    background-color: #102a43;
+                    color: white;
+                    padding: 12px 24px;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    font-size: 14px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    font-family: 'Tahoma', Arial, sans-serif;
+                }}
+                .export-btn:hover {{
+                    background-color: #0b1e33;
+                }}
             </style>
         </head>
         <body>
-            <h2>تقرير جدول تفاصيل الشحنة - شركة أطلس المحيط (الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter})</h2>
-            {table_html}
+            <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول الحالي إلى PDF</button>
             <script>
+                const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
+                const filterInfo = 'الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}';
                 function exportTablePDF() {{
                     var w = window.open('', '', 'height=900,width=1200');
-                    w.document.write('<html><head><title>تقرير جدول الشحنات</title>' + document.head.innerHTML + '</style></head><body>' + document.body.innerHTML + '</body></html>');
+                    w.document.write(`
+                        <!DOCTYPE html>
+                        <html lang="ar" dir="rtl">
+                        <head>
+                            <meta charset="UTF-8">
+                            <title>تقرير جدول الشحنات - أطلس</title>
+                            <style>
+                                @page {{ size: A4 landscape; margin: 10mm; }}
+                                body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 20px; }}
+                                h2 {{ text-align: center; color: #102a43; margin-bottom: 20px; font-size: 18px; }}
+                                table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }}
+                                th {{ background-color: #102a43 !important; color: #ffffff !important; text-align: right; padding: 10px; border: 1px solid #0b1e33; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+                                td {{ padding: 8px 10px; border: 1px solid #cbd5e1; text-align: right; }}
+                                tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+                            </style>
+                        </head>
+                        <body>
+                            <h2>تقرير جدول تفاصيل الشحنة - شركة أطلس المحيط (${{filterInfo}})</h2>
+                            ${{tableContent}}
+                        </body>
+                        </html>
+                    `);
                     w.document.close();
                     w.focus();
                     setTimeout(() => {{ w.print(); w.close(); }}, 600);
@@ -492,20 +521,7 @@ if active_data_file is not None and active_template_file is not None:
         </body>
         </html>
     """
-    
-    col_pdf_btn, _ = st.columns([1, 3])
-    with col_pdf_btn:
-      if st.button("📄 تصدير الجدول الحالي إلى PDF"):
-        st.components.v1.html(f"""
-            <script>
-                var w = window.open('', '', 'height=900,width=1200');
-                w.document.write(`{table_pdf_payload.replace('`', '\\`').replace('$', '\\$')}`);
-                w.document.close();
-                w.focus();
-                setTimeout(() => {{ w.print(); w.close(); }}, 600);
-            </script>
-        """, height=0)
-
+    st.components.v1.html(table_pdf_html_component, height=55)
     st.markdown("---")
 
     master_payload = f"""
