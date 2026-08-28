@@ -35,7 +35,6 @@ st.markdown(
 
 st.sidebar.title("📁 إدارة الملفات")
 
-# رفع ملف بيانات الشحنات
 uploaded_shipment_file = st.sidebar.file_uploader(
     "1. ملف بيانات الشحنات (.xlsx)", type=["xlsx"]
 )
@@ -43,7 +42,6 @@ if uploaded_shipment_file is not None:
     with open(shipment_path, "wb") as f:
         f.write(uploaded_shipment_file.getbuffer())
 
-# رفع قالب وصل التسليم
 uploaded_template_file = st.sidebar.file_uploader(
     "2. قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)", type=["xlsx"]
 )
@@ -51,7 +49,6 @@ if uploaded_template_file is not None:
     with open(template_path, "wb") as f:
         f.write(uploaded_template_file.getbuffer())
 
-# رفع شعار الشركة
 uploaded_logo_file = st.sidebar.file_uploader(
     "3. شعار الشركة (Logo)", type=["png", "jpg", "jpeg"]
 )
@@ -59,7 +56,6 @@ if uploaded_logo_file is not None:
     with open(logo_path, "wb") as f:
         f.write(uploaded_logo_file.getbuffer())
 
-# رفع ملف معلومات العملاء
 uploaded_customer_file = st.sidebar.file_uploader(
     "4. ملف معلومات العملاء (customer info)", type=["xlsx", "csv"]
 )
@@ -78,23 +74,19 @@ if st.sidebar.button("🗑️ مسح الذاكرة ورفع ملفات جديد
             os.remove(p)
     st.rerun()
 
-# التحقق من وجود ملف الشحنات الأساسي
 if not os.path.exists(shipment_path):
-    st.warning(
-        "⚠️ يرجى رفع ملف بيانات الشحنات (.xlsx) من الشريط الجانبي للبدء."
-    )
+    st.warning("⚠️ يرجى رفع ملف بيانات الشحنات (.xlsx) من الشريط الجانبي للبدء.")
     st.stop()
 
-# --- تحميل ومعالجة البيانات ---
+# قراءة الملفات الأصلية مع الحفاظ على الهيكل الدقيق
 try:
     df = pd.read_excel(shipment_path)
-    # تنظيف أسماء الأعمدة من المسافات الزائدة إن وجدت
     df.columns = df.columns.str.strip()
 except Exception as e:
     st.error(f"خطأ في قراءة ملف الشحنات: {e}")
     st.stop()
 
-# دمج ملف معلومات العملاء إذا وجد (لإعادة الأسماء، الهواتف وعناوين الاستلام بدلاً من NaN)
+# دمج معلومات العملاء إن وجدت دون المساس بالأعمدة الأساسية
 if os.path.exists(customer_info_path):
     try:
         if customer_info_path.endswith(".csv"):
@@ -102,27 +94,25 @@ if os.path.exists(customer_info_path):
         else:
             df_cust = pd.read_excel(customer_info_path)
         df_cust.columns = df_cust.columns.str.strip()
-
-        # محاولة الدمج بناءً على عمود مشترك (مثل الكود أو رقم العميل أو الشحنة)
-        common_cols = [
-            c for c in df.columns if c in df_cust.columns and c != "رقم الشحنة"
-        ]
-        if common_cols:
-            df = pd.merge(df, df_cust, on=common_cols, how="left", suffixes=("", "_cust"))
-        else:
-            # إذا لم يوجد عمود مشترك دقيق، نقوم بالدمج التسلسلي أو الاحتفاظ بالبيانات الأصلية كما هي
-            pass
-    except Exception as ex:
-        pass  # تخطي الخطأ في حال اختلاف الهيكل تماماً والاعتماد على الملف الأساسي
+        
+        # البحث عن عمود مشترك للربط (مثل رقم الشحنة أو الكود)
+        merge_col = None
+        for col in ["رقم الشحنة", "كود الشحنة", "Shipment"]:
+            if col in df.columns and col in df_cust.columns:
+                merge_col = col
+                break
+        
+        if merge_col:
+            df = pd.merge(df, df_cust, on=merge_col, how="left", suffixes=("", "_dup"))
+            df = df.loc[:, ~df.columns.duplicated()]
+    except Exception:
+        pass
 
 # --- الشريط الجانبي: الفلاتر ---
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔍 فلتر الشحنات")
 
-# البحث عن عمود رقم الشحنة بمرونة
-shipment_col_candidates = [
-    c for c in df.columns if "رقم الشحنة" in str(c) or "الشحنة" in str(c) or "Code" in str(c) or "RA" in str(c)
-]
+shipment_col_candidates = [c for c in df.columns if "شحنة" in str(c) or "كود" in str(c)]
 shipment_col = shipment_col_candidates[0] if shipment_col_candidates else df.columns[0]
 
 unique_shipments = df[shipment_col].dropna().unique().tolist()
@@ -130,10 +120,8 @@ selected_shipment_filter = st.sidebar.selectbox(
     "اختر الشحنة للعرض:", unique_shipments
 )
 
-# فلترة البيانات بناءً على الشحنة المحددة
 df_filtered = df[df[shipment_col] == selected_shipment_filter]
 
-# فلتر نوع الشحنة
 type_col_candidates = [c for c in df.columns if "نوع" in str(c) or "Type" in str(c)]
 type_col = type_col_candidates[0] if type_col_candidates else (df.columns[1] if len(df.columns) > 1 else df.columns[0])
 
@@ -162,14 +150,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# حساب المقاييس والإحصائيات ديناميكياً من البيانات الحقيقية
 total_customers = len(df_display)
-# البحث الذكي عن الأعمدة للحسابات المالية أو الكميات
-total_revenue = (
-    df_display["اجمالي مبيعات"].sum()
-    if "اجمالي مبيعات" in df_display.columns
-    else 7531.0
-)
+total_revenue = df_display["اجمالي مبيعات"].sum() if "اجمالي مبيعات" in df_display.columns else 7531.0
 
 col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
@@ -188,7 +170,6 @@ st.subheader(
     f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع: [{selected_type_filter}]"
 )
 
-# إعداد جدول العرض مع عمود التسلسل
 table_df = df_display.copy()
 table_df.insert(0, "التسلسل", range(1, len(table_df) + 1))
 table_html = table_df.to_html(classes="custom-table", index=False, escape=False)
@@ -243,7 +224,7 @@ custom_table_styling = f"""
 """
 st.html(custom_table_styling)
 
-# --- زر تصدير الجدول إلى PDF الفعّال تماماً ---
+# --- زر تصدير الجدول إلى PDF مع الحفاظ على التنسيق ---
 pdf_button_payload = f"""
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
