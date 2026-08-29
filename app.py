@@ -455,7 +455,7 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
     
-    # --- زر تصدير الجدول إلى PDF فعال ومباشر (يعمل بضغطة زر واحدة دون إعادة تحميل) ---
+    # --- كود تصدير الجدول إلى PDF مع إضافة بطاقات الإحصائيات العلوية لكي تظهر عند الطبع ---
     table_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -489,6 +489,12 @@ if active_data_file is not None and active_template_file is not None:
             <script>
                 const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
                 const filterInfo = 'الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}';
+                const totalClients = '{total_clients_count} عميل';
+                const totalPackages = '{total_packages_count} طرد';
+                const totalCbm = '{total_cbm_sum:,.2f} CBM';
+                const totalWeight = '{total_weight_sum:,.2f} كغ';
+                const totalSales = '{total_sales_sum:,.2f} $';
+
                 function exportTablePDF() {{
                     var w = window.open('', '', 'height=900,width=1200');
                     w.document.write(`
@@ -500,7 +506,29 @@ if active_data_file is not None and active_template_file is not None:
                             <style>
                                 @page {{ size: A4 landscape; margin: 10mm; }}
                                 body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 20px; }}
-                                h2 {{ text-align: center; color: #102a43; margin-bottom: 20px; font-size: 18px; }}
+                                h2 {{ text-align: center; color: #102a43; margin-bottom: 15px; font-size: 18px; }}
+                                .metrics-grid {{
+                                    display: flex;
+                                    justify-content: space-between;
+                                    gap: 10px;
+                                    margin-bottom: 20px;
+                                }}
+                                .metric-box {{
+                                    flex: 1;
+                                    padding: 10px;
+                                    border-radius: 6px;
+                                    text-align: center;
+                                    border: 1px solid #cbd5e1;
+                                    -webkit-print-color-adjust: exact;
+                                    print-color-adjust: exact;
+                                }}
+                                .box-1 {{ background-color: #eff6ff !important; border-color: #bfdbfe; color: #1e40af; }}
+                                .box-2 {{ background-color: #f0fdf4 !important; border-color: #bbf7d0; color: #166534; }}
+                                .box-3 {{ background-color: #f5f3ff !important; border-color: #ddd6fe; color: #5b21b6; }}
+                                .box-4 {{ background-color: #fffbeb !important; border-color: #fde68a; color: #92400e; }}
+                                .box-5 {{ background-color: #fdf2f8 !important; border-color: #fbcfe8; color: #9d174d; }}
+                                .metric-title {{ font-size: 12px; font-weight: bold; margin-bottom: 5px; }}
+                                .metric-val {{ font-size: 15px; font-weight: bold; margin: 0; }}
                                 table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }}
                                 th {{ background-color: #102a43 !important; color: #ffffff !important; text-align: right; padding: 10px; border: 1px solid #0b1e33; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                 td {{ padding: 8px 10px; border: 1px solid #cbd5e1; text-align: right; }}
@@ -509,6 +537,30 @@ if active_data_file is not None and active_template_file is not None:
                         </head>
                         <body>
                             <h2>تقرير جدول تفاصيل الشحنة - شركة أطلس المحيط (${{filterInfo}})</h2>
+                            
+                            <div class="metrics-grid">
+                                <div class="metric-box box-1">
+                                    <div class="metric-title">👥 عدد العملاء</div>
+                                    <div class="metric-val">${{totalClients}}</div>
+                                </div>
+                                <div class="metric-box box-2">
+                                    <div class="metric-title">📦 إجمالي الطرود</div>
+                                    <div class="metric-val">${{totalPackages}}</div>
+                                </div>
+                                <div class="metric-box box-3">
+                                    <div class="metric-title">📐 إجمالي الحجم</div>
+                                    <div class="metric-val">${{totalCbm}}</div>
+                                </div>
+                                <div class="metric-box box-4">
+                                    <div class="metric-title">⚖️ الوزن الكلي</div>
+                                    <div class="metric-val">${{totalWeight}}</div>
+                                </div>
+                                <div class="metric-box box-5">
+                                    <div class="metric-title">💰 المبلغ الإجمالي</div>
+                                    <div class="metric-val">${{totalSales}}</div>
+                                </div>
+                            </div>
+
                             ${{tableContent}}
                         </body>
                         </html>
@@ -567,4 +619,3 @@ if active_data_file is not None and active_template_file is not None:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
   st.info("الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي.")
-
