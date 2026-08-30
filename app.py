@@ -342,7 +342,7 @@ if active_data_file is not None and active_template_file is not None:
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>حجم الشحنة (CBM):</strong> <span style="color: #b45309; font-weight: bold;">{cbm_value:,.2f}</span></td>
                     </tr>
                     <tr>
-                        <td style="padding: 5px; border: 1px solid #bcccdc;" colspan="2"><strong>سعر الكيلو:</strong> {price_per_kg:,.2f} $</td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;" colspan="2"><strong>السعر:</strong> {price_per_kg:,.2f} $</td>
                     </tr>
                     <tr style="background-color: #fef3c7;">
                         <td style="padding: 5px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 12px;">{total_sales:,.2f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
