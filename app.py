@@ -119,8 +119,15 @@ with st.sidebar:
 
     # --- تنظيف البيانات وإزالة الصفوف الفارغة بالكامل لمنع ظهور الفراغات ---
     df_s = df_s.dropna(how="all")
-    ship_col_check = next((c for c in df_s.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), df_s.columns[0])
-    df_s = df_s[df_s[ship_col_check].notna() & (df_s[ship_col_check].astype(str).str.strip() != "") & (df_s[ship_col_check].astype(str).str.strip().lower() != "nan")]
+    
+    # البحث الآمن عن عمود الشحنة لمنع حدوث AttributeError
+    ship_col_check = next((c for c in df_s.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), None)
+    if not ship_col_check and len(df_s.columns) > 0:
+      ship_col_check = df_s.columns[0]
+      
+    if ship_col_check in df_s.columns:
+      df_s[ship_col_check] = df_s[ship_col_check].astype(str)
+      df_s = df_s[df_s[ship_col_check].notna() & (df_s[ship_col_check].str.strip() != "") & (df_s[ship_col_check].str.strip().lower() != "nan")]
 
     if os.path.exists(customer_info_path):
       try:
@@ -160,14 +167,18 @@ with st.sidebar:
           if s_city_col not in df_s.columns:
             df_s[s_city_col] = "غير محدد"
 
-          df_s[s_name_col] = df_s['__s_code__'].map(name_dict).fillna(df_s.get(s_name_col))
-          df_s[s_phone_col] = df_s['__s_code__'].map(phone_dict).fillna(df_s.get(s_phone_col))
+          if s_name_col in df_s.columns:
+            df_s[s_name_col] = df_s['__s_code__'].map(name_dict).fillna(df_s.get(s_name_col))
+          if s_phone_col in df_s.columns:
+            df_s[s_phone_col] = df_s['__s_code__'].map(phone_dict).fillna(df_s.get(s_phone_col))
           if c_phone2_col:
             if s_phone2_col not in df_s.columns:
               df_s[s_phone2_col] = ""
             df_s[s_phone2_col] = df_s['__s_code__'].map(phone2_dict).fillna(df_s.get(s_phone2_col))
-          df_s[s_addr_col] = df_s['__s_code__'].map(addr_dict).fillna(df_s.get(s_addr_col))
-          df_s[s_city_col] = df_s['__s_code__'].map(city_dict).fillna(df_s.get(s_city_col, "غير محدد"))
+          if s_addr_col in df_s.columns:
+            df_s[s_addr_col] = df_s['__s_code__'].map(addr_dict).fillna(df_s.get(s_addr_col))
+          if s_city_col in df_s.columns:
+            df_s[s_city_col] = df_s['__s_code__'].map(city_dict).fillna(df_s.get(s_city_col, "غير محدد"))
 
           df_s.drop(columns=['__s_code__'], errors='ignore', inplace=True)
       except Exception as e:
