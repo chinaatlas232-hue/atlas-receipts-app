@@ -622,19 +622,34 @@ if active_data_file is not None and active_template_file is not None:
                             <meta charset="UTF-8">
                             <title>تقرير جدول الشحنات والمحافظات - أطلس</title>
                             <style>
-                                @page {{ size: A4 landscape; margin: 10mm; }}
-                                body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 20px; }}
-                                h2 {{ text-align: center; color: #102a43; margin-bottom: 15px; font-size: 18px; }}
-                                h3 {{ color: #102a43; margin-top: 20px; font-size: 15px; border-bottom: 2px solid #102a43; padding-bottom: 5px; }}
+                                @page {{ 
+                                    size: A4 landscape; 
+                                    margin: 8mm; 
+                                }}
+                                * {{
+                                    box-sizing: border-box;
+                                }}
+                                body {{ 
+                                    font-family: Tahoma, Arial, sans-serif; 
+                                    direction: rtl; 
+                                    color: #102a43; 
+                                    padding: 5px; 
+                                    margin: 0;
+                                    width: 100%;
+                                    overflow-x: hidden;
+                                }}
+                                h2 {{ text-align: center; color: #102a43; margin-bottom: 12px; font-size: 16px; }}
+                                h3 {{ color: #102a43; margin-top: 15px; font-size: 14px; border-bottom: 2px solid #102a43; padding-bottom: 4px; }}
                                 .metrics-grid {{
                                     display: flex;
                                     justify-content: space-between;
-                                    gap: 10mm;
-                                    margin-bottom: 20px;
+                                    gap: 8px;
+                                    margin-bottom: 15px;
+                                    width: 100%;
                                 }}
                                 .metric-box {{
                                     flex: 1;
-                                    padding: 10px;
+                                    padding: 8px;
                                     border-radius: 6px;
                                     text-align: center;
                                     border: 1px solid #cbd5e1;
@@ -646,11 +661,33 @@ if active_data_file is not None and active_template_file is not None:
                                 .box-3 {{ background-color: #f5f3ff !important; border-color: #ddd6fe; color: #5b21b6; }}
                                 .box-4 {{ background-color: #fffbeb !important; border-color: #fde68a; color: #92400e; }}
                                 .box-5 {{ background-color: #fdf2f8 !important; border-color: #fbcfe8; color: #9d174d; }}
-                                .metric-title {{ font-size: 12px; font-weight: bold; margin-bottom: 5px; }}
-                                .metric-val {{ font-size: 15px; font-weight: bold; margin: 0; }}
-                                table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }}
-                                th {{ background-color: #102a43 !important; color: #ffffff !important; text-align: right; padding: 10px; border: 1px solid #0b1e33; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
-                                td {{ padding: 8px 10px; border: 1px solid #cbd5e1; text-align: right; }}
+                                .metric-title {{ font-size: 11px; font-weight: bold; margin-bottom: 3px; }}
+                                .metric-val {{ font-size: 13px; font-weight: bold; margin: 0; }}
+                                table {{ 
+                                    width: 100% !important; 
+                                    border-collapse: collapse; 
+                                    font-size: 10px; 
+                                    margin-top: 8px; 
+                                    table-layout: auto;
+                                    word-wrap: break-word;
+                                }}
+                                th {{ 
+                                    background-color: #102a43 !important; 
+                                    color: #ffffff !important; 
+                                    text-align: right; 
+                                    padding: 6px 8px; 
+                                    border: 1px solid #0b1e33; 
+                                    font-weight: bold; 
+                                    -webkit-print-color-adjust: exact; 
+                                    print-color-adjust: exact; 
+                                    white-space: nowrap;
+                                }}
+                                td {{ 
+                                    padding: 5px 8px; 
+                                    border: 1px solid #cbd5e1; 
+                                    text-align: right; 
+                                    word-break: break-word;
+                                }}
                                 tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                             </style>
                         </head>
@@ -683,7 +720,7 @@ if active_data_file is not None and active_template_file is not None:
                             <h3>📊 ملخص الإحصائيات حسب المحافظات</h3>
                             ${{citySummaryContent}}
 
-                            <h3 style="margin-top: 30px;">📋 تفاصيل الشحنات</h3>
+                            <h3 style="margin-top: 20px;">📋 تفاصيل الشحنات</h3>
                             ${{tableContent}}
                         </body>
                         </html>
