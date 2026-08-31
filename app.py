@@ -439,7 +439,7 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
-    # --- بطاقات الإحصائيات ---
+    # --- بطاقات الإحصائيات الأصلية ---
     st.markdown("""
         <style>
         .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
@@ -461,6 +461,44 @@ if active_data_file is not None and active_template_file is not None:
       st.markdown(f'<div class="metric-card-4"><p style="margin:0; color:#92400e; font-weight:bold; font-size:14px;">⚖️ الوزن الكلي</p><h3 style="margin:5px 0 0; color:#78350f; font-size:20px;">{total_weight_sum:,.2f} كغ</h3></div>', unsafe_allow_html=True)
     with m5:
       st.markdown(f'<div class="metric-card-5"><p style="margin:0; color:#9d174d; font-weight:bold; font-size:14px;">💰 المبلغ الإجمالي</p><h3 style="margin:5px 0 0; color:#831843; font-size:20px;">{total_sales_sum:,.2f} $</h3></div>', unsafe_allow_html=True)
+
+    # --- استخراج بيانات وتجميع الطرود حسب عمود المدينة ---
+    city_col = next((c for c in df.columns if "مدين" in str(c) or "city" in str(c).lower()), None)
+    city_summary_html_for_pdf = ""
+    city_metrics_pdf_blocks = []
+
+    if city_col:
+      df[city_col] = df[city_col].fillna("غير محدد").astype(str).str.strip()
+      # تجميع عدد الطرود لكل مدينة
+      city_packages_agg = df.groupby(city_col)[packages_col].sum().reset_index() if packages_col and packages_col in df.columns else pd.DataFrame(columns=[city_col])
+      
+      st.markdown("<br>", unsafe_allow_html=True)
+      st.markdown("##### 🏙️ إحصائيات الطرود حسب المدينة")
+      
+      city_cols_ui = st.columns(min(len(city_packages_agg), 4) if not city_packages_agg.empty else 1)
+      
+      # بناء مربعات المدنيات للشاشة ولـ PDF
+      city_cards_html = ""
+      for idx, row_city in city_packages_agg.iterrows():
+        c_name = row_city[city_col]
+        c_pkgs = int(row_city.get(packages_col, 0) if packages_col and packages_col in df.columns else 0)
+        
+        card_html_block = f"""
+        <div style="flex: 1; min-width: 150px; background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; text-align: center; margin: 5px;">
+            <div style="font-size: 13px; font-weight: bold; color: #334155; margin-bottom: 4px;">📍 {c_name}</div>
+            <div style="font-size: 16px; font-weight: bold; color: #0284c7;">📦 {c_pkgs} طرد</div>
+        </div>
+        """
+        city_metrics_pdf_blocks.append(card_html_block)
+
+      # عرضها بشكل منظم في صفوف على الشاشة باستخدام حاوية HTML مرنة
+      grid_container_html = f"""
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+          {''.join(city_metrics_pdf_blocks)}
+      </div>
+      """
+      st.markdown(grid_container_html, unsafe_allow_html=True)
+      city_summary_html_for_pdf = grid_container_html
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع: [{selected_type_filter}]")
@@ -551,6 +589,7 @@ if active_data_file is not None and active_template_file is not None:
             <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول الحالي إلى PDF</button>
             <script>
                 const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
+                const citySummaryContent = `{city_summary_html_for_pdf.replace('`', '\\`').replace('$', '\\$')}`;
                 const filterInfo = 'الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}';
                 const totalClients = '{total_clients_count} عميل';
                 const totalPackages = '{total_packages_count} طرد';
@@ -570,11 +609,12 @@ if active_data_file is not None and active_template_file is not None:
                                 @page {{ size: A4 landscape; margin: 10mm; }}
                                 body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 20px; }}
                                 h2 {{ text-align: center; color: #102a43; margin-bottom: 15px; font-size: 18px; }}
+                                h4 {{ color: #102a43; margin: 15px 0 8px 0; font-size: 14px; }}
                                 .metrics-grid {{
                                     display: flex;
                                     justify-content: space-between;
                                     gap: 10mm;
-                                    margin-bottom: 20px;
+                                    margin-bottom: 15px;
                                 }}
                                 .metric-box {{
                                     flex: 1;
@@ -602,7 +642,7 @@ if active_data_file is not None and active_template_file is not None:
                             <h2>تقرير جدول تفاصيل الشحنة - شركة أطلس المحيط (${{filterInfo}})</h2>
                             
                             <div class="metrics-grid">
-                                <div class="metric-box box-1">
+                                .metric-box box-1">
                                     <div class="metric-title">👥 عدد العملاء</div>
                                     <div class="metric-val">${{totalClients}}</div>
                                 </div>
@@ -623,6 +663,8 @@ if active_data_file is not None and active_template_file is not None:
                                     <div class="metric-val">${{totalSales}}</div>
                                 </div>
                             </div>
+
+                            ${{citySummaryContent ? '<h4>إحصائيات الطرود حسب المدينة:</h4>' + citySummaryContent : ''}}
 
                             ${{tableContent}}
                         </body>
