@@ -114,23 +114,26 @@ with st.sidebar:
     if not os.path.exists(shipment_path):
       return None
 
-    df_s = pd.read_excel(shipment_path)
-    df_s.columns = df_s.columns.astype(str).str.strip()
+    try:
+      df_s = pd.read_excel(shipment_path)
+    except Exception:
+      df_s = pd.read_csv(shipment_path)
 
+    df_s.columns = df_s.columns.astype(str).str.strip()
     df_s = df_s.dropna(how="all")
     
-    ship_col_check = next((c for c in df_s.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), None)
+    # اختيار عمود الشحنة بأمان تام
+    ship_col_check = None
+    for col in df_s.columns:
+      c_lower = str(col).lower()
+      if "شحنة" in c_lower or "shipment" in c_lower:
+        ship_col_check = col
+        break
     if not ship_col_check and len(df_s.columns) > 0:
       ship_col_check = df_s.columns[0]
       
     if ship_col_check and ship_col_check in df_s.columns:
-      df_s[ship_col_check] = df_s[ship_col_check].fillna("").astype(str).str.replace(".0", "", regex=False)
-      val_series = df_s[ship_col_check].astype(str).str.lower()
-      df_s = df_s[
-        (df_s[ship_col_check] != "") & 
-        (val_series != "nan") & 
-        (val_series != "none")
-      ]
+      df_s[ship_col_check] = df_s[ship_col_check].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False)
 
     if os.path.exists(customer_info_path):
       try:
