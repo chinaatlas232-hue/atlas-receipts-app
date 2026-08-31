@@ -42,9 +42,18 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("📦 النظام المالي والفني - وصل تسليم البضائع (شركة أطلس المحيط)")
-
+# --- نقل العنوان الرئيسي إلى القائمة الجانبية (Sidebar) ---
 with st.sidebar:
+  st.markdown(
+      """
+        <div style="text-align: right; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #475569;">
+            <h2 style="color: #f8fafc; font-size: 16px; margin: 0;">📦 وصل تسليم البضائع</h2>
+            <p style="color: #cbd5e1; font-size: 12px; margin: 3px 0 0 0;">(شركة أطلس المحيط)</p>
+        </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
   st.header("⚙️ إدارة الملفات")
 
   uploaded_data_file = st.file_uploader(
