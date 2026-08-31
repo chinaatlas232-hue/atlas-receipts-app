@@ -586,7 +586,7 @@ if active_data_file is not None and active_template_file is not None:
         <head>
             <meta charset="UTF-8">
             <style>
-                @page {{ size: A4 landscape; margin: 0mm; }}
+                @page {{ size: A4 landscape; margin: 10mm; }}
                 body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 0; background: transparent; }}
                 .export-btn {{
                     background-color: #102a43;
@@ -629,13 +629,8 @@ if active_data_file is not None and active_template_file is not None:
                             <meta charset="UTF-8">
                             <title>تقرير جدول الشحنات والمحافظات - أطلس</title>
                             <style>
-                                @page {{ size: A4 landscape; margin: 0mm; }}
-                                @media print {{
-                                    body {{ margin: 8mm; }}
-                                    @page {{ margin: 0; }}
-                                }}
-                                body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 15px; margin: 0; }}
-                                h2 {{ text-align: center; color: #102a43; margin-bottom: 15px; font-size: 18px; }}
+                                @page {{ size: A4 landscape; margin: 10mm; }}
+                                body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 20px; }}
                                 h3 {{ color: #102a43; margin-top: 20px; font-size: 15px; border-bottom: 2px solid #102a43; padding-bottom: 5px; }}
                                 .metrics-grid {{
                                     display: flex;
@@ -672,8 +667,6 @@ if active_data_file is not None and active_template_file is not None:
                             </style>
                         </head>
                         <body>
-                            <h2>تقرير شحنات ومحافظات شركة أطلس المحيط (${{filterInfo}})</h2>
-                            
                             <div class="metrics-grid">
                                 <div class="metric-box box-1">
                                     <div class="metric-title">👥 عدد العملاء</div>
@@ -726,7 +719,7 @@ if active_data_file is not None and active_template_file is not None:
                 const content = `{all_receipts_html_for_print.replace('`', '\\`').replace('$', '\\$')}`;
                 function printAll() {{
                     var w = window.open('', '', 'height=900,width=800');
-                    w.document.write('<html><head><style>@page {{ size: A5; margin: 0mm; }} @media print {{ body {{ margin: 5mm; }} }} body {{ direction: rtl; font-family: Tahoma; margin: 0; }}</style></head><body>' + content + '</body></html>');
+                    w.document.write('<html><head><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma; }}</style></head><body>' + content + '</body></html>');
                     w.document.close();
                     w.focus();
                     setTimeout(() => {{ w.print(); w.close(); }}, 600);
