@@ -125,19 +125,26 @@ with st.sidebar:
           df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
           
           c_name_col = next((c for c in df_c.columns if 'الاسم' in c or 'name' in c.lower()), None)
-          c_phone_col = next((c for c in df_c.columns if 'هاتف' in c or 'عاتف' in c or 'phone' in c.lower()), None)
+          c_phone_col = next((c for c in df_c.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' not in c), None)
+          c_phone2_col = next((c for c in df_c.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' in c), None)
           c_addr_col = next((c for c in df_c.columns if 'عنوان' in c or 'address' in c.lower()), None)
 
           name_dict = dict(zip(df_c['__c_code__'], df_c[c_name_col])) if c_name_col else {}
           phone_dict = dict(zip(df_c['__c_code__'], df_c[c_phone_col])) if c_phone_col else {}
+          phone2_dict = dict(zip(df_c['__c_code__'], df_c[c_phone2_col])) if c_phone2_col else {}
           addr_dict = dict(zip(df_c['__c_code__'], df_c[c_addr_col])) if c_addr_col else {}
 
           s_name_col = next((c for c in df_s.columns if 'الاسم' in c and c != '__s_code__'), 'الاسم')
-          s_phone_col = next((c for c in df_s.columns if 'هاتف' in c or 'عاتف' in c), 'رقم الهاتف')
+          s_phone_col = next((c for c in df_s.columns if ('هاتف' in c or 'عاتف' in c) and '2' not in c), 'رقم الهاتف')
+          s_phone2_col = next((c for c in df_s.columns if ('هاتف' in c or 'عاتف' in c) and '2' in c), 'رقم الهاتف 2')
           s_addr_col = next((c for c in df_s.columns if 'عنوان' in c), 'عنوان استلام البظاعة')
 
           df_s[s_name_col] = df_s['__s_code__'].map(name_dict).fillna(df_s.get(s_name_col))
           df_s[s_phone_col] = df_s['__s_code__'].map(phone_dict).fillna(df_s.get(s_phone_col))
+          if c_phone2_col:
+            if s_phone2_col not in df_s.columns:
+              df_s[s_phone2_col] = ""
+            df_s[s_phone2_col] = df_s['__s_code__'].map(phone2_dict).fillna(df_s.get(s_phone2_col))
           df_s[s_addr_col] = df_s['__s_code__'].map(addr_dict).fillna(df_s.get(s_addr_col))
 
           df_s.drop(columns=['__s_code__'], errors='ignore', inplace=True)
@@ -286,7 +293,7 @@ if active_data_file is not None and active_template_file is not None:
 
       total_sales_sum += total_sales
 
-      phone_col = next((c for c in df.columns if 'هاتف' in c or 'عاتف' in c or 'phone' in c.lower()), None)
+      phone_col = next((c for c in df.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' not in c), None)
       phone = str(row.get(phone_col, "")).strip() if phone_col else ""
       if phone.endswith(".0"):
         phone = phone[:-2]
@@ -294,6 +301,19 @@ if active_data_file is not None and active_template_file is not None:
       if phone.startswith("964"):
         phone = phone[3:]
       formatted_phone = f"+964 {phone}" if phone and phone not in ["nan", "None"] else ""
+
+      phone2_col = next((c for c in df.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' in c), None)
+      phone2 = str(row.get(phone2_col, "")).strip() if phone2_col else ""
+      if phone2.endswith(".0"):
+        phone2 = phone2[:-2]
+      phone2 = phone2.replace("+", "").strip()
+      if phone2.startswith("964"):
+        phone2 = phone2[3:]
+      formatted_phone2 = f"+964 {phone2}" if phone2 and phone2 not in ["nan", "None"] else ""
+
+      combined_phones = formatted_phone
+      if formatted_phone2:
+        combined_phones = f"{formatted_phone} / {formatted_phone2}" if formatted_phone else formatted_phone2
 
       address_col = next((c for c in df.columns if 'عنوان' in c or 'address' in c.lower()), None)
       address = str(row.get(address_col, "")).strip() if address_col else ""
@@ -311,7 +331,7 @@ if active_data_file is not None and active_template_file is not None:
       ws["D4"] = today_date
       ws["B5"] = name
       ws["B6"] = address
-      ws["D5"] = formatted_phone
+      ws["D5"] = combined_phones
       ws["B7"] = display_shipment
       ws["D6"] = packages
       ws["B8"] = shipment_type
@@ -349,7 +369,7 @@ if active_data_file is not None and active_template_file is not None:
                     </tr>
                     <tr>
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
-                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{formatted_phone}</span></td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{combined_phones}</span></td>
                     </tr>
                     <tr style="background-color: #f0f4f8;">
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
@@ -398,7 +418,7 @@ if active_data_file is not None and active_template_file is not None:
       })
 
     # --- تجميع بيانات الجدول حسب كود العميل (مع دمج الوزن والحجم وجمع الباقي) ---
-    group_cols = [c for c in [ship_col, code_col, name_col_for_clients, type_col_name, phone_col, address_col] if c and c in df.columns]
+    group_cols = [c for c in [ship_col, code_col, name_col_for_clients, type_col_name, phone_col, phone2_col, address_col] if c and c in df.columns]
     agg_dict = {}
     if weight_col and weight_col in df.columns:
       agg_dict[weight_col] = 'sum'
@@ -553,7 +573,7 @@ if active_data_file is not None and active_template_file is not None:
                                 .metrics-grid {{
                                     display: flex;
                                     justify-content: space-between;
-                                    gap: 10px;
+                                    gap: 10mm;
                                     margin-bottom: 20px;
                                 }}
                                 .metric-box {{
