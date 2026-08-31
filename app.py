@@ -96,9 +96,12 @@ with st.sidebar:
     st.cache_data.clear()
     st.rerun()
 
-  # --- دالة الدمج وتحديث الأعمدة الإجبارية ---
+  # --- دالة الدمج وتحديث الأعمدة الإجبارية مع تتبع وقت التعديل لتحديث الذاكرة المؤقتة ---
+  ship_mtime = os.path.getmtime(shipment_path) if os.path.exists(shipment_path) else 0
+  cust_mtime = os.path.getmtime(customer_info_path) if os.path.exists(customer_info_path) else 0
+
   @st.cache_data(show_spinner=False)
-  def load_and_merge_data(file_mtime, cust_mtime):
+  def load_and_merge_data(s_time, c_time):
     if not os.path.exists(shipment_path):
       return None
 
@@ -142,10 +145,6 @@ with st.sidebar:
         print(f"Merge error: {e}")
         
     return df_s
-
-  # احضار وقت التعديل للملفات لضمان تحديث الـ Cache تلقائياً عند تغيير الملفات
-  ship_mtime = os.path.getmtime(shipment_path) if os.path.exists(shipment_path) else 0
-  cust_mtime = os.path.getmtime(customer_info_path) if os.path.exists(customer_info_path) else 0
 
   # --- الفلاتر ---
   st.markdown("---")
