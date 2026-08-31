@@ -16,7 +16,7 @@ template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
 logo_path = os.path.join(UPLOAD_DIR, "logo.png")
 customer_info_path = os.path.join(UPLOAD_DIR, "customer_info.xlsx")
 
-# --- تنسيق الشريط الجانبي (مخصص لرفع الملفات فقط) ---
+# --- تنسيق الشريط الجانبي ---
 st.markdown(
     """
     <style>
@@ -42,6 +42,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# --- عنوان التطبيق في القائمة الجانبية (Sidebar) ---
 with st.sidebar:
   st.markdown(
       """
@@ -104,115 +105,108 @@ with st.sidebar:
     st.cache_data.clear()
     st.rerun()
 
-# --- تتبع وقت التعديل لتحديث الذاكرة المؤقتة ---
-ship_mtime = os.path.getmtime(shipment_path) if os.path.exists(shipment_path) else 0
-cust_mtime = os.path.getmtime(customer_info_path) if os.path.exists(customer_info_path) else 0
+  # --- تتبع وقت التعديل لتحديث الذاكرة المؤقتة ---
+  ship_mtime = os.path.getmtime(shipment_path) if os.path.exists(shipment_path) else 0
+  cust_mtime = os.path.getmtime(customer_info_path) if os.path.exists(customer_info_path) else 0
 
-@st.cache_data(show_spinner=False)
-def load_and_merge_data(s_time, c_time):
-  if not os.path.exists(shipment_path):
-    return None
+  @st.cache_data(show_spinner=False)
+  def load_and_merge_data(s_time, c_time):
+    if not os.path.exists(shipment_path):
+      return None
 
-  df_s = pd.read_excel(shipment_path)
-  df_s.columns = df_s.columns.astype(str).str.strip()
+    df_s = pd.read_excel(shipment_path)
+    df_s.columns = df_s.columns.astype(str).str.strip()
 
-  if os.path.exists(customer_info_path):
+    if os.path.exists(customer_info_path):
+      try:
+        if customer_info_path.endswith('.csv'):
+          df_c = pd.read_csv(customer_info_path)
+        else:
+          df_c = pd.read_excel(customer_info_path)
+          
+        df_c.columns = df_c.columns.astype(str).str.strip()
+
+        ship_code_col = next((c for c in df_s.columns if "كود" in c or "code" in c.lower()), "الكود")
+        cust_code_col = next((c for c in df_c.columns if "كود" in c or "code" in c.lower()), "الكود")
+
+        if ship_code_col in df_s.columns and cust_code_col in df_c.columns:
+          df_s['__s_code__'] = df_s[ship_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
+          df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
+          
+          c_name_col = next((c for c in df_c.columns if 'الاسم' in c or 'name' in c.lower()), None)
+          c_phone_col = next((c for c in df_c.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' not in c), None)
+          c_phone2_col = next((c for c in df_c.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' in c), None)
+          c_addr_col = next((c for c in df_c.columns if 'عنوان' in c or 'address' in c.lower()), None)
+          c_city_col = next((c for c in df_c.columns if 'مدينة' in c or 'محافظ' in c or 'city' in c.lower()), None)
+
+          name_dict = dict(zip(df_c['__c_code__'], df_c[c_name_col])) if c_name_col else {}
+          phone_dict = dict(zip(df_c['__c_code__'], df_c[c_phone_col])) if c_phone_col else {}
+          phone2_dict = dict(zip(df_c['__c_code__'], df_c[c_phone2_col])) if c_phone2_col else {}
+          addr_dict = dict(zip(df_c['__c_code__'], df_c[c_addr_col])) if c_addr_col else {}
+          city_dict = dict(zip(df_c['__c_code__'], df_c[c_city_col])) if c_city_col else {}
+
+          s_name_col = next((c for c in df_s.columns if 'الاسم' in c and c != '__s_code__'), 'الاسم')
+          s_phone_col = next((c for c in df_s.columns if ('هاتف' in c or 'عاتف' in c) and '2' not in c), 'رقم الهاتف')
+          s_phone2_col = next((c for c in df_s.columns if ('هاتف' in c or 'عاتف' in c) and '2' in c), 'رقم الهاتف 2')
+          s_addr_col = next((c for c in df_s.columns if 'عنوان' in c), 'عنوان استلام البظاعة')
+          s_city_col = next((c for c in df_s.columns if 'مدينة' in c or 'محافظ' in c), 'المدينة')
+
+          if s_city_col not in df_s.columns:
+            df_s[s_city_col] = "غير محدد"
+
+          df_s[s_name_col] = df_s['__s_code__'].map(name_dict).fillna(df_s.get(s_name_col))
+          df_s[s_phone_col] = df_s['__s_code__'].map(phone_dict).fillna(df_s.get(s_phone_col))
+          if c_phone2_col:
+            if s_phone2_col not in df_s.columns:
+              df_s[s_phone2_col] = ""
+            df_s[s_phone2_col] = df_s['__s_code__'].map(phone2_dict).fillna(df_s.get(s_phone2_col))
+          df_s[s_addr_col] = df_s['__s_code__'].map(addr_dict).fillna(df_s.get(s_addr_col))
+          df_s[s_city_col] = df_s['__s_code__'].map(city_dict).fillna(df_s.get(s_city_col, "غير محدد"))
+
+          df_s.drop(columns=['__s_code__'], errors='ignore', inplace=True)
+      except Exception as e:
+        print(f"Merge error: {e}")
+        
+    return df_s
+
+  # --- الفلاتر في القائمة الجانبية ---
+  st.markdown("---")
+  st.header("🔍 فلتر الشحنات")
+  selected_shipment_filter = "الكل"
+  selected_code_filter = "الكل"
+  selected_type_filter = "الكل"
+
+  temp_df = load_and_merge_data(ship_mtime, cust_mtime)
+  if temp_df is not None and not temp_df.empty:
     try:
-      if customer_info_path.endswith('.csv'):
-        df_c = pd.read_csv(customer_info_path)
-      else:
-        df_c = pd.read_excel(customer_info_path)
+      ship_col = next((c for c in temp_df.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), temp_df.columns[0])
+      temp_df[ship_col] = temp_df[ship_col].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False)
+      shipment_list = ["الكل"] + sorted(temp_df[ship_col].unique().tolist())
+      selected_shipment_filter = st.selectbox("اختر الشحنة للعرض:", shipment_list)
         
-      df_c.columns = df_c.columns.astype(str).str.strip()
+      filtered_temp_df = temp_df.copy()
+      if selected_shipment_filter != "الكل":
+        filtered_temp_df = filtered_temp_df[filtered_temp_df[ship_col] == selected_shipment_filter]
 
-      ship_code_col = next((c for c in df_s.columns if "كود" in c or "code" in c.lower()), "الكود")
-      cust_code_col = next((c for c in df_c.columns if "كود" in c or "code" in c.lower()), "الكود")
+      code_col = next((c for c in filtered_temp_df.columns if "كود" in str(c) or "code" in str(c).lower()), None)
+      if code_col:
+        filtered_temp_df[code_col] = filtered_temp_df[code_col].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False)
+        code_list = ["الكل"] + sorted(filtered_temp_df[code_col].unique().tolist())
+        selected_code_filter = st.selectbox("اختر أو ابحث برقم الكود:", code_list)
+        if selected_code_filter != "الكل":
+          filtered_temp_df = filtered_temp_df[filtered_temp_df[code_col] == selected_code_filter]
 
-      if ship_code_col in df_s.columns and cust_code_col in df_c.columns:
-        df_s['__s_code__'] = df_s[ship_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
-        df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
-        
-        c_name_col = next((c for c in df_c.columns if 'الاسم' in c or 'name' in c.lower()), None)
-        c_phone_col = next((c for c in df_c.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' not in c), None)
-        c_phone2_col = next((c for c in df_c.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' in c), None)
-        c_addr_col = next((c for c in df_c.columns if 'عنوان' in c or 'address' in c.lower()), None)
-        c_city_col = next((c for c in df_c.columns if 'مدينة' in c or 'محافظ' in c or 'city' in c.lower()), None)
-
-        name_dict = dict(zip(df_c['__c_code__'], df_c[c_name_col])) if c_name_col else {}
-        phone_dict = dict(zip(df_c['__c_code__'], df_c[c_phone_col])) if c_phone_col else {}
-        phone2_dict = dict(zip(df_c['__c_code__'], df_c[c_phone2_col])) if c_phone2_col else {}
-        addr_dict = dict(zip(df_c['__c_code__'], df_c[c_addr_col])) if c_addr_col else {}
-        city_dict = dict(zip(df_c['__c_code__'], df_c[c_city_col])) if c_city_col else {}
-
-        s_name_col = next((c for c in df_s.columns if 'الاسم' in c and c != '__s_code__'), 'الاسم')
-        s_phone_col = next((c for c in df_s.columns if ('هاتف' in c or 'عاتف' in c) and '2' not in c), 'رقم الهاتف')
-        s_phone2_col = next((c for c in df_s.columns if ('هاتف' in c or 'عاتف' in c) and '2' in c), 'رقم الهاتف 2')
-        s_addr_col = next((c for c in df_s.columns if 'عنوان' in c), 'عنوان استلام البظاعة')
-        s_city_col = next((c for c in df_s.columns if 'مدينة' in c or 'محافظ' in c), 'المدينة')
-
-        if s_city_col not in df_s.columns:
-          df_s[s_city_col] = "غير محدد"
-
-        df_s[s_name_col] = df_s['__s_code__'].map(name_dict).fillna(df_s.get(s_name_col))
-        df_s[s_phone_col] = df_s['__s_code__'].map(phone_dict).fillna(df_s.get(s_phone_col))
-        if c_phone2_col:
-          if s_phone2_col not in df_s.columns:
-            df_s[s_phone2_col] = ""
-          df_s[s_phone2_col] = df_s['__s_code__'].map(phone2_dict).fillna(df_s.get(s_phone2_col))
-        df_s[s_addr_col] = df_s['__s_code__'].map(addr_dict).fillna(df_s.get(s_addr_col))
-        df_s[s_city_col] = df_s['__s_code__'].map(city_dict).fillna(df_s.get(s_city_col, "غير محدد"))
-
-        df_s.drop(columns=['__s_code__'], errors='ignore', inplace=True)
-    except Exception as e:
-      print(f"Merge error: {e}")
-      
-  return df_s
+      type_col = next((c for c in filtered_temp_df.columns if "نوع" in str(c) or "type" in str(c).lower()), None)
+      if type_col:
+        filtered_temp_df[type_col] = filtered_temp_df[type_col].fillna("غير محدد").astype(str).str.strip()
+        type_list = ["الكل"] + sorted(filtered_temp_df[type_col].unique().tolist())
+        selected_type_filter = st.selectbox("اختر نوع الشحنة:", type_list)
+    except Exception:
+      pass
 
 active_data_file = shipment_path if os.path.exists(shipment_path) else None
 active_template_file = template_path if os.path.exists(template_path) else None
 active_logo = logo_path if os.path.exists(logo_path) else None
-
-# --- الفلاتر في أعلى الشاشة الرئيسية (بدل القائمة الجانبية) ---
-selected_shipment_filter = "الكل"
-selected_code_filter = "الكل"
-selected_type_filter = "الكل"
-
-temp_df = load_and_merge_data(ship_mtime, cust_mtime)
-if temp_df is not None and not temp_df.empty:
-  st.markdown("### 🔍 فلاتر الشحنات والبحث السريع")
-  f_col1, f_col2, f_col3 = st.columns(3)
-  
-  try:
-    ship_col = next((c for c in temp_df.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), temp_df.columns[0])
-    temp_df[ship_col] = temp_df[ship_col].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False)
-    shipment_list = ["الكل"] + sorted(temp_df[ship_col].unique().tolist())
-    
-    with f_col1:
-      selected_shipment_filter = st.selectbox("اختر الشحنة للعرض:", shipment_list)
-      
-    filtered_temp_df = temp_df.copy()
-    if selected_shipment_filter != "الكل":
-      filtered_temp_df = filtered_temp_df[filtered_temp_df[ship_col] == selected_shipment_filter]
-
-    code_col = next((c for c in filtered_temp_df.columns if "كود" in str(c) or "code" in str(c).lower()), None)
-    if code_col:
-      filtered_temp_df[code_col] = filtered_temp_df[code_col].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False)
-      code_list = ["الكل"] + sorted(filtered_temp_df[code_col].unique().tolist())
-      with f_col2:
-        selected_code_filter = st.selectbox("اختر أو ابحث برقم الكود:", code_list)
-      if selected_code_filter != "الكل":
-        filtered_temp_df = filtered_temp_df[filtered_temp_df[code_col] == selected_code_filter]
-
-    type_col = next((c for c in filtered_temp_df.columns if "نوع" in str(c) or "type" in str(c).lower()), None)
-    if type_col:
-      filtered_temp_df[type_col] = filtered_temp_df[type_col].fillna("غير محدد").astype(str).str.strip()
-      type_list = ["الكل"] + sorted(filtered_temp_df[type_col].unique().tolist())
-      with f_col3:
-        selected_type_filter = st.selectbox("اختر نوع الشحنة:", type_list)
-  except Exception:
-    pass
-
-st.markdown("---")
 
 if active_data_file is not None and active_template_file is not None:
   try:
@@ -463,7 +457,7 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
-    # --- بطاقات الإحصائيات العامة في أعلى الشاشة ---
+    # --- نقل بطاقات الإحصائيات العامة لتكون في أعلى الشاشة ---
     st.markdown("""
         <style>
         .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
@@ -751,3 +745,4 @@ if active_data_file is not None and active_template_file is not None:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
   st.info("الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي.")
+
