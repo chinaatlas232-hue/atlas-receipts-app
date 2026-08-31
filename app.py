@@ -249,9 +249,6 @@ if active_data_file is not None and active_template_file is not None:
       with open(active_logo, "rb") as img_file:
         logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
-    st.success(f"✅ تمت المطابقة بنجاح. الشحنة: **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}**")
-    st.markdown("---")
-
     name_col_for_clients = next((c for c in df.columns if 'الاسم' in c or 'name' in c.lower()), None)
     if name_col_for_clients:
       total_clients_count = df[name_col_for_clients].dropna().astype(str).str.strip().loc[lambda x: ~x.isin(["nan", "None", "", "عميل غير محدد"])].nunique()
@@ -745,4 +742,3 @@ if active_data_file is not None and active_template_file is not None:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
   st.info("الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي.")
-
