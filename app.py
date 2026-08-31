@@ -51,14 +51,19 @@ with st.sidebar:
       "1. ملف بيانات الشحنات (تعبئة وصل اطلس.xlsx)", type=["xlsx"]
   )
   if uploaded_data_file is not None:
+    if os.path.exists(shipment_path):
+      os.remove(shipment_path)
     with open(shipment_path, "wb") as f:
       f.write(uploaded_data_file.getbuffer())
-    st.success("تم حفظ ملف الشحنات بنجاح!")
+    st.cache_data.clear()
+    st.success("تم حفظ ملف الشحنات الجديد بنجاح!")
 
   uploaded_template_file = st.file_uploader(
       "2. قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)", type=["xlsx"]
   )
   if uploaded_template_file is not None:
+    if os.path.exists(template_path):
+      os.remove(template_path)
     with open(template_path, "wb") as f:
       f.write(uploaded_template_file.getbuffer())
     st.success("تم حفظ القالب بنجاح!")
@@ -67,6 +72,8 @@ with st.sidebar:
       "3. شعار الشركة (Logo)", type=["png", "jpg", "jpeg"]
   )
   if uploaded_logo is not None:
+    if os.path.exists(logo_path):
+      os.remove(logo_path)
     with open(logo_path, "wb") as f:
       f.write(uploaded_logo.getbuffer())
     st.success("تم حفظ الشعار بنجاح!")
@@ -75,18 +82,23 @@ with st.sidebar:
       "4. ملف معلومات العملاء (coustmer info)", type=["xlsx", "csv"]
   )
   if uploaded_customer_file is not None:
+    if os.path.exists(customer_info_path):
+      os.remove(customer_info_path)
     with open(customer_info_path, "wb") as f:
       f.write(uploaded_customer_file.getbuffer())
+    st.cache_data.clear()
     st.success("تم حفظ ملف معلومات العملاء بنجاح!")
 
   if st.button("🗑️ مسح الذاكرة ورفع ملفات جديدة"):
     for path in [shipment_path, template_path, logo_path, customer_info_path]:
       if os.path.exists(path):
         os.remove(path)
+    st.cache_data.clear()
     st.rerun()
 
   # --- دالة الدمج وتحديث الأعمدة الإجبارية ---
-  def load_and_merge_data():
+  @st.cache_data(show_spinner=False)
+  def load_and_merge_data(file_mtime, cust_mtime):
     if not os.path.exists(shipment_path):
       return None
 
@@ -131,6 +143,10 @@ with st.sidebar:
         
     return df_s
 
+  # احضار وقت التعديل للملفات لضمان تحديث الـ Cache تلقائياً عند تغيير الملفات
+  ship_mtime = os.path.getmtime(shipment_path) if os.path.exists(shipment_path) else 0
+  cust_mtime = os.path.getmtime(customer_info_path) if os.path.exists(customer_info_path) else 0
+
   # --- الفلاتر ---
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
@@ -138,7 +154,7 @@ with st.sidebar:
   selected_code_filter = "الكل"
   selected_type_filter = "الكل"
 
-  temp_df = load_and_merge_data()
+  temp_df = load_and_merge_data(ship_mtime, cust_mtime)
   if temp_df is not None and not temp_df.empty:
     try:
       ship_col = next((c for c in temp_df.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), temp_df.columns[0])
@@ -172,7 +188,7 @@ active_logo = logo_path if os.path.exists(logo_path) else None
 
 if active_data_file is not None and active_template_file is not None:
   try:
-    df = load_and_merge_data()
+    df = load_and_merge_data(ship_mtime, cust_mtime)
     if df is None or df.empty:
       st.warning("⚠️ ملف البيانات فارغ.")
       st.stop()
@@ -455,7 +471,6 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
     
-    # --- كود تصدير الجدول إلى PDF مع إضافة بطاقات الإحصائيات العلوية لكي تظهر عند الطبع ---
     table_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
