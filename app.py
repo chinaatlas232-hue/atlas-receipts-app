@@ -117,6 +117,11 @@ with st.sidebar:
     df_s = pd.read_excel(shipment_path)
     df_s.columns = df_s.columns.astype(str).str.strip()
 
+    # --- تنظيف البيانات وإزالة الصفوف الفارغة بالكامل لمنع ظهور الفراغات ---
+    df_s = df_s.dropna(how="all")
+    ship_col_check = next((c for c in df_s.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), df_s.columns[0])
+    df_s = df_s[df_s[ship_col_check].notna() & (df_s[ship_col_check].astype(str).str.strip() != "") & (df_s[ship_col_check].astype(str).str.strip().lower() != "nan")]
+
     if os.path.exists(customer_info_path):
       try:
         if customer_info_path.endswith('.csv'):
@@ -125,6 +130,7 @@ with st.sidebar:
           df_c = pd.read_excel(customer_info_path)
           
         df_c.columns = df_c.columns.astype(str).str.strip()
+        df_c = df_c.dropna(how="all")
 
         ship_code_col = next((c for c in df_s.columns if "كود" in c or "code" in c.lower()), "الكود")
         cust_code_col = next((c for c in df_c.columns if "كود" in c or "code" in c.lower()), "الكود")
@@ -454,6 +460,11 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
+    # --- تنظيف الجدول المجمع نهائياً للتأكد من عدم وجود صفوف فارغة ---
+    if name_col_for_clients in df_grouped.columns:
+      df_grouped = df_grouped[df_grouped[name_col_for_clients].notna() & (df_grouped[name_col_for_clients].astype(str).str.strip() != "") & (df_grouped[name_col_for_clients].astype(str).str.strip().lower() != "nan")]
+    df_grouped = df_grouped.reset_index(drop=True)
+
     # --- نقل بطاقات الإحصائيات العامة لتكون في أعلى الشاشة ---
     st.markdown("""
         <style>
@@ -500,6 +511,8 @@ if active_data_file is not None and active_template_file is not None:
 
     if agg_city_dict:
       df_city_summary = df.groupby(city_group_col, as_index=False).agg(agg_city_dict)
+      df_city_summary = df_city_summary[df_city_summary[city_group_col].notna() & (df_city_summary[city_group_col].astype(str).str.strip() != "")]
+      
       if '__calc_sales__' in df_city_summary.columns:
         df_city_summary.rename(columns={'__calc_sales__': 'إجمالي الديون / المبيعات ($)'}, inplace=True)
       if sales_col and sales_col in df_city_summary.columns and sales_col != 'إجمالي الديون / المبيعات ($)':
@@ -624,7 +637,7 @@ if active_data_file is not None and active_template_file is not None:
                             <style>
                                 @page {{ 
                                     size: A4 landscape; 
-                                    margin: 8mm; 
+                                    margin: 6mm; 
                                 }}
                                 * {{
                                     box-sizing: border-box;
@@ -633,24 +646,25 @@ if active_data_file is not None and active_template_file is not None:
                                     font-family: Tahoma, Arial, sans-serif; 
                                     direction: rtl; 
                                     color: #102a43; 
-                                    padding: 5px; 
+                                    padding: 4px; 
                                     margin: 0;
                                     width: 100%;
-                                    overflow-x: hidden;
                                 }}
-                                h2 {{ text-align: center; color: #102a43; margin-bottom: 12px; font-size: 16px; }}
-                                h3 {{ color: #102a43; margin-top: 15px; font-size: 14px; border-bottom: 2px solid #102a43; padding-bottom: 4px; }}
+                                h2 {{ text-align: center; color: #102a43; margin-bottom: 10px; font-size: 15px; }}
+                                h3 {{ color: #102a43; margin-top: 12px; margin-bottom: 6px; font-size: 13px; border-bottom: 2px solid #102a43; padding-bottom: 3px; page-break-after: avoid; break-after: avoid; }}
                                 .metrics-grid {{
                                     display: flex;
                                     justify-content: space-between;
-                                    gap: 8px;
-                                    margin-bottom: 15px;
+                                    gap: 6px;
+                                    margin-bottom: 10px;
                                     width: 100%;
+                                    page-break-inside: avoid;
+                                    break-inside: avoid;
                                 }}
                                 .metric-box {{
                                     flex: 1;
-                                    padding: 8px;
-                                    border-radius: 6px;
+                                    padding: 6px;
+                                    border-radius: 4px;
                                     text-align: center;
                                     border: 1px solid #cbd5e1;
                                     -webkit-print-color-adjust: exact;
@@ -661,21 +675,20 @@ if active_data_file is not None and active_template_file is not None:
                                 .box-3 {{ background-color: #f5f3ff !important; border-color: #ddd6fe; color: #5b21b6; }}
                                 .box-4 {{ background-color: #fffbeb !important; border-color: #fde68a; color: #92400e; }}
                                 .box-5 {{ background-color: #fdf2f8 !important; border-color: #fbcfe8; color: #9d174d; }}
-                                .metric-title {{ font-size: 11px; font-weight: bold; margin-bottom: 3px; }}
-                                .metric-val {{ font-size: 13px; font-weight: bold; margin: 0; }}
+                                .metric-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; }}
+                                .metric-val {{ font-size: 12px; font-weight: bold; margin: 0; }}
                                 table {{ 
                                     width: 100% !important; 
                                     border-collapse: collapse; 
-                                    font-size: 10px; 
-                                    margin-top: 8px; 
+                                    font-size: 9px; 
+                                    margin-top: 4px; 
                                     table-layout: auto;
-                                    word-wrap: break-word;
                                 }}
                                 th {{ 
                                     background-color: #102a43 !important; 
                                     color: #ffffff !important; 
                                     text-align: right; 
-                                    padding: 6px 8px; 
+                                    padding: 5px 6px; 
                                     border: 1px solid #0b1e33; 
                                     font-weight: bold; 
                                     -webkit-print-color-adjust: exact; 
@@ -683,10 +696,14 @@ if active_data_file is not None and active_template_file is not None:
                                     white-space: nowrap;
                                 }}
                                 td {{ 
-                                    padding: 5px 8px; 
+                                    padding: 4px 6px; 
                                     border: 1px solid #cbd5e1; 
                                     text-align: right; 
                                     word-break: break-word;
+                                }}
+                                tr {{ 
+                                    page-break-inside: avoid; 
+                                    break-inside: avoid; 
                                 }}
                                 tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                             </style>
@@ -720,7 +737,7 @@ if active_data_file is not None and active_template_file is not None:
                             <h3>📊 ملخص الإحصائيات حسب المحافظات</h3>
                             ${{citySummaryContent}}
 
-                            <h3 style="margin-top: 20px;">📋 تفاصيل الشحنات</h3>
+                            <h3 style="margin-top: 15px;">📋 تفاصيل الشحنات</h3>
                             ${{tableContent}}
                         </body>
                         </html>
