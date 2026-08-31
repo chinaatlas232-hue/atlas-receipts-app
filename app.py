@@ -226,7 +226,14 @@ if active_data_file is not None and active_template_file is not None:
     st.success(f"✅ تمت المطابقة بنجاح. الشحنة: **{selected_shipment_filter}** | الكود: **{selected_code_filter}** | النوع: **{selected_type_filter}**")
     st.markdown("---")
 
-    total_clients_count = len(df)
+    name_col_for_clients = next((c for c in df.columns if 'الاسم' in c or 'name' in c.lower()), None)
+    if name_col_for_clients:
+      total_clients_count = df[name_col_for_clients].dropna().astype(str).str.strip().loc[lambda x: ~x.isin(["nan", "None", "", "عميل غير محدد"])].nunique()
+      if total_clients_count == 0:
+        total_clients_count = len(df)
+    else:
+      total_clients_count = len(df)
+
     total_packages_count = 0
     total_weight_sum = 0.0
     total_cbm_sum = 0.0
