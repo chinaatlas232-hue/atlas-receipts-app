@@ -950,7 +950,7 @@ if active_data_file is not None and active_template_file is not None:
     st.html(custom_table_styling)
 
     # -------------------------------------------------------------
-    # تعديل كود الـ HTML للتصدير والطباعة (لضمان ظهور كافة الأعمدة والتفاصيل)
+    # كود تصدير ومعاينة الطباعة المحدث (لحل مشكلة اختفاء الأعمدة اليمنى)
     # -------------------------------------------------------------
     table_pdf_html_component = f"""
         <!DOCTYPE html>
@@ -1001,18 +1001,18 @@ if active_data_file is not None and active_template_file is not None:
                             <meta charset="UTF-8">
                             <title>تقرير جدول الشحنات والمحافظات - أطلس</title>
                             <style>
-                                @page {{ size: A4 landscape; margin: 8mm; }}
-                                body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 10px; }}
-                                h3 {{ color: #102a43; margin-top: 15px; font-size: 14px; border-bottom: 2px solid #102a43; padding-bottom: 4px; }}
+                                @page {{ size: A4 landscape; margin: 5mm; }}
+                                body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 5px; }}
+                                h3 {{ color: #102a43; margin-top: 10px; font-size: 13px; border-bottom: 2px solid #102a43; padding-bottom: 3px; }}
                                 .metrics-grid {{
                                     display: flex;
                                     justify-content: space-between;
-                                    gap: 10mm;
-                                    margin-bottom: 15px;
+                                    gap: 5mm;
+                                    margin-bottom: 10px;
                                 }}
                                 .metric-box {{
                                     flex: 1;
-                                    padding: 8px;
+                                    padding: 6px;
                                     border-radius: 6px;
                                     text-align: center;
                                     border: 1px solid #cbd5e1;
@@ -1024,13 +1024,13 @@ if active_data_file is not None and active_template_file is not None:
                                 .box-3 {{ background-color: #f5f3ff !important; border-color: #ddd6fe; color: #5b21b6; }}
                                 .box-4 {{ background-color: #fffbeb !important; border-color: #fde68a; color: #92400e; }}
                                 .box-5 {{ background-color: #fdf2f8 !important; border-color: #fbcfe8; color: #9d174d; }}
-                                .metric-title {{ font-size: 11px; font-weight: bold; margin-bottom: 3px; }}
-                                .metric-val {{ font-size: 13px; font-weight: bold; margin: 0; }}
+                                .metric-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; }}
+                                .metric-val {{ font-size: 12px; font-weight: bold; margin: 0; }}
                                 
-                                /* تنسيق الجداول لتناسب الطباعة بشكل كامل وتجنب الاقتطاع */
-                                table {{ width: 100% !important; border-collapse: collapse; font-size: 9.5px; margin-top: 8px; table-layout: auto; }}
-                                th {{ background-color: #102a43 !important; color: #ffffff !important; text-align: right; padding: 6px 4px; border: 1px solid #0b1e33; font-weight: bold; word-break: normal; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
-                                td {{ padding: 5px 4px; border: 1px solid #cbd5e1; text-align: right; word-break: break-word; }}
+                                /* تعديل الجداول لجعلها تتسع لجميع الأعمدة دون قص عبر ضغط المساحة والخط */
+                                table {{ width: 100% !important; border-collapse: collapse; font-size: 8.5px !important; margin-top: 5px; table-layout: fixed; }}
+                                th, td {{ padding: 4px 3px !important; border: 1px solid #cbd5e1; text-align: right; overflow: hidden; word-wrap: break-word; }}
+                                th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                 tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                             </style>
                         </head>
@@ -1061,7 +1061,7 @@ if active_data_file is not None and active_template_file is not None:
                             <h3>📊 ملخص الإحصائيات حسب المحافظات</h3>
                             ${{citySummaryContent}}
 
-                            <h3 style="margin-top: 20px;">📋 تفاصيل الشحنات (${{filterInfo}})</h3>
+                            <h3 style="margin-top: 15px;">📋 تفاصيل الشحنات (${{filterInfo}})</h3>
                             ${{tableContent}}
                         </body>
                         </html>
