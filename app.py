@@ -126,9 +126,13 @@ with st.sidebar:
       ship_col_check = df_s.columns[0]
       
     if ship_col_check and ship_col_check in df_s.columns:
-      # تحويل العمود بالكامل إلى نص (string) وتعبئة الفراغات لمنع فشل الدالة
-      df_s[ship_col_check] = df_s[ship_col_check].fillna("").astype(str)
-      df_s = df_s[df_s[ship_col_check].notna() & (df_s[ship_col_check].str.strip() != "") & (df_s[ship_col_check].str.strip().lower() != "nan")]
+      # تحويل آمن بالكامل لتجنب أي مشاكل في نوع البيانات
+      df_s[ship_col_check] = df_s[ship_col_check].fillna("").astype(str).str.replace(".0", "", regex=False)
+      df_s = df_s[
+        (df_s[ship_col_check] != "") & 
+        (df_s[ship_col_check].str.lower() != "nan") & 
+        (df_s[ship_col_check].str.lower() != "none")
+      ]
 
     if os.path.exists(customer_info_path):
       try:
