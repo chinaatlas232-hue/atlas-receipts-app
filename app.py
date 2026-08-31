@@ -542,24 +542,33 @@ if active_data_file is not None and active_template_file is not None:
             direction: rtl;
             background-color: #ffffff;
             color: #102a43;
-            white-space: nowrap;
+            /* منع الالتفاف الافتراضي وإجبار العمود على التناسب، بينما نتحكم بالعرض للأسطر الفارغة وعناوين الأعمدة */
         }}
         .custom-table th {{
             background-color: #102a43 !important;
             color: #ffffff !important;
             text-align: right;
-            padding: 12px 15px;
+            padding: 12px 10px;
             font-weight: bold;
             border-bottom: 2px solid #0b1e33;
             position: sticky;
             top: 0;
             z-index: 10;
+            white-space: nowrap;
         }}
         .custom-table td {{
-            padding: 10px 15px;
+            padding: 10px 10px;
             border-bottom: 1px solid #e2e8f0;
             text-align: right;
         }}
+        /* تحديد عرض وخصائص الأعمدة المحددة لمنع نزول العناوين لسطر فارغ وتقليل العرض */
+        .custom-table th:nth-child(1), .custom-table td:nth-child(1) {{ width: 45px; min-width: 45px; text-align: center; white-space: nowrap; }} /* التسلسل */
+        .custom-table th:nth-child(4), .custom-table td:nth-child(4) {{ white-space: nowrap; }} /* اسم العميل لمنع التفافه */
+        .custom-table th:nth-child(8), .custom-table td:nth-child(8) {{ white-space: nowrap; }} /* عدد الطرود */
+        .custom-table th:nth-child(9), .custom-table td:nth-child(9) {{ white-space: nowrap; }} /* سعر الكيلو */
+        .custom-table th:nth-child(10), .custom-table td:nth-child(10) {{ white-space: nowrap; }} /* اجمالي مبيعات */
+        .custom-table th:nth-child(7), .custom-table td:nth-child(7) {{ white-space: nowrap; min-width: 120px; }} /* عنوان استلام البضاعة منعاً للنزول غير المبرر */
+        
         .custom-table tr:nth-child(even) {{
             background-color: #f8fafc;
         }}
@@ -648,9 +657,16 @@ if active_data_file is not None and active_template_file is not None:
                                 .box-5 {{ background-color: #fdf2f8 !important; border-color: #fbcfe8; color: #9d174d; }}
                                 .metric-title {{ font-size: 12px; font-weight: bold; margin-bottom: 5px; }}
                                 .metric-val {{ font-size: 15px; font-weight: bold; margin: 0; }}
-                                table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }}
-                                th {{ background-color: #102a43 !important; color: #ffffff !important; text-align: right; padding: 10px; border: 1px solid #0b1e33; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
-                                td {{ padding: 8px 10px; border: 1px solid #cbd5e1; text-align: right; }}
+                                table {{ width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 10px; table-layout: auto; }}
+                                th {{ background-color: #102a43 !important; color: #ffffff !important; text-align: right; padding: 8px 6px; border: 1px solid #0b1e33; font-weight: bold; white-space: nowrap; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+                                td {{ padding: 6px; border: 1px solid #cbd5e1; text-align: right; }}
+                                /* تصغير أعمدة التسلسل وعدد الطرود وسعر الكيلو ومنع نزول عناوين الجدول لسطر فارغ في الطباعة */
+                                th:nth-child(1), td:nth-child(1) {{ width: 35px; min-width: 35px; text-align: center; white-space: nowrap; }}
+                                th:nth-child(4), td:nth-child(4) {{ white-space: nowrap; }}
+                                th:nth-child(8), td:nth-child(8) {{ white-space: nowrap; }}
+                                th:nth-child(9), td:nth-child(9) {{ white-space: nowrap; }}
+                                th:nth-child(10), td:nth-child(10) {{ white-space: nowrap; }}
+                                th:nth-child(7), td:nth-child(7) {{ white-space: nowrap; }}
                                 tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                             </style>
                         </head>
@@ -671,7 +687,7 @@ if active_data_file is not None and active_template_file is not None:
                                     <div class="metric-val">${{totalCbm}}</div>
                                 </div>
                                 <div class="metric-box box-4">
-                                    <div class="metric-title">⚖️ الوزن الكلي</div>
+                                    <div class="metric-title5">⚖️ الوزن الكلي</div>
                                     <div class="metric-val">${{totalWeight}}</div>
                                 </div>
                                 <div class="metric-box box-5">
@@ -742,4 +758,3 @@ if active_data_file is not None and active_template_file is not None:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
   st.info("الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي.")
-
