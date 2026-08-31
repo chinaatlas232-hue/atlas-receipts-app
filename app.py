@@ -42,7 +42,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- نقل العنوان الرئيسي إلى القائمة الجانبية (Sidebar) ---
+# --- عنوان التطبيق في القائمة الجانبية (Sidebar) ---
 with st.sidebar:
   st.markdown(
       """
@@ -105,7 +105,7 @@ with st.sidebar:
     st.cache_data.clear()
     st.rerun()
 
-  # --- دالة الدمج وتحديث الأعمدة الإجبارية مع تتبع وقت التعديل لتحديث الذاكرة المؤقتة ---
+  # --- تتبع وقت التعديل لتحديث الذاكرة المؤقتة ---
   ship_mtime = os.path.getmtime(shipment_path) if os.path.exists(shipment_path) else 0
   cust_mtime = os.path.getmtime(customer_info_path) if os.path.exists(customer_info_path) else 0
 
@@ -169,7 +169,7 @@ with st.sidebar:
         
     return df_s
 
-  # --- الفلاتر ---
+  # --- الفلاتر في القائمة الجانبية ---
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
   selected_shipment_filter = "الكل"
@@ -457,8 +457,32 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
-    # --- جدول ملخص المحافظات الجديد ---
-    st.markdown("---")
+    # --- نقل بطاقات الإحصائيات العامة لتكون في أعلى الشاشة ---
+    st.markdown("""
+        <style>
+        .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-2 { background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-3 { background-color: #f5f3ff; border: 1px solid #ddd6fe; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-4 { background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-5 { background-color: #fdf2f8; border: 1px solid #fbcfe8; padding: 15px; border-radius: 10px; text-align: center; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+    with m1:
+      st.markdown(f'<div class="metric-card-1"><p style="margin:0; color:#1e40af; font-weight:bold; font-size:14px;">👥 عدد العملاء</p><h3 style="margin:5px 0 0; color:#1e3a8a; font-size:20px;">{total_clients_count} عميل</h3></div>', unsafe_allow_html=True)
+    with m2:
+      st.markdown(f'<div class="metric-card-2"><p style="margin:0; color:#166534; font-weight:bold; font-size:14px;">📦 إجمالي الطرود</p><h3 style="margin:5px 0 0; color:#14532d; font-size:20px;">{total_packages_count} طرد</h3></div>', unsafe_allow_html=True)
+    with m3:
+      st.markdown(f'<div class="metric-card-3"><p style="margin:0; color:#5b21b6; font-weight:bold; font-size:14px;">📐 إجمالي الحجم</p><h3 style="margin:5px 0 0; color:#4c1d95; font-size:20px;">{total_cbm_sum:,.2f} CBM</h3></div>', unsafe_allow_html=True)
+    with m4:
+      st.markdown(f'<div class="metric-card-4"><p style="margin:0; color:#92400e; font-weight:bold; font-size:14px;">⚖️ الوزن الكلي</p><h3 style="margin:5px 0 0; color:#78350f; font-size:20px;">{total_weight_sum:,.2f} كغ</h3></div>', unsafe_allow_html=True)
+    with m5:
+      st.markdown(f'<div class="metric-card-5"><p style="margin:0; color:#9d174d; font-weight:bold; font-size:14px;">💰 المبلغ الإجمالي (الديون)</p><h3 style="margin:5px 0 0; color:#831843; font-size:20px;">{total_sales_sum:,.2f} $</h3></div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- جدول ملخص المحافظات ---
     st.subheader("📊 ملخص الإحصائيات والديون حسب المحافظات (المدن)")
     
     city_group_col = city_col_name if city_col_name in df.columns else 'المدينة'
@@ -494,29 +518,6 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_city_summary = pd.DataFrame()
       city_table_html = "<p>لا توجد بيانات كافية لعرض ملخص المحافظات.</p>"
-
-    # --- بطاقات الإحصائيات العامة ---
-    st.markdown("""
-        <style>
-        .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-card-2 { background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-card-3 { background-color: #f5f3ff; border: 1px solid #ddd6fe; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-card-4 { background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-card-5 { background-color: #fdf2f8; border: 1px solid #fbcfe8; padding: 15px; border-radius: 10px; text-align: center; }
-        </style>
-    """, unsafe_allow_html=True)
-
-    m1, m2, m3, m4, m5 = st.columns(5)
-    with m1:
-      st.markdown(f'<div class="metric-card-1"><p style="margin:0; color:#1e40af; font-weight:bold; font-size:14px;">👥 عدد العملاء</p><h3 style="margin:5px 0 0; color:#1e3a8a; font-size:20px;">{total_clients_count} عميل</h3></div>', unsafe_allow_html=True)
-    with m2:
-      st.markdown(f'<div class="metric-card-2"><p style="margin:0; color:#166534; font-weight:bold; font-size:14px;">📦 إجمالي الطرود</p><h3 style="margin:5px 0 0; color:#14532d; font-size:20px;">{total_packages_count} طرد</h3></div>', unsafe_allow_html=True)
-    with m3:
-      st.markdown(f'<div class="metric-card-3"><p style="margin:0; color:#5b21b6; font-weight:bold; font-size:14px;">📐 إجمالي الحجم</p><h3 style="margin:5px 0 0; color:#4c1d95; font-size:20px;">{total_cbm_sum:,.2f} CBM</h3></div>', unsafe_allow_html=True)
-    with m4:
-      st.markdown(f'<div class="metric-card-4"><p style="margin:0; color:#92400e; font-weight:bold; font-size:14px;">⚖️ الوزن الكلي</p><h3 style="margin:5px 0 0; color:#78350f; font-size:20px;">{total_weight_sum:,.2f} كغ</h3></div>', unsafe_allow_html=True)
-    with m5:
-      st.markdown(f'<div class="metric-card-5"><p style="margin:0; color:#9d174d; font-weight:bold; font-size:14px;">💰 المبلغ الإجمالي (الديون)</p><h3 style="margin:5px 0 0; color:#831843; font-size:20px;">{total_sales_sum:,.2f} $</h3></div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع: [{selected_type_filter}]")
