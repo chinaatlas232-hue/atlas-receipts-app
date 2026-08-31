@@ -117,21 +117,19 @@ with st.sidebar:
     df_s = pd.read_excel(shipment_path)
     df_s.columns = df_s.columns.astype(str).str.strip()
 
-    # --- تنظيف البيانات وإزالة الصفوف الفارغة بالكامل لمنع ظهور الفراغات ---
     df_s = df_s.dropna(how="all")
     
-    # البحث الآمن عن عمود الشحنة لمنع حدوث AttributeError
     ship_col_check = next((c for c in df_s.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), None)
     if not ship_col_check and len(df_s.columns) > 0:
       ship_col_check = df_s.columns[0]
       
     if ship_col_check and ship_col_check in df_s.columns:
-      # تحويل آمن بالكامل لتجنب أي مشاكل في نوع البيانات
       df_s[ship_col_check] = df_s[ship_col_check].fillna("").astype(str).str.replace(".0", "", regex=False)
+      val_series = df_s[ship_col_check].astype(str).str.lower()
       df_s = df_s[
         (df_s[ship_col_check] != "") & 
-        (df_s[ship_col_check].str.lower() != "nan") & 
-        (df_s[ship_col_check].str.lower() != "none")
+        (val_series != "nan") & 
+        (val_series != "none")
       ]
 
     if os.path.exists(customer_info_path):
@@ -458,7 +456,6 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- تجميع بيانات الجدول حسب كود العميل ---
     group_cols = [c for c in [ship_col, code_col, name_col_for_clients, type_col_name, city_col_name, phone_col, phone2_col, address_col] if c and c in df.columns]
     agg_dict = {}
     if weight_col and weight_col in df.columns:
@@ -479,12 +476,10 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
-    # --- تنظيف الجدول المجمع نهائياً للتأكد من عدم وجود صفوف فارغة ---
     if name_col_for_clients in df_grouped.columns:
       df_grouped = df_grouped[df_grouped[name_col_for_clients].notna() & (df_grouped[name_col_for_clients].astype(str).str.strip() != "") & (df_grouped[name_col_for_clients].astype(str).str.strip().lower() != "nan")]
     df_grouped = df_grouped.reset_index(drop=True)
 
-    # --- نقل بطاقات الإحصائيات العامة لتكون في أعلى الشاشة ---
     st.markdown("""
         <style>
         .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
@@ -509,7 +504,6 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- جدول ملخص المحافظات ---
     st.subheader("📊 ملخص الإحصائيات والديون حسب المحافظات (المدن)")
     
     city_group_col = city_col_name if city_col_name in df.columns else 'المدينة'
