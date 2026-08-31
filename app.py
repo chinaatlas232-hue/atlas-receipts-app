@@ -128,16 +128,22 @@ with st.sidebar:
           c_phone_col = next((c for c in df_c.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' not in c), None)
           c_phone2_col = next((c for c in df_c.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' in c), None)
           c_addr_col = next((c for c in df_c.columns if 'عنوان' in c or 'address' in c.lower()), None)
+          c_city_col = next((c for c in df_c.columns if 'مدينة' in c or 'محافظ' in c or 'city' in c.lower()), None)
 
           name_dict = dict(zip(df_c['__c_code__'], df_c[c_name_col])) if c_name_col else {}
           phone_dict = dict(zip(df_c['__c_code__'], df_c[c_phone_col])) if c_phone_col else {}
           phone2_dict = dict(zip(df_c['__c_code__'], df_c[c_phone2_col])) if c_phone2_col else {}
           addr_dict = dict(zip(df_c['__c_code__'], df_c[c_addr_col])) if c_addr_col else {}
+          city_dict = dict(zip(df_c['__c_code__'], df_c[c_city_col])) if c_city_col else {}
 
           s_name_col = next((c for c in df_s.columns if 'الاسم' in c and c != '__s_code__'), 'الاسم')
           s_phone_col = next((c for c in df_s.columns if ('هاتف' in c or 'عاتف' in c) and '2' not in c), 'رقم الهاتف')
           s_phone2_col = next((c for c in df_s.columns if ('هاتف' in c or 'عاتف' in c) and '2' in c), 'رقم الهاتف 2')
           s_addr_col = next((c for c in df_s.columns if 'عنوان' in c), 'عنوان استلام البظاعة')
+          s_city_col = next((c for c in df_s.columns if 'مدينة' in c or 'محافظ' in c), 'المدينة')
+
+          if s_city_col not in df_s.columns:
+            df_s[s_city_col] = "غير محدد"
 
           df_s[s_name_col] = df_s['__s_code__'].map(name_dict).fillna(df_s.get(s_name_col))
           df_s[s_phone_col] = df_s['__s_code__'].map(phone_dict).fillna(df_s.get(s_phone_col))
@@ -146,6 +152,7 @@ with st.sidebar:
               df_s[s_phone2_col] = ""
             df_s[s_phone2_col] = df_s['__s_code__'].map(phone2_dict).fillna(df_s.get(s_phone2_col))
           df_s[s_addr_col] = df_s['__s_code__'].map(addr_dict).fillna(df_s.get(s_addr_col))
+          df_s[s_city_col] = df_s['__s_code__'].map(city_dict).fillna(df_s.get(s_city_col, "غير محدد"))
 
           df_s.drop(columns=['__s_code__'], errors='ignore', inplace=True)
       except Exception as e:
@@ -202,12 +209,15 @@ if active_data_file is not None and active_template_file is not None:
     ship_col = next((c for c in df.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), df.columns[0])
     code_col = next((c for c in df.columns if "كود" in str(c) or "code" in str(c).lower()), None)
     type_col_name = next((c for c in df.columns if "نوع" in str(c) or "type" in str(c).lower()), None)
+    city_col_name = next((c for c in df.columns if "مدينة" in str(c) or "محافظ" in str(c) or "city" in str(c).lower()), "المدينة")
 
     df[ship_col] = df[ship_col].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False)
     if code_col:
       df[code_col] = df[code_col].fillna("بدون كود").astype(str).str.replace(".0", "", regex=False)
     if type_col_name:
       df[type_col_name] = df[type_col_name].fillna("غير محدد").astype(str).str.strip()
+    if city_col_name in df.columns:
+      df[city_col_name] = df[city_col_name].fillna("غير محدد").astype(str).str.strip()
 
     if selected_shipment_filter != "الكل":
       df = df[df[ship_col] == selected_shipment_filter]
@@ -387,7 +397,7 @@ if active_data_file is not None and active_template_file is not None:
                         <td style="padding: 5px; border: 1px solid #bcccdc;" colspan="2"><strong>السعر:</strong> {price_per_kg:,.2f} $</td>
                     </tr>
                     <tr style="background-color: #fef3c7;">
-                        <td style="padding: 5px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات:</strong> <span style="color: #b45309; font-weight: bold; font-size: 12px;">{total_sales:,.2f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
+                        <td style="padding: 5px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات (الديون):</strong> <span style="color: #b45309; font-weight: bold; font-size: 12px;">{total_sales:,.2f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
                     </tr>
                 </table>
                 <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 6px; border-radius: 4px; margin-bottom: 10px;">
@@ -417,8 +427,8 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- تجميع بيانات الجدول حسب كود العميل (مع دمج الوزن والحجم وجمع الباقي) ---
-    group_cols = [c for c in [ship_col, code_col, name_col_for_clients, type_col_name, phone_col, phone2_col, address_col] if c and c in df.columns]
+    # --- تجميع بيانات الجدول حسب كود العميل ---
+    group_cols = [c for c in [ship_col, code_col, name_col_for_clients, type_col_name, city_col_name, phone_col, phone2_col, address_col] if c and c in df.columns]
     agg_dict = {}
     if weight_col and weight_col in df.columns:
       agg_dict[weight_col] = 'sum'
@@ -429,7 +439,6 @@ if active_data_file is not None and active_template_file is not None:
     if sales_col and sales_col in df.columns:
       agg_dict[sales_col] = 'sum'
 
-    # لأي أعمدة أخرى لم تذكر، نأخذ القيمة الأولى لتجنب الأخطاء
     for c in df.columns:
       if c not in group_cols and c not in agg_dict:
         agg_dict[c] = 'first'
@@ -439,7 +448,45 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
-    # --- بطاقات الإحصائيات الأصلية ---
+    # --- جدول ملخص المحافظات الجديد ---
+    st.markdown("---")
+    st.subheader("📊 ملخص الإحصائيات والديون حسب المحافظات (المدن)")
+    
+    city_group_col = city_col_name if city_col_name in df.columns else 'المدينة'
+    if city_group_col not in df.columns:
+      df['المدينة'] = 'غير محدد'
+      city_group_col = 'المدينة'
+
+    agg_city_dict = {}
+    if packages_col and packages_col in df.columns:
+      agg_city_dict[packages_col] = 'sum'
+    if cbm_col and cbm_col in df.columns:
+      agg_city_dict[cbm_col] = 'sum'
+    if sales_col and sales_col in df.columns:
+      agg_city_dict[sales_col] = 'sum'
+    elif weight_col and price_col:
+      df['__calc_sales__'] = df[weight_col] * df[price_col]
+      agg_city_dict['__calc_sales__'] = 'sum'
+
+    if agg_city_dict:
+      df_city_summary = df.groupby(city_group_col, as_index=False).agg(agg_city_dict)
+      if '__calc_sales__' in df_city_summary.columns:
+        df_city_summary.rename(columns={'__calc_sales__': 'إجمالي الديون / المبيعات ($)'}, inplace=True)
+      if sales_col and sales_col in df_city_summary.columns and sales_col != 'إجمالي الديون / المبيعات ($)':
+        df_city_summary.rename(columns={sales_col: 'إجمالي الديون / المبيعات ($)'}, inplace=True)
+      if packages_col and packages_col in df_city_summary.columns:
+        df_city_summary.rename(columns={packages_col: 'إجمالي الطرود'}, inplace=True)
+      if cbm_col and cbm_col in df_city_summary.columns:
+        df_city_summary.rename(columns={cbm_col: 'إجمالي الحجم (CBM)'}, inplace=True)
+      
+      df_city_summary.insert(0, "التسلسل", range(1, len(df_city_summary) + 1))
+      city_table_html = df_city_summary.to_html(classes="custom-table", index=False, escape=False)
+      st.html(f"""<div class="custom-table-container">{city_table_html}</div>""")
+    else:
+      df_city_summary = pd.DataFrame()
+      city_table_html = "<p>لا توجد بيانات كافية لعرض ملخص المحافظات.</p>"
+
+    # --- بطاقات الإحصائيات العامة ---
     st.markdown("""
         <style>
         .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
@@ -460,45 +507,7 @@ if active_data_file is not None and active_template_file is not None:
     with m4:
       st.markdown(f'<div class="metric-card-4"><p style="margin:0; color:#92400e; font-weight:bold; font-size:14px;">⚖️ الوزن الكلي</p><h3 style="margin:5px 0 0; color:#78350f; font-size:20px;">{total_weight_sum:,.2f} كغ</h3></div>', unsafe_allow_html=True)
     with m5:
-      st.markdown(f'<div class="metric-card-5"><p style="margin:0; color:#9d174d; font-weight:bold; font-size:14px;">💰 المبلغ الإجمالي</p><h3 style="margin:5px 0 0; color:#831843; font-size:20px;">{total_sales_sum:,.2f} $</h3></div>', unsafe_allow_html=True)
-
-    # --- استخراج بيانات وتجميع الطرود حسب عمود المدينة ---
-    city_col = next((c for c in df.columns if "مدين" in str(c) or "city" in str(c).lower()), None)
-    city_summary_html_for_pdf = ""
-    city_metrics_pdf_blocks = []
-
-    if city_col:
-      df[city_col] = df[city_col].fillna("غير محدد").astype(str).str.strip()
-      # تجميع عدد الطرود لكل مدينة
-      city_packages_agg = df.groupby(city_col)[packages_col].sum().reset_index() if packages_col and packages_col in df.columns else pd.DataFrame(columns=[city_col])
-      
-      st.markdown("<br>", unsafe_allow_html=True)
-      st.markdown("##### 🏙️ إحصائيات الطرود حسب المدينة")
-      
-      city_cols_ui = st.columns(min(len(city_packages_agg), 4) if not city_packages_agg.empty else 1)
-      
-      # بناء مربعات المدنيات للشاشة ولـ PDF
-      city_cards_html = ""
-      for idx, row_city in city_packages_agg.iterrows():
-        c_name = row_city[city_col]
-        c_pkgs = int(row_city.get(packages_col, 0) if packages_col and packages_col in df.columns else 0)
-        
-        card_html_block = f"""
-        <div style="flex: 1; min-width: 150px; background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; text-align: center; margin: 5px;">
-            <div style="font-size: 13px; font-weight: bold; color: #334155; margin-bottom: 4px;">📍 {c_name}</div>
-            <div style="font-size: 16px; font-weight: bold; color: #0284c7;">📦 {c_pkgs} طرد</div>
-        </div>
-        """
-        city_metrics_pdf_blocks.append(card_html_block)
-
-      # عرضها بشكل منظم في صفوف على الشاشة باستخدام حاوية HTML مرنة
-      grid_container_html = f"""
-      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
-          {''.join(city_metrics_pdf_blocks)}
-      </div>
-      """
-      st.markdown(grid_container_html, unsafe_allow_html=True)
-      city_summary_html_for_pdf = grid_container_html
+      st.markdown(f'<div class="metric-card-5"><p style="margin:0; color:#9d174d; font-weight:bold; font-size:14px;">💰 المبلغ الإجمالي (الديون)</p><h3 style="margin:5px 0 0; color:#831843; font-size:20px;">{total_sales_sum:,.2f} $</h3></div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع: [{selected_type_filter}]")
@@ -586,10 +595,10 @@ if active_data_file is not None and active_template_file is not None:
             </style>
         </head>
         <body>
-            <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول الحالي إلى PDF</button>
+            <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول الحالي وتقرير المحافظات إلى PDF</button>
             <script>
                 const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
-                const citySummaryContent = `{city_summary_html_for_pdf.replace('`', '\\`').replace('$', '\\$')}`;
+                const citySummaryContent = `{city_table_html.replace('`', '\\`').replace('$', '\\$')}`;
                 const filterInfo = 'الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}';
                 const totalClients = '{total_clients_count} عميل';
                 const totalPackages = '{total_packages_count} طرد';
@@ -604,17 +613,17 @@ if active_data_file is not None and active_template_file is not None:
                         <html lang="ar" dir="rtl">
                         <head>
                             <meta charset="UTF-8">
-                            <title>تقرير جدول الشحنات - أطلس</title>
+                            <title>تقرير جدول الشحنات والمحافظات - أطلس</title>
                             <style>
                                 @page {{ size: A4 landscape; margin: 10mm; }}
                                 body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 20px; }}
                                 h2 {{ text-align: center; color: #102a43; margin-bottom: 15px; font-size: 18px; }}
-                                h4 {{ color: #102a43; margin: 15px 0 8px 0; font-size: 14px; }}
+                                h3 {{ color: #102a43; margin-top: 20px; font-size: 15px; border-bottom: 2px solid #102a43; padding-bottom: 5px; }}
                                 .metrics-grid {{
                                     display: flex;
                                     justify-content: space-between;
                                     gap: 10mm;
-                                    margin-bottom: 15px;
+                                    margin-bottom: 20px;
                                 }}
                                 .metric-box {{
                                     flex: 1;
@@ -639,10 +648,10 @@ if active_data_file is not None and active_template_file is not None:
                             </style>
                         </head>
                         <body>
-                            <h2>تقرير جدول تفاصيل الشحنة - شركة أطلس المحيط (${{filterInfo}})</h2>
+                            <h2>تقرير شحنات ومحافظات شركة أطلس المحيط (${{filterInfo}})</h2>
                             
                             <div class="metrics-grid">
-                                .metric-box box-1">
+                                <div class="metric-box box-1">
                                     <div class="metric-title">👥 عدد العملاء</div>
                                     <div class="metric-val">${{totalClients}}</div>
                                 </div>
@@ -664,8 +673,10 @@ if active_data_file is not None and active_template_file is not None:
                                 </div>
                             </div>
 
-                            ${{citySummaryContent ? '<h4>إحصائيات الطرود حسب المدينة:</h4>' + citySummaryContent : ''}}
+                            <h3>📊 ملخص الإحصائيات حسب المحافظات</h3>
+                            ${{citySummaryContent}}
 
+                            <h3 style="margin-top: 30px;">📋 تفاصيل الشحنات</h3>
                             ${{tableContent}}
                         </body>
                         </html>
