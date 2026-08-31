@@ -125,9 +125,9 @@ with st.sidebar:
     if not ship_col_check and len(df_s.columns) > 0:
       ship_col_check = df_s.columns[0]
       
-    if ship_col_check in df_s.columns:
-      # تحويل العمود بالكامل إلى نص (string) أولاً لتجنب أي أخطاء في تطبيق .str
-      df_s[ship_col_check] = df_s[ship_col_check].astype(str)
+    if ship_col_check and ship_col_check in df_s.columns:
+      # تحويل العمود بالكامل إلى نص (string) وتعبئة الفراغات لمنع فشل الدالة
+      df_s[ship_col_check] = df_s[ship_col_check].fillna("").astype(str)
       df_s = df_s[df_s[ship_col_check].notna() & (df_s[ship_col_check].str.strip() != "") & (df_s[ship_col_check].str.strip().lower() != "nan")]
 
     if os.path.exists(customer_info_path):
@@ -140,12 +140,12 @@ with st.sidebar:
         df_c.columns = df_c.columns.astype(str).str.strip()
         df_c = df_c.dropna(how="all")
 
-        ship_code_col = next((c for c in df_s.columns if "كود" in str(c) or "code" in str(c).lower()), "الكود")
-        cust_code_col = next((c for c in df_c.columns if "كود" in str(c) or "code" in str(c).lower()), "الكود")
+        ship_code_col = next((c for c in df_s.columns if "كود" in str(c) or "code" in str(c).lower()), None)
+        cust_code_col = next((c for c in df_c.columns if "كود" in str(c) or "code" in str(c).lower()), None)
 
-        if ship_code_col in df_s.columns and cust_code_col in df_c.columns:
-          df_s['__s_code__'] = df_s[ship_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
-          df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
+        if ship_code_col and cust_code_col and ship_code_col in df_s.columns and cust_code_col in df_c.columns:
+          df_s['__s_code__'] = df_s[ship_code_col].fillna("").astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
+          df_c['__c_code__'] = df_c[cust_code_col].fillna("").astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
           
           c_name_col = next((c for c in df_c.columns if 'الاسم' in str(c) or 'name' in str(c).lower()), None)
           c_phone_col = next((c for c in df_c.columns if ('هاتف' in str(c) or 'عاتف' in str(c) or 'phone' in str(c).lower()) and '2' not in str(c)), None)
@@ -159,26 +159,29 @@ with st.sidebar:
           addr_dict = dict(zip(df_c['__c_code__'], df_c[c_addr_col])) if c_addr_col else {}
           city_dict = dict(zip(df_c['__c_code__'], df_c[c_city_col])) if c_city_col else {}
 
-          s_name_col = next((c for c in df_s.columns if 'الاسم' in str(c) and c != '__s_code__'), 'الاسم')
-          s_phone_col = next((c for c in df_s.columns if ('هاتف' in str(c) or 'عاتف' in str(c)) and '2' not in str(c)), 'رقم الهاتف')
-          s_phone2_col = next((c for c in df_s.columns if ('هاتف' in str(c) or 'عاتف' in str(c)) and '2' in str(c)), 'رقم الهاتف 2')
-          s_addr_col = next((c for c in df_s.columns if 'عنوان' in str(c)), 'عنوان استلام البظاعة')
-          s_city_col = next((c for c in df_s.columns if 'مدينة' in str(c) or 'محافظ' in str(c)), 'المدينة')
+          s_name_col = next((c for c in df_s.columns if 'الاسم' in str(c) and c != '__s_code__'), None)
+          s_phone_col = next((c for c in df_s.columns if ('هاتف' in str(c) or 'عاتف' in str(c)) and '2' not in str(c)), None)
+          s_phone2_col = next((c for c in df_s.columns if ('هاتف' in str(c) or 'عاتف' in str(c)) and '2' in str(c)), None)
+          s_addr_col = next((c for c in df_s.columns if 'عنوان' in str(c)), None)
+          s_city_col = next((c for c in df_s.columns if 'مدينة' in str(c) or 'محافظ' in str(c)), None)
 
-          if s_city_col not in df_s.columns:
-            df_s[s_city_col] = "غير محدد"
+          if not s_city_col:
+            df_s['المدينة'] = "غير محدد"
+            s_city_col = 'المدينة'
 
-          if s_name_col in df_s.columns:
+          if s_name_col and s_name_col in df_s.columns:
             df_s[s_name_col] = df_s['__s_code__'].map(name_dict).fillna(df_s.get(s_name_col))
-          if s_phone_col in df_s.columns:
+          if s_phone_col and s_phone_col in df_s.columns:
             df_s[s_phone_col] = df_s['__s_code__'].map(phone_dict).fillna(df_s.get(s_phone_col))
           if c_phone2_col:
-            if s_phone2_col not in df_s.columns:
-              df_s[s_phone2_col] = ""
-            df_s[s_phone2_col] = df_s['__s_code__'].map(phone2_dict).fillna(df_s.get(s_phone2_col))
-          if s_addr_col in df_s.columns:
+            if not s_phone2_col:
+              df_s['رقم الهاتف 2'] = ""
+              s_phone2_col = 'رقم الهاتف 2'
+            if s_phone2_col in df_s.columns:
+              df_s[s_phone2_col] = df_s['__s_code__'].map(phone2_dict).fillna(df_s.get(s_phone2_col))
+          if s_addr_col and s_addr_col in df_s.columns:
             df_s[s_addr_col] = df_s['__s_code__'].map(addr_dict).fillna(df_s.get(s_addr_col))
-          if s_city_col in df_s.columns:
+          if s_city_col and s_city_col in df_s.columns:
             df_s[s_city_col] = df_s['__s_code__'].map(city_dict).fillna(df_s.get(s_city_col, "غير محدد"))
 
           df_s.drop(columns=['__s_code__'], errors='ignore', inplace=True)
