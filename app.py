@@ -114,26 +114,8 @@ with st.sidebar:
     if not os.path.exists(shipment_path):
       return None
 
-    try:
-      df_s = pd.read_excel(shipment_path)
-    except Exception:
-      df_s = pd.read_csv(shipment_path)
-
+    df_s = pd.read_excel(shipment_path)
     df_s.columns = df_s.columns.astype(str).str.strip()
-    df_s = df_s.dropna(how="all")
-    
-    # اختيار عمود الشحنة بأمان تام
-    ship_col_check = None
-    for col in df_s.columns:
-      c_lower = str(col).lower()
-      if "شحنة" in c_lower or "shipment" in c_lower:
-        ship_col_check = col
-        break
-    if not ship_col_check and len(df_s.columns) > 0:
-      ship_col_check = df_s.columns[0]
-      
-    if ship_col_check and ship_col_check in df_s.columns:
-      df_s[ship_col_check] = df_s[ship_col_check].fillna("بدون شحنة").astype(str).str.replace(".0", "", regex=False)
 
     if os.path.exists(customer_info_path):
       try:
@@ -143,20 +125,19 @@ with st.sidebar:
           df_c = pd.read_excel(customer_info_path)
           
         df_c.columns = df_c.columns.astype(str).str.strip()
-        df_c = df_c.dropna(how="all")
 
-        ship_code_col = next((c for c in df_s.columns if "كود" in str(c) or "code" in str(c).lower()), None)
-        cust_code_col = next((c for c in df_c.columns if "كود" in str(c) or "code" in str(c).lower()), None)
+        ship_code_col = next((c for c in df_s.columns if "كود" in c or "code" in c.lower()), "الكود")
+        cust_code_col = next((c for c in df_c.columns if "كود" in c or "code" in c.lower()), "الكود")
 
-        if ship_code_col and cust_code_col and ship_code_col in df_s.columns and cust_code_col in df_c.columns:
-          df_s['__s_code__'] = df_s[ship_code_col].fillna("").astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
-          df_c['__c_code__'] = df_c[cust_code_col].fillna("").astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
+        if ship_code_col in df_s.columns and cust_code_col in df_c.columns:
+          df_s['__s_code__'] = df_s[ship_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
+          df_c['__c_code__'] = df_c[cust_code_col].astype(str).str.strip().str.upper().str.replace('.0', '', regex=False)
           
-          c_name_col = next((c for c in df_c.columns if 'الاسم' in str(c) or 'name' in str(c).lower()), None)
-          c_phone_col = next((c for c in df_c.columns if ('هاتف' in str(c) or 'عاتف' in str(c) or 'phone' in str(c).lower()) and '2' not in str(c)), None)
-          c_phone2_col = next((c for c in df_c.columns if ('هاتف' in str(c) or 'عاتف' in str(c) or 'phone' in str(c).lower()) and '2' in str(c)), None)
-          c_addr_col = next((c for c in df_c.columns if 'عنوان' in str(c) or 'address' in str(c).lower()), None)
-          c_city_col = next((c for c in df_c.columns if 'مدينة' in str(c) or 'محافظ' in str(c) or 'city' in str(c).lower()), None)
+          c_name_col = next((c for c in df_c.columns if 'الاسم' in c or 'name' in c.lower()), None)
+          c_phone_col = next((c for c in df_c.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' not in c), None)
+          c_phone2_col = next((c for c in df_c.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' in c), None)
+          c_addr_col = next((c for c in df_c.columns if 'عنوان' in c or 'address' in c.lower()), None)
+          c_city_col = next((c for c in df_c.columns if 'مدينة' in c or 'محافظ' in c or 'city' in c.lower()), None)
 
           name_dict = dict(zip(df_c['__c_code__'], df_c[c_name_col])) if c_name_col else {}
           phone_dict = dict(zip(df_c['__c_code__'], df_c[c_phone_col])) if c_phone_col else {}
@@ -164,30 +145,23 @@ with st.sidebar:
           addr_dict = dict(zip(df_c['__c_code__'], df_c[c_addr_col])) if c_addr_col else {}
           city_dict = dict(zip(df_c['__c_code__'], df_c[c_city_col])) if c_city_col else {}
 
-          s_name_col = next((c for c in df_s.columns if 'الاسم' in str(c) and c != '__s_code__'), None)
-          s_phone_col = next((c for c in df_s.columns if ('هاتف' in str(c) or 'عاتف' in str(c)) and '2' not in str(c)), None)
-          s_phone2_col = next((c for c in df_s.columns if ('هاتف' in str(c) or 'عاتف' in str(c)) and '2' in str(c)), None)
-          s_addr_col = next((c for c in df_s.columns if 'عنوان' in str(c)), None)
-          s_city_col = next((c for c in df_s.columns if 'مدينة' in str(c) or 'محافظ' in str(c)), None)
+          s_name_col = next((c for c in df_s.columns if 'الاسم' in c and c != '__s_code__'), 'الاسم')
+          s_phone_col = next((c for c in df_s.columns if ('هاتف' in c or 'عاتف' in c) and '2' not in c), 'رقم الهاتف')
+          s_phone2_col = next((c for c in df_s.columns if ('هاتف' in c or 'عاتف' in c) and '2' in c), 'رقم الهاتف 2')
+          s_addr_col = next((c for c in df_s.columns if 'عنوان' in c), 'عنوان استلام البظاعة')
+          s_city_col = next((c for c in df_s.columns if 'مدينة' in c or 'محافظ' in c), 'المدينة')
 
-          if not s_city_col:
-            df_s['المدينة'] = "غير محدد"
-            s_city_col = 'المدينة'
+          if s_city_col not in df_s.columns:
+            df_s[s_city_col] = "غير محدد"
 
-          if s_name_col and s_name_col in df_s.columns:
-            df_s[s_name_col] = df_s['__s_code__'].map(name_dict).fillna(df_s.get(s_name_col))
-          if s_phone_col and s_phone_col in df_s.columns:
-            df_s[s_phone_col] = df_s['__s_code__'].map(phone_dict).fillna(df_s.get(s_phone_col))
+          df_s[s_name_col] = df_s['__s_code__'].map(name_dict).fillna(df_s.get(s_name_col))
+          df_s[s_phone_col] = df_s['__s_code__'].map(phone_dict).fillna(df_s.get(s_phone_col))
           if c_phone2_col:
-            if not s_phone2_col:
-              df_s['رقم الهاتف 2'] = ""
-              s_phone2_col = 'رقم الهاتف 2'
-            if s_phone2_col in df_s.columns:
-              df_s[s_phone2_col] = df_s['__s_code__'].map(phone2_dict).fillna(df_s.get(s_phone2_col))
-          if s_addr_col and s_addr_col in df_s.columns:
-            df_s[s_addr_col] = df_s['__s_code__'].map(addr_dict).fillna(df_s.get(s_addr_col))
-          if s_city_col and s_city_col in df_s.columns:
-            df_s[s_city_col] = df_s['__s_code__'].map(city_dict).fillna(df_s.get(s_city_col, "غير محدد"))
+            if s_phone2_col not in df_s.columns:
+              df_s[s_phone2_col] = ""
+            df_s[s_phone2_col] = df_s['__s_code__'].map(phone2_dict).fillna(df_s.get(s_phone2_col))
+          df_s[s_addr_col] = df_s['__s_code__'].map(addr_dict).fillna(df_s.get(s_addr_col))
+          df_s[s_city_col] = df_s['__s_code__'].map(city_dict).fillna(df_s.get(s_city_col, "غير محدد"))
 
           df_s.drop(columns=['__s_code__'], errors='ignore', inplace=True)
       except Exception as e:
@@ -275,7 +249,7 @@ if active_data_file is not None and active_template_file is not None:
       with open(active_logo, "rb") as img_file:
         logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 
-    name_col_for_clients = next((c for c in df.columns if 'الاسم' in str(c) or 'name' in str(c).lower()), None)
+    name_col_for_clients = next((c for c in df.columns if 'الاسم' in c or 'name' in c.lower()), None)
     if name_col_for_clients:
       total_clients_count = df[name_col_for_clients].dropna().astype(str).str.strip().loc[lambda x: ~x.isin(["nan", "None", "", "عميل غير محدد"])].nunique()
       if total_clients_count == 0:
@@ -298,19 +272,19 @@ if active_data_file is not None and active_template_file is not None:
       display_code = "" if code in ["بدون كود", "nan", "None"] else code
       display_shipment = "" if shipment in ["بدون شحنة", "nan", "None"] else shipment
 
-      name_col = next((c for c in df.columns if 'الاسم' in str(c) or 'name' in str(c).lower()), None)
+      name_col = next((c for c in df.columns if 'الاسم' in c or 'name' in c.lower()), None)
       name = str(row.get(name_col, "عميل غير محدد")).strip() if name_col else "عميل غير محدد"
       if name in ["nan", "None", ""]:
         name = "عميل غير محدد"
 
       file_name_id = f"Shipment_{shipment}_Client_{name}".replace(" ", "_")
 
-      weight_col = next((c for c in df.columns if "وزن" in str(c) or "weight" in str(c).lower()), None)
+      weight_col = next((c for c in df.columns if "وزن" in c or "weight" in c.lower()), None)
       weight = float(row.get(weight_col, 0) or 0) if weight_col else 0.0
       total_weight_sum += weight
 
       cbm_value = 0.0
-      cbm_col = next((c for c in df.columns if "cbm" in str(c).lower() or "حجم" in str(c)), None)
+      cbm_col = next((c for c in df.columns if "cbm" in c.lower() or "حجم" in c), None)
       if cbm_col:
         try:
           cbm_value = float(row.get(cbm_col, 0) or 0)
@@ -318,24 +292,24 @@ if active_data_file is not None and active_template_file is not None:
           pass
       total_cbm_sum += cbm_value
 
-      packages_col = next((c for c in df.columns if "طرود" in str(c) or "packages" in str(c).lower()), None)
+      packages_col = next((c for c in df.columns if "طرود" in c or "packages" in c.lower()), None)
       try:
         packages = int(float(row.get(packages_col, 0) or 0)) if packages_col else 0
       except:
         packages = 0
       total_packages_count += packages
 
-      price_col = next((c for c in df.columns if "سعر" in str(c) or "price" in str(c).lower()), None)
+      price_col = next((c for c in df.columns if "سعر" in c or "price" in c.lower()), None)
       price_per_kg = float(row.get(price_col, 0) or 0) if price_col else 0.0
 
-      sales_col = next((c for c in df.columns if "مبيعات" in str(c) or "اجمالي" in str(c) or "total" in str(c).lower()), None)
+      sales_col = next((c for c in df.columns if "مبيعات" in c or "اجمالي" in c or "total" in c.lower()), None)
       total_sales = float(row.get(sales_col, 0) or 0) if sales_col else 0.0
       if total_sales == 0 and price_per_kg > 0 and weight > 0:
         total_sales = weight * price_per_kg
 
       total_sales_sum += total_sales
 
-      phone_col = next((c for c in df.columns if ('هاتف' in str(c) or 'عاتف' in str(c) or 'phone' in str(c).lower()) and '2' not in str(c)), None)
+      phone_col = next((c for c in df.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' not in c), None)
       phone = str(row.get(phone_col, "")).strip() if phone_col else ""
       if phone.endswith(".0"):
         phone = phone[:-2]
@@ -344,7 +318,7 @@ if active_data_file is not None and active_template_file is not None:
         phone = phone[3:]
       formatted_phone = f"+964 {phone}" if phone and phone not in ["nan", "None"] else ""
 
-      phone2_col = next((c for c in df.columns if ('هاتف' in str(c) or 'عاتف' in str(c) or 'phone' in str(c).lower()) and '2' in str(c)), None)
+      phone2_col = next((c for c in df.columns if ('هاتف' in c or 'عاتف' in c or 'phone' in c.lower()) and '2' in c), None)
       phone2 = str(row.get(phone2_col, "")).strip() if phone2_col else ""
       if phone2.endswith(".0"):
         phone2 = phone2[:-2]
@@ -357,7 +331,7 @@ if active_data_file is not None and active_template_file is not None:
       if formatted_phone2:
         combined_phones = f"{formatted_phone} / {formatted_phone2}" if formatted_phone else formatted_phone2
 
-      address_col = next((c for c in df.columns if 'عنوان' in str(c) or 'address' in str(c).lower()), None)
+      address_col = next((c for c in df.columns if 'عنوان' in c or 'address' in c.lower()), None)
       address = str(row.get(address_col, "")).strip() if address_col else ""
       if address in ["nan", "None"]:
         address = ""
@@ -459,6 +433,7 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
+    # --- تجميع بيانات الجدول حسب كود العميل ---
     group_cols = [c for c in [ship_col, code_col, name_col_for_clients, type_col_name, city_col_name, phone_col, phone2_col, address_col] if c and c in df.columns]
     agg_dict = {}
     if weight_col and weight_col in df.columns:
@@ -479,10 +454,7 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
-    if name_col_for_clients in df_grouped.columns:
-      df_grouped = df_grouped[df_grouped[name_col_for_clients].notna() & (df_grouped[name_col_for_clients].astype(str).str.strip() != "") & (df_grouped[name_col_for_clients].astype(str).str.strip().lower() != "nan")]
-    df_grouped = df_grouped.reset_index(drop=True)
-
+    # --- نقل بطاقات الإحصائيات العامة لتكون في أعلى الشاشة ---
     st.markdown("""
         <style>
         .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
@@ -507,6 +479,7 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # --- جدول ملخص المحافظات ---
     st.subheader("📊 ملخص الإحصائيات والديون حسب المحافظات (المدن)")
     
     city_group_col = city_col_name if city_col_name in df.columns else 'المدينة'
@@ -527,8 +500,6 @@ if active_data_file is not None and active_template_file is not None:
 
     if agg_city_dict:
       df_city_summary = df.groupby(city_group_col, as_index=False).agg(agg_city_dict)
-      df_city_summary = df_city_summary[df_city_summary[city_group_col].notna() & (df_city_summary[city_group_col].astype(str).str.strip() != "")]
-      
       if '__calc_sales__' in df_city_summary.columns:
         df_city_summary.rename(columns={'__calc_sales__': 'إجمالي الديون / المبيعات ($)'}, inplace=True)
       if sales_col and sales_col in df_city_summary.columns and sales_col != 'إجمالي الديون / المبيعات ($)':
@@ -651,36 +622,20 @@ if active_data_file is not None and active_template_file is not None:
                             <meta charset="UTF-8">
                             <title>تقرير جدول الشحنات والمحافظات - أطلس</title>
                             <style>
-                                @page {{ 
-                                    size: A4 landscape; 
-                                    margin: 6mm; 
-                                }}
-                                * {{
-                                    box-sizing: border-box;
-                                }}
-                                body {{ 
-                                    font-family: Tahoma, Arial, sans-serif; 
-                                    direction: rtl; 
-                                    color: #102a43; 
-                                    padding: 4px; 
-                                    margin: 0;
-                                    width: 100%;
-                                }}
-                                h2 {{ text-align: center; color: #102a43; margin-bottom: 10px; font-size: 15px; }}
-                                h3 {{ color: #102a43; margin-top: 12px; margin-bottom: 6px; font-size: 13px; border-bottom: 2px solid #102a43; padding-bottom: 3px; page-break-after: avoid; break-after: avoid; }}
+                                @page {{ size: A4 landscape; margin: 10mm; }}
+                                body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 20px; }}
+                                h2 {{ text-align: center; color: #102a43; margin-bottom: 15px; font-size: 18px; }}
+                                h3 {{ color: #102a43; margin-top: 20px; font-size: 15px; border-bottom: 2px solid #102a43; padding-bottom: 5px; }}
                                 .metrics-grid {{
                                     display: flex;
                                     justify-content: space-between;
-                                    gap: 6px;
-                                    margin-bottom: 10px;
-                                    width: 100%;
-                                    page-break-inside: avoid;
-                                    break-inside: avoid;
+                                    gap: 10mm;
+                                    margin-bottom: 20px;
                                 }}
                                 .metric-box {{
                                     flex: 1;
-                                    padding: 6px;
-                                    border-radius: 4px;
+                                    padding: 10px;
+                                    border-radius: 6px;
                                     text-align: center;
                                     border: 1px solid #cbd5e1;
                                     -webkit-print-color-adjust: exact;
@@ -691,36 +646,11 @@ if active_data_file is not None and active_template_file is not None:
                                 .box-3 {{ background-color: #f5f3ff !important; border-color: #ddd6fe; color: #5b21b6; }}
                                 .box-4 {{ background-color: #fffbeb !important; border-color: #fde68a; color: #92400e; }}
                                 .box-5 {{ background-color: #fdf2f8 !important; border-color: #fbcfe8; color: #9d174d; }}
-                                .metric-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; }}
-                                .metric-val {{ font-size: 12px; font-weight: bold; margin: 0; }}
-                                table {{ 
-                                    width: 100% !important; 
-                                    border-collapse: collapse; 
-                                    font-size: 9px; 
-                                    margin-top: 4px; 
-                                    table-layout: auto;
-                                }}
-                                th {{ 
-                                    background-color: #102a43 !important; 
-                                    color: #ffffff !important; 
-                                    text-align: right; 
-                                    padding: 5px 6px; 
-                                    border: 1px solid #0b1e33; 
-                                    font-weight: bold; 
-                                    -webkit-print-color-adjust: exact; 
-                                    print-color-adjust: exact; 
-                                    white-space: nowrap;
-                                }}
-                                td {{ 
-                                    padding: 4px 6px; 
-                                    border: 1px solid #cbd5e1; 
-                                    text-align: right; 
-                                    word-break: break-word;
-                                }}
-                                tr {{ 
-                                    page-break-inside: avoid; 
-                                    break-inside: avoid; 
-                                }}
+                                .metric-title {{ font-size: 12px; font-weight: bold; margin-bottom: 5px; }}
+                                .metric-val {{ font-size: 15px; font-weight: bold; margin: 0; }}
+                                table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }}
+                                th {{ background-color: #102a43 !important; color: #ffffff !important; text-align: right; padding: 10px; border: 1px solid #0b1e33; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+                                td {{ padding: 8px 10px; border: 1px solid #cbd5e1; text-align: right; }}
                                 tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                             </style>
                         </head>
@@ -753,7 +683,7 @@ if active_data_file is not None and active_template_file is not None:
                             <h3>📊 ملخص الإحصائيات حسب المحافظات</h3>
                             ${{citySummaryContent}}
 
-                            <h3 style="margin-top: 15px;">📋 تفاصيل الشحنات</h3>
+                            <h3 style="margin-top: 30px;">📋 تفاصيل الشحنات</h3>
                             ${{tableContent}}
                         </body>
                         </html>
@@ -812,3 +742,4 @@ if active_data_file is not None and active_template_file is not None:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
   st.info("الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي.")
+
