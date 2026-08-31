@@ -397,6 +397,28 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
+    # --- تجميع بيانات الجدول حسب كود العميل (مع دمج الوزن والحجم وجمع الباقي) ---
+    group_cols = [c for c in [ship_col, code_col, name_col_for_clients, type_col_name, phone_col, address_col] if c and c in df.columns]
+    agg_dict = {}
+    if weight_col and weight_col in df.columns:
+      agg_dict[weight_col] = 'sum'
+    if cbm_col and cbm_col in df.columns:
+      agg_dict[cbm_col] = 'sum'
+    if packages_col and packages_col in df.columns:
+      agg_dict[packages_col] = 'sum'
+    if sales_col and sales_col in df.columns:
+      agg_dict[sales_col] = 'sum'
+
+    # لأي أعمدة أخرى لم تذكر، نأخذ القيمة الأولى لتجنب الأخطاء
+    for c in df.columns:
+      if c not in group_cols and c not in agg_dict:
+        agg_dict[c] = 'first'
+
+    if code_col and code_col in df.columns:
+      df_grouped = df.groupby(group_cols, as_index=False).agg(agg_dict)
+    else:
+      df_grouped = df.copy()
+
     # --- بطاقات الإحصائيات ---
     st.markdown("""
         <style>
@@ -423,7 +445,7 @@ if active_data_file is not None and active_template_file is not None:
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع: [{selected_type_filter}]")
 
-    display_table_df = df.copy()
+    display_table_df = df_grouped.copy()
     display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
     table_html = display_table_df.to_html(classes="custom-table", index=False, escape=False)
 
