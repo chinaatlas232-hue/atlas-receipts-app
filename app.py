@@ -542,7 +542,6 @@ if active_data_file is not None and active_template_file is not None:
             direction: rtl;
             background-color: #ffffff;
             color: #102a43;
-            /* منع الالتفاف الافتراضي وإجبار العمود على التناسب، بينما نتحكم بالعرض للأسطر الفارغة وعناوين الأعمدة */
         }}
         .custom-table th {{
             background-color: #102a43 !important;
@@ -561,13 +560,12 @@ if active_data_file is not None and active_template_file is not None:
             border-bottom: 1px solid #e2e8f0;
             text-align: right;
         }}
-        /* تحديد عرض وخصائص الأعمدة المحددة لمنع نزول العناوين لسطر فارغ وتقليل العرض */
-        .custom-table th:nth-child(1), .custom-table td:nth-child(1) {{ width: 45px; min-width: 45px; text-align: center; white-space: nowrap; }} /* التسلسل */
-        .custom-table th:nth-child(4), .custom-table td:nth-child(4) {{ white-space: nowrap; }} /* اسم العميل لمنع التفافه */
-        .custom-table th:nth-child(8), .custom-table td:nth-child(8) {{ white-space: nowrap; }} /* عدد الطرود */
-        .custom-table th:nth-child(9), .custom-table td:nth-child(9) {{ white-space: nowrap; }} /* سعر الكيلو */
-        .custom-table th:nth-child(10), .custom-table td:nth-child(10) {{ white-space: nowrap; }} /* اجمالي مبيعات */
-        .custom-table th:nth-child(7), .custom-table td:nth-child(7) {{ white-space: nowrap; min-width: 120px; }} /* عنوان استلام البضاعة منعاً للنزول غير المبرر */
+        .custom-table th:nth-child(1), .custom-table td:nth-child(1) {{ width: 45px; min-width: 45px; text-align: center; white-space: nowrap; }}
+        .custom-table th:nth-child(4), .custom-table td:nth-child(4) {{ white-space: nowrap; }}
+        .custom-table th:nth-child(8), .custom-table td:nth-child(8) {{ white-space: nowrap; }}
+        .custom-table th:nth-child(9), .custom-table td:nth-child(9) {{ white-space: nowrap; }}
+        .custom-table th:nth-child(10), .custom-table td:nth-child(10) {{ white-space: nowrap; }}
+        .custom-table th:nth-child(7), .custom-table td:nth-child(7) {{ white-space: nowrap; min-width: 120px; }}
         
         .custom-table tr:nth-child(even) {{
             background-color: #f8fafc;
@@ -588,7 +586,7 @@ if active_data_file is not None and active_template_file is not None:
         <head>
             <meta charset="UTF-8">
             <style>
-                @page {{ size: A4 landscape; margin: 10mm; }}
+                @page {{ size: A4 landscape; margin: 0mm; }}
                 body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 0; background: transparent; }}
                 .export-btn {{
                     background-color: #102a43;
@@ -631,8 +629,12 @@ if active_data_file is not None and active_template_file is not None:
                             <meta charset="UTF-8">
                             <title>تقرير جدول الشحنات والمحافظات - أطلس</title>
                             <style>
-                                @page {{ size: A4 landscape; margin: 10mm; }}
-                                body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 20px; }}
+                                @page {{ size: A4 landscape; margin: 0mm; }}
+                                @media print {{
+                                    body {{ margin: 8mm; }}
+                                    @page {{ margin: 0; }}
+                                }}
+                                body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 15px; margin: 0; }}
                                 h2 {{ text-align: center; color: #102a43; margin-bottom: 15px; font-size: 18px; }}
                                 h3 {{ color: #102a43; margin-top: 20px; font-size: 15px; border-bottom: 2px solid #102a43; padding-bottom: 5px; }}
                                 .metrics-grid {{
@@ -660,7 +662,6 @@ if active_data_file is not None and active_template_file is not None:
                                 table {{ width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 10px; table-layout: auto; }}
                                 th {{ background-color: #102a43 !important; color: #ffffff !important; text-align: right; padding: 8px 6px; border: 1px solid #0b1e33; font-weight: bold; white-space: nowrap; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                 td {{ padding: 6px; border: 1px solid #cbd5e1; text-align: right; }}
-                                /* تصغير أعمدة التسلسل وعدد الطرود وسعر الكيلو ومنع نزول عناوين الجدول لسطر فارغ في الطباعة */
                                 th:nth-child(1), td:nth-child(1) {{ width: 35px; min-width: 35px; text-align: center; white-space: nowrap; }}
                                 th:nth-child(4), td:nth-child(4) {{ white-space: nowrap; }}
                                 th:nth-child(8), td:nth-child(8) {{ white-space: nowrap; }}
@@ -687,7 +688,7 @@ if active_data_file is not None and active_template_file is not None:
                                     <div class="metric-val">${{totalCbm}}</div>
                                 </div>
                                 <div class="metric-box box-4">
-                                    <div class="metric-title5">⚖️ الوزن الكلي</div>
+                                    <div class="metric-title">⚖️ الوزن الكلي</div>
                                     <div class="metric-val">${{totalWeight}}</div>
                                 </div>
                                 <div class="metric-box box-5">
@@ -725,7 +726,7 @@ if active_data_file is not None and active_template_file is not None:
                 const content = `{all_receipts_html_for_print.replace('`', '\\`').replace('$', '\\$')}`;
                 function printAll() {{
                     var w = window.open('', '', 'height=900,width=800');
-                    w.document.write('<html><head><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma; }}</style></head><body>' + content + '</body></html>');
+                    w.document.write('<html><head><style>@page {{ size: A5; margin: 0mm; }} @media print {{ body {{ margin: 5mm; }} }} body {{ direction: rtl; font-family: Tahoma; margin: 0; }}</style></head><body>' + content + '</body></html>');
                     w.document.close();
                     w.focus();
                     setTimeout(() => {{ w.print(); w.close(); }}, 600);
