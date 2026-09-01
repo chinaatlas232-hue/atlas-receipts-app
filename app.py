@@ -140,19 +140,11 @@ with st.sidebar:
         df_c.columns = df_c.columns.astype(str).str.strip()
 
         ship_code_col = next(
-            (
-                c
-                for c in df_s.columns
-                if "كود" in c or "code" in c.lower()
-            ),
+            (c for c in df_s.columns if "كود" in c or "code" in c.lower()),
             "الكود",
         )
         cust_code_col = next(
-            (
-                c
-                for c in df_c.columns
-                if "كود" in c or "code" in c.lower()
-            ),
+            (c for c in df_c.columns if "كود" in c or "code" in c.lower()),
             "الكود",
         )
 
@@ -184,11 +176,7 @@ with st.sidebar:
               (
                   c
                   for c in df_c.columns
-                  if (
-                      "هاتف" in c
-                      or "عاتف" in c
-                      or "phone" in c.lower()
-                  )
+                  if ("هاتف" in c or "عاتف" in c or "phone" in c.lower())
                   and "2" not in c
               ),
               None,
@@ -197,16 +185,11 @@ with st.sidebar:
               (
                   c
                   for c in df_c.columns
-                  if (
-                      "هاتف" in c
-                      or "عاتف" in c
-                      or "phone" in c.lower()
-                  )
+                  if ("هاتف" in c or "عاتف" in c or "phone" in c.lower())
                   and "2" in c
               ),
               None,
           )
-          # بحث مرن لأعمدة العنوان يتوافق مع الاختلافات (ض/ظ)
           c_addr_col = next(
               (
                   c
@@ -310,7 +293,6 @@ with st.sidebar:
                 .fillna(df_s.get(s_phone2_col))
             )
 
-          # دمج العنوان بصورة صحيحة وتجنب القيم الفارغة (NaN)
           mapped_addrs = df_s["__s_code__"].map(addr_dict)
           original_addrs = df_s.get(s_addr_col, pd.Series([""] * len(df_s)))
           df_s[s_addr_col] = mapped_addrs.combine_first(original_addrs).fillna(
@@ -327,7 +309,6 @@ with st.sidebar:
       except Exception as e:
         print(f"Merge error: {e}")
 
-    # تعديل اسم عمود السعر بأمان وحذف كلمة الكيلو لتصبح "السعر"
     for col in list(df_s.columns):
       if col == "سعر الكيلو":
         df_s.rename(columns={col: "السعر"}, inplace=True)
@@ -607,11 +588,7 @@ if active_data_file is not None and active_template_file is not None:
           (
               c
               for c in df.columns
-              if (
-                  "هاتف" in c
-                  or "عاتف" in c
-                  or "phone" in c.lower()
-              )
+              if ("هاتف" in c or "عاتف" in c or "phone" in c.lower())
               and "2" not in c
           ),
           None,
@@ -630,11 +607,7 @@ if active_data_file is not None and active_template_file is not None:
           (
               c
               for c in df.columns
-              if (
-                  "هاتف" in c
-                  or "عاتف" in c
-                  or "phone" in c.lower()
-              )
+              if ("هاتف" in c or "عاتف" in c or "phone" in c.lower())
               and "2" in c
           ),
           None,
@@ -741,13 +714,13 @@ if active_data_file is not None and active_template_file is not None:
                     </tr>
                     <tr style="background-color: #f0f4f8;">
                         <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
-                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>حجم الشحنة (CBM):</strong> <span style="color: #b45309; font-weight: bold;">{cbm_value:,.2f}</span></td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>حجم الشحنة (CBM):</strong> <span style="color: #b45309; font-weight: bold;">{cbm_value:,.1f}</span></td>
                     </tr>
                     <tr>
-                        <td style="padding: 5px; border: 1px solid #bcccdc;" colspan="2"><strong>السعر:</strong> {price_per_kg:,.2f} $</td>
+                        <td style="padding: 5px; border: 1px solid #bcccdc;" colspan="2"><strong>السعر:</strong> {price_per_kg:,.1f} $</td>
                     </tr>
                     <tr style="background-color: #fef3c7;">
-                        <td style="padding: 5px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات (الديون):</strong> <span style="color: #b45309; font-weight: bold; font-size: 12px;">{total_sales:,.2f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
+                        <td style="padding: 5px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات (الديون):</strong> <span style="color: #b45309; font-weight: bold; font-size: 12px;">{total_sales:,.1f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
                     </tr>
                 </table>
                 <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 6px; border-radius: 4px; margin-bottom: 10px;">
@@ -811,6 +784,16 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
+    # --- تنسيق أعمدة العرض المالي برتبة عشرية واحدة ---
+    if sales_col and sales_col in df_grouped.columns:
+      df_grouped[sales_col] = df_grouped[sales_col].apply(
+          lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0"
+      )
+    if price_col and price_col in df_grouped.columns:
+      df_grouped[price_col] = df_grouped[price_col].apply(
+          lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0"
+      )
+
     # --- بطاقات الإحصائيات العامة ---
     st.markdown(
         """
@@ -847,7 +830,7 @@ if active_data_file is not None and active_template_file is not None:
           f'<div class="metric-card-3"><p style="margin:0; color:#5b21b6;'
           ' font-weight:bold; font-size:14px;">📐 إجمالي الحجم</p><h3'
           f' style="margin:5px 0 0; color:#4c1d95;'
-          f' font-size:20px;">{total_cbm_sum:,.2f} CBM</h3></div>',
+          f' font-size:20px;">{total_cbm_sum:,.1f} CBM</h3></div>',
           unsafe_allow_html=True,
       )
     with m4:
@@ -855,7 +838,7 @@ if active_data_file is not None and active_template_file is not None:
           f'<div class="metric-card-4"><p style="margin:0; color:#92400e;'
           ' font-weight:bold; font-size:14px;">⚖️ الوزن الكلي</p><h3'
           f' style="margin:5px 0 0; color:#78350f;'
-          f' font-size:20px;">{total_weight_sum:,.2f} كغ</h3></div>',
+          f' font-size:20px;">{total_weight_sum:,.1f} كغ</h3></div>',
           unsafe_allow_html=True,
       )
     with m5:
@@ -863,7 +846,7 @@ if active_data_file is not None and active_template_file is not None:
           f'<div class="metric-card-5"><p style="margin:0; color:#9d174d;'
           ' font-weight:bold; font-size:14px;">💰 المبلغ الإجمالي'
           f' (الديون)</p><h3 style="margin:5px 0 0; color:#831843;'
-          f' font-size:20px;">{total_sales_sum:,.2f} $</h3></div>',
+          f' font-size:20px;">{total_sales_sum:,.1f} $</h3></div>',
           unsafe_allow_html=True,
       )
 
@@ -915,6 +898,15 @@ if active_data_file is not None and active_template_file is not None:
         df_city_summary.rename(
             columns={cbm_col: "إجمالي الحجم (CBM)"}, inplace=True
         )
+
+      if "إجمالي الديون / المبيعات ($)" in df_city_summary.columns:
+        df_city_summary["إجمالي الديون / المبيعات ($)"] = df_city_summary[
+            "إجمالي الديون / المبيعات ($)"
+        ].apply(lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0")
+      if "إجمالي الحجم (CBM)" in df_city_summary.columns:
+        df_city_summary["إجمالي الحجم (CBM)"] = df_city_summary[
+            "إجمالي الحجم (CBM)"
+        ].apply(lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0")
 
       df_city_summary.insert(0, "التسلسل", range(1, len(df_city_summary) + 1))
       city_table_html = df_city_summary.to_html(
@@ -1024,9 +1016,9 @@ if active_data_file is not None and active_template_file is not None:
                 const filterInfo = 'الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}';
                 const totalClients = '{total_clients_count} عميل';
                 const totalPackages = '{total_packages_count} طرد';
-                const totalCbm = '{total_cbm_sum:,.2f} CBM';
-                const totalWeight = '{total_weight_sum:,.2f} كغ';
-                const totalSales = '{total_sales_sum:,.2f} $';
+                const totalCbm = '{total_cbm_sum:,.1f} CBM';
+                const totalWeight = '{total_weight_sum:,.1f} كغ';
+                const totalSales = '{total_sales_sum:,.1f} $';
 
                 function exportTablePDF() {{
                     var w = window.open('', '', 'height=900,width=1200');
@@ -1070,7 +1062,6 @@ if active_data_file is not None and active_template_file is not None:
                         </head>
                         <body>
                             <div class="metrics-grid">
-                                .
                                 <div class="metric-box box-1">
                                     <div class="metric-title">👥 عدد العملاء</div>
                                     <div class="metric-val">${{totalClients}}</div>
@@ -1137,7 +1128,7 @@ if active_data_file is not None and active_template_file is not None:
     for item in receipts_data_list:
       with st.expander(
           f"📄 وصل العميل: {item['name']} | كود: {item['code'] or 'بدون'} |"
-          f" الشحنة: {item['shipment']} | الإجمالي: {item['total_sales']:,.2f}"
+          f" الشحنة: {item['shipment']} | الإجمالي: {item['total_sales']:,.1f}"
           " $"
       ):
         st.download_button(
