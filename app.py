@@ -743,10 +743,9 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- تصحيح عرض بيانات الجدول بدون تجميع خاطئ يخفي الصفوف ---
+    # --- تصحيح وترتيب عرض جدول البيانات لتجنب تداخل الأعمدة ---
     display_table_df = df.copy()
 
-    # حساب إجمالي المبيعات لكل سطر إن لم يكن موجوداً
     sales_col_final = next(
         (
             c
@@ -758,21 +757,59 @@ if active_data_file is not None and active_template_file is not None:
     if not sales_col_final:
       sales_col_final = "اجمالي مبيعات"
       weight_col_calc = next(
-          (c for c in display_table_df.columns if "وزن" in c or "weight" in c.lower()),
+          (
+              c
+              for c in display_table_df.columns
+              if "وزن" in c or "weight" in c.lower()
+          ),
           None,
       )
       price_col_calc = next(
-          (c for c in display_table_df.columns if "سعر" in c or "price" in c.lower()),
+          (
+              c
+              for c in display_table_df.columns
+              if "سعر" in c or "price" in c.lower()
+          ),
           None,
       )
       if weight_col_calc and price_col_calc:
-        display_table_df[sales_col_final] = display_table_df[
-            weight_col_calc
-        ] * display_table_df[price_col_calc]
+        display_table_df[sales_col_final] = (
+            display_table_df[weight_col_calc]
+            * display_table_df[price_col_calc]
+        )
       else:
         display_table_df[sales_col_final] = 0.0
 
     display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
+
+    # ترتيب الأعمدة الأساسية لتكون واضحة ومقروءة بالكامل
+    priority_cols = [
+        "التسلسل",
+        ship_col,
+        code_col if code_col else "",
+        name_col_for_clients if name_col_for_clients else "الاسم",
+        phone_col if phone_col else "رقم الهاتف",
+        address_col if address_col else "عنوان استلام البظاعة",
+        city_col_name,
+        type_col_name if type_col_name else "نوع الشحنة",
+        packages_col if packages_col else "عدد الطرود",
+        weight_col if weight_col else "الوزن",
+        cbm_col if cbm_col else "cbm",
+        price_col if price_col else "سعر",
+        sales_col_final,
+    ]
+    # إضافة أي أعمدة أخرى إن وجدت بالملف لضمان عدم ضياع أي معلومة
+    final_cols_order = [
+        c
+        for c in priority_cols
+        if c and c in display_table_df.columns
+    ] + [
+        c
+        for c in display_table_df.columns
+        if c not in priority_cols
+    ]
+    display_table_df = display_table_df[final_cols_order]
+
     table_html = display_table_df.to_html(
         classes="custom-table", index=False, escape=False
     )
@@ -933,6 +970,7 @@ if active_data_file is not None and active_template_file is not None:
             padding: 10px 10px;
             border-bottom: 1px solid #e2e8f0;
             text-align: right;
+            white-space: nowrap;
         }}
         .custom-table tr:nth-child(even) {{
             background-color: #f8fafc;
