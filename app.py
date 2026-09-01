@@ -173,7 +173,11 @@ with st.sidebar:
           )
 
           c_name_col = next(
-              (c for c in df_c.columns if "الاسم" in c or "name" in c.lower()),
+              (
+                  c
+                  for c in df_c.columns
+                  if "الاسم" in c or "name" in c.lower() or "اسم" in c
+              ),
               None,
           )
           c_phone_col = next(
@@ -202,11 +206,15 @@ with st.sidebar:
               ),
               None,
           )
+          # بحث مرن لأعمدة العنوان يتوافق مع الاختلافات (ض/ظ)
           c_addr_col = next(
               (
                   c
                   for c in df_c.columns
-                  if "عنوان" in c or "address" in c.lower()
+                  if "عنوان" in c
+                  or "address" in c.lower()
+                  or "البض" in c
+                  or "البظ" in c
               ),
               None,
           )
@@ -270,7 +278,12 @@ with st.sidebar:
               "رقم الهاتف 2",
           )
           s_addr_col = next(
-              (c for c in df_s.columns if "عنوان" in c), "عنوان استلام البظاعة"
+              (
+                  c
+                  for c in df_s.columns
+                  if "عنوان" in c or "البض" in c or "البظ" in c
+              ),
+              "عنوان استلام البضاعة",
           )
           s_city_col = next(
               (c for c in df_s.columns if "مدينة" in c or "محافظ" in c),
@@ -279,6 +292,8 @@ with st.sidebar:
 
           if s_city_col not in df_s.columns:
             df_s[s_city_col] = "غير محدد"
+          if s_addr_col not in df_s.columns:
+            df_s[s_addr_col] = ""
 
           df_s[s_name_col] = (
               df_s["__s_code__"].map(name_dict).fillna(df_s.get(s_name_col))
@@ -294,9 +309,14 @@ with st.sidebar:
                 .map(phone2_dict)
                 .fillna(df_s.get(s_phone2_col))
             )
-          df_s[s_addr_col] = (
-              df_s["__s_code__"].map(addr_dict).fillna(df_s.get(s_addr_col))
+
+          # دمج العنوان بصورة صحيحة وتجنب القيم الفارغة (NaN)
+          mapped_addrs = df_s["__s_code__"].map(addr_dict)
+          original_addrs = df_s.get(s_addr_col, pd.Series([""] * len(df_s)))
+          df_s[s_addr_col] = mapped_addrs.combine_first(original_addrs).fillna(
+              ""
           )
+
           df_s[s_city_col] = (
               df_s["__s_code__"]
               .map(city_dict)
@@ -307,9 +327,13 @@ with st.sidebar:
       except Exception as e:
         print(f"Merge error: {e}")
 
-    for col in df_s.columns:
-      if "سعر" in str(col):
+    # تعديل اسم عمود السعر بأمان دون التأثير على بقية الأعمدة المرتبطة
+    for col in list(df_s.columns):
+      if col == "سعر الكيلو" or col == "السعر":
+        continue
+      if "سعر" in str(col) and col != "سعر":
         df_s.rename(columns={col: "سعر"}, inplace=True)
+        break
 
     return df_s
 
@@ -556,7 +580,7 @@ if active_data_file is not None and active_template_file is not None:
       total_packages_count += packages
 
       price_col = next(
-          (c for c in df.columns if "سعر" in c or "price" in c.lower()), None
+          (c for c in df.columns if c == "سعر" or "سعر" in c), None
       )
       price_per_kg = float(row.get(price_col, 0) or 0) if price_col else 0.0
 
@@ -631,7 +655,14 @@ if active_data_file is not None and active_template_file is not None:
         )
 
       address_col = next(
-          (c for c in df.columns if "عنوان" in c or "address" in c.lower()),
+          (
+              c
+              for c in df.columns
+              if "عنوان" in c
+              or "address" in c.lower()
+              or "البض" in c
+              or "البظ" in c
+          ),
           None,
       )
       address = str(row.get(address_col, "")).strip() if address_col else ""
@@ -743,78 +774,41 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- تصحيح وترتيب عرض جدول البيانات لتجنب تداخل الأعمدة ---
-    display_table_df = df.copy()
-
-    sales_col_final = next(
-        (
-            c
-            for c in display_table_df.columns
-            if "مبيعات" in c or "اجمالي" in c or "total" in c.lower()
-        ),
-        None,
-    )
-    if not sales_col_final:
-      sales_col_final = "اجمالي مبيعات"
-      weight_col_calc = next(
-          (
-              c
-              for c in display_table_df.columns
-              if "وزن" in c or "weight" in c.lower()
-          ),
-          None,
-      )
-      price_col_calc = next(
-          (
-              c
-              for c in display_table_df.columns
-              if "سعر" in c or "price" in c.lower()
-          ),
-          None,
-      )
-      if weight_col_calc and price_col_calc:
-        display_table_df[sales_col_final] = (
-            display_table_df[weight_col_calc]
-            * display_table_df[price_col_calc]
-        )
-      else:
-        display_table_df[sales_col_final] = 0.0
-
-    display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
-
-    # ترتيب الأعمدة الأساسية لتكون واضحة ومقروءة بالكامل
-    priority_cols = [
-        "التسلسل",
-        ship_col,
-        code_col if code_col else "",
-        name_col_for_clients if name_col_for_clients else "الاسم",
-        phone_col if phone_col else "رقم الهاتف",
-        address_col if address_col else "عنوان استلام البظاعة",
-        city_col_name,
-        type_col_name if type_col_name else "نوع الشحنة",
-        packages_col if packages_col else "عدد الطرود",
-        weight_col if weight_col else "الوزن",
-        cbm_col if cbm_col else "cbm",
-        price_col if price_col else "سعر",
-        sales_col_final,
-    ]
-    # إضافة أي أعمدة أخرى إن وجدت بالملف لضمان عدم ضياع أي معلومة
-    final_cols_order = [
+    # --- تجميع بيانات الجدول حسب كود العميل ---
+    group_cols = [
         c
-        for c in priority_cols
-        if c and c in display_table_df.columns
-    ] + [
-        c
-        for c in display_table_df.columns
-        if c not in priority_cols
+        for c in [
+            ship_col,
+            code_col,
+            name_col_for_clients,
+            type_col_name,
+            city_col_name,
+            phone_col,
+            phone2_col,
+            address_col,
+        ]
+        if c and c in df.columns
     ]
-    display_table_df = display_table_df[final_cols_order]
+    agg_dict = {}
+    if weight_col and weight_col in df.columns:
+      agg_dict[weight_col] = "sum"
+    if cbm_col and cbm_col in df.columns:
+      agg_dict[cbm_col] = "sum"
+    if packages_col and packages_col in df.columns:
+      agg_dict[packages_col] = "sum"
+    if sales_col and sales_col in df.columns:
+      agg_dict[sales_col] = "sum"
 
-    table_html = display_table_df.to_html(
-        classes="custom-table", index=False, escape=False
-    )
+    for c in df.columns:
+      if c not in group_cols and c not in agg_dict:
+        agg_dict[c] = "first"
 
-    # --- نقل بطاقات الإحصائيات العامة لتكون في أعلى الشاشة ---
+    if code_col and code_col in df.columns:
+      df_grouped = df.groupby(group_cols, as_index=False).agg(agg_dict)
+    else:
+      df_grouped = df.copy()
+
+    # --- بطاقات الإحصائيات العامة ---
     st.markdown(
         """
         <style>
@@ -934,6 +928,12 @@ if active_data_file is not None and active_template_file is not None:
         f" [{selected_type_filter}]"
     )
 
+    display_table_df = df_grouped.copy()
+    display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
+    table_html = display_table_df.to_html(
+        classes="custom-table", index=False, escape=False
+    )
+
     custom_table_styling = f"""
     <style>
         .custom-table-container {{
@@ -970,7 +970,6 @@ if active_data_file is not None and active_template_file is not None:
             padding: 10px 10px;
             border-bottom: 1px solid #e2e8f0;
             text-align: right;
-            white-space: nowrap;
         }}
         .custom-table tr:nth-child(even) {{
             background-color: #f8fafc;
@@ -985,9 +984,7 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
 
-    # -------------------------------------------------------------
-    # كود تصدير ومعاينة الطباعة المحدث
-    # -------------------------------------------------------------
+    # --- كود تصدير ومعاينة الطباعة للجدول ---
     table_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -1062,7 +1059,6 @@ if active_data_file is not None and active_template_file is not None:
                                 .box-5 {{ background-color: #fdf2f8 !important; border-color: #fbcfe8; color: #9d174d; }}
                                 .metric-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; }}
                                 .metric-val {{ font-size: 12px; font-weight: bold; margin: 0; }}
-                                
                                 table {{ width: 100% !important; border-collapse: collapse; font-size: 8.5px !important; margin-top: 5px; table-layout: fixed; }}
                                 th, td {{ padding: 4px 3px !important; border: 1px solid #cbd5e1; text-align: right; overflow: hidden; word-wrap: break-word; }}
                                 th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
