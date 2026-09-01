@@ -307,6 +307,11 @@ with st.sidebar:
       except Exception as e:
         print(f"Merge error: {e}")
 
+    # تعديل اسم عمود السعر في الداتا فريم ليظهر باسم "سعر" بدلاً من "سعر الكيلو"
+    for col in df_s.columns:
+      if "سعر" in str(col):
+        df_s.rename(columns={col: "سعر"}, inplace=True)
+
     return df_s
 
 
