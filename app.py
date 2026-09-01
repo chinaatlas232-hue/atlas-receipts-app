@@ -307,7 +307,6 @@ with st.sidebar:
       except Exception as e:
         print(f"Merge error: {e}")
 
-    # تعديل اسم عمود السعر في الداتا فريم ليظهر باسم "سعر" بدلاً من "سعر الكيلو"
     for col in df_s.columns:
       if "سعر" in str(col):
         df_s.rename(columns={col: "سعر"}, inplace=True)
@@ -744,39 +743,39 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- تجميع بيانات الجدول حسب كود العميل ---
-    group_cols = [
-        c
-        for c in [
-            ship_col,
-            code_col,
-            name_col_for_clients,
-            type_col_name,
-            city_col_name,
-            phone_col,
-            phone2_col,
-            address_col,
-        ]
-        if c and c in df.columns
-    ]
-    agg_dict = {}
-    if weight_col and weight_col in df.columns:
-      agg_dict[weight_col] = "sum"
-    if cbm_col and cbm_col in df.columns:
-      agg_dict[cbm_col] = "sum"
-    if packages_col and packages_col in df.columns:
-      agg_dict[packages_col] = "sum"
-    if sales_col and sales_col in df.columns:
-      agg_dict[sales_col] = "sum"
+    # --- تصحيح عرض بيانات الجدول بدون تجميع خاطئ يخفي الصفوف ---
+    display_table_df = df.copy()
 
-    for c in df.columns:
-      if c not in group_cols and c not in agg_dict:
-        agg_dict[c] = "first"
+    # حساب إجمالي المبيعات لكل سطر إن لم يكن موجوداً
+    sales_col_final = next(
+        (
+            c
+            for c in display_table_df.columns
+            if "مبيعات" in c or "اجمالي" in c or "total" in c.lower()
+        ),
+        None,
+    )
+    if not sales_col_final:
+      sales_col_final = "اجمالي مبيعات"
+      weight_col_calc = next(
+          (c for c in display_table_df.columns if "وزن" in c or "weight" in c.lower()),
+          None,
+      )
+      price_col_calc = next(
+          (c for c in display_table_df.columns if "سعر" in c or "price" in c.lower()),
+          None,
+      )
+      if weight_col_calc and price_col_calc:
+        display_table_df[sales_col_final] = display_table_df[
+            weight_col_calc
+        ] * display_table_df[price_col_calc]
+      else:
+        display_table_df[sales_col_final] = 0.0
 
-    if code_col and code_col in df.columns:
-      df_grouped = df.groupby(group_cols, as_index=False).agg(agg_dict)
-    else:
-      df_grouped = df.copy()
+    display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
+    table_html = display_table_df.to_html(
+        classes="custom-table", index=False, escape=False
+    )
 
     # --- نقل بطاقات الإحصائيات العامة لتكون في أعلى الشاشة ---
     st.markdown(
@@ -898,12 +897,6 @@ if active_data_file is not None and active_template_file is not None:
         f" [{selected_type_filter}]"
     )
 
-    display_table_df = df_grouped.copy()
-    display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
-    table_html = display_table_df.to_html(
-        classes="custom-table", index=False, escape=False
-    )
-
     custom_table_styling = f"""
     <style>
         .custom-table-container {{
@@ -955,7 +948,7 @@ if active_data_file is not None and active_template_file is not None:
     st.html(custom_table_styling)
 
     # -------------------------------------------------------------
-    # كود تصدير ومعاينة الطباعة المحدث (لحل مشكلة اختفاء الأعمدة اليمنى)
+    # كود تصدير ومعاينة الطباعة المحدث
     # -------------------------------------------------------------
     table_pdf_html_component = f"""
         <!DOCTYPE html>
@@ -1032,7 +1025,6 @@ if active_data_file is not None and active_template_file is not None:
                                 .metric-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; }}
                                 .metric-val {{ font-size: 12px; font-weight: bold; margin: 0; }}
                                 
-                                /* تعديل الجداول لجعلها تتسع لجميع الأعمدة دون قص عبر ضغط المساحة والخط */
                                 table {{ width: 100% !important; border-collapse: collapse; font-size: 8.5px !important; margin-top: 5px; table-layout: fixed; }}
                                 th, td {{ padding: 4px 3px !important; border: 1px solid #cbd5e1; text-align: right; overflow: hidden; word-wrap: break-word; }}
                                 th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
@@ -1133,4 +1125,3 @@ else:
   st.info(
       "الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي."
   )
-
