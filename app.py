@@ -778,6 +778,25 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
+    # --- إضافة علامة $ لعمودي "سعر" و"اجمالي مبيعات" (أو ما شابهها) في الجدول المعروض ---
+    for col in df_grouped.columns:
+      col_str = str(col).lower()
+      if (
+          "سعر" in col_str
+          or "price" in col_str
+          or "مبيعات" in col_str
+          or "اجمالي" in col_str
+          or "total" in col_str
+      ):
+        try:
+          df_grouped[col] = df_grouped[col].apply(
+              lambda x: f"{float(x):,.2f} $"
+              if pd.notnull(x) and str(x).replace(".", "", 1).isdigit()
+              else x
+          )
+        except Exception:
+          pass
+
     # --- نقل بطاقات الإحصائيات العامة لتكون في أعلى الشاشة ---
     st.markdown(
         """
