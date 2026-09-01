@@ -319,88 +319,10 @@ with st.sidebar:
     return df_s
 
 
-  # --- الفلاتر في القائمة الجانبية ---
-  st.markdown("---")
-  st.header("🔍 فلتر الشحنات")
+  # --- الفلاتر في القائمة الجانبية (تم إخفاؤها أو تبقيتها برمجياً لتجنب كسر الكود) ---
   selected_shipment_filter = "الكل"
   selected_code_filter = "الكل"
   selected_type_filter = "الكل"
-
-  temp_df = load_and_merge_data(ship_mtime, cust_mtime)
-  if temp_df is not None and not temp_df.empty:
-    try:
-      ship_col = next(
-          (
-              c
-              for c in temp_df.columns
-              if "شحنة" in str(c) or "shipment" in str(c).lower()
-          ),
-          temp_df.columns[0],
-      )
-      temp_df[ship_col] = (
-          temp_df[ship_col]
-          .fillna("بدون شحنة")
-          .astype(str)
-          .str.replace(".0", "", regex=False)
-      )
-      shipment_list = ["الكل"] + sorted(temp_df[ship_col].unique().tolist())
-      selected_shipment_filter = st.selectbox(
-          "اختر الشحنة للعرض:", shipment_list
-      )
-
-      filtered_temp_df = temp_df.copy()
-      if selected_shipment_filter != "الكل":
-        filtered_temp_df = filtered_temp_df[
-            filtered_temp_df[ship_col] == selected_shipment_filter
-        ]
-
-      code_col = next(
-          (
-              c
-              for c in filtered_temp_df.columns
-              if "كود" in str(c) or "code" in str(c).lower()
-          ),
-          None,
-      )
-      if code_col:
-        filtered_temp_df[code_col] = (
-            filtered_temp_df[code_col]
-            .fillna("بدون كود")
-            .astype(str)
-            .str.replace(".0", "", regex=False)
-        )
-        code_list = ["الكل"] + sorted(
-            filtered_temp_df[code_col].unique().tolist()
-        )
-        selected_code_filter = st.selectbox(
-            "اختر أو ابحث برقم الكود:", code_list
-        )
-        if selected_code_filter != "الكل":
-          filtered_temp_df = filtered_temp_df[
-              filtered_temp_df[code_col] == selected_code_filter
-          ]
-
-      type_col = next(
-          (
-              c
-              for c in filtered_temp_df.columns
-              if "نوع" in str(c) or "type" in str(c).lower()
-          ),
-          None,
-      )
-      if type_col:
-        filtered_temp_df[type_col] = (
-            filtered_temp_df[type_col]
-            .fillna("غير محدد")
-            .astype(str)
-            .str.strip()
-        )
-        type_list = ["الكل"] + sorted(
-            filtered_temp_df[type_col].unique().tolist()
-        )
-        selected_type_filter = st.selectbox("اختر نوع الشحنة:", type_list)
-    except Exception:
-      pass
 
 active_data_file = shipment_path if os.path.exists(shipment_path) else None
 active_template_file = template_path if os.path.exists(template_path) else None
@@ -957,40 +879,24 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- جدول ملخص المحافظات التفاعلي ---
-    st.subheader(
-        "📊 ملخص الإحصائيات والديون حسب المحافظات (اضغط على اسم المدينة لتصفية"
-        " الشاشة وعرض كوداتها)"
+    # --- جدول ملخص المحافظات التفاعلي (تمت إزالته بناءً على الطلب، مع الاحتفاظ بفلتر اختيار المدينة في الأعلى فقط) ---
+
+    # --- أداة اختيار المدينة التفاعلية الوحيدة المتبقية في الأعلى ---
+    st.markdown(
+        "**اختر المدينة مباشرة لتصفية تفاصيل الشحنات وكوداتها أدناه:**"
     )
-
-    if not df_city_summary.empty:
-      # جعل أسماء المدن قابلة للنقر عبر St-AgGrid أو استخدام حلقة أزرار تناسقاً مع التصميم القديم أو عبر استماع تفاعلي
-      # الحل الأبسط والآمن ضمن Streamlit: إظهار جدول تفاعلي مع إمكانية الاختيار السريع
-      city_table_html = df_city_summary.to_html(
-          classes="custom-table", index=False, escape=False
-      )
-      st.html(f"""<div class="custom-table-container">{city_table_html}</div>""")
-
-      # إضافة أزرار سريعة أسفل جدول المحافظات للتحكم السريع بالمدن بنقرة واحدة
-      st.markdown(
-          "**اختر المدينة مباشرة لتصفية تفاصيل الشحنات وكوداتها أدناه:**"
-      )
-      city_cols_btns = st.columns(
-          min(len(available_cities), 6)
-          if len(available_cities) > 0
-          else 1
-      )
-      for idx, c_name in enumerate(available_cities):
-        col_idx = idx % len(city_cols_btns)
-        with city_cols_btns[col_idx]:
-          btn_label = f"📍 {c_name}"
-          if st.session_state["selected_city_filter"] == c_name:
-            btn_label = f"✅ {c_name}"
-          if st.button(btn_label, key=f"city_btn_{idx}"):
-            st.session_state["selected_city_filter"] = c_name
-            st.rerun()
-    else:
-      st.markdown("<p>لا توجد بيانات كافية لعرض ملخص المحافظات.</p>", unsafe_allow_html=True)
+    city_cols_btns = st.columns(
+        min(len(available_cities), 6) if len(available_cities) > 0 else 1
+    )
+    for idx, c_name in enumerate(available_cities):
+      col_idx = idx % len(city_cols_btns)
+      with city_cols_btns[col_idx]:
+        btn_label = f"📍 {c_name}"
+        if st.session_state["selected_city_filter"] == c_name:
+          btn_label = f"✅ {c_name}"
+        if st.button(btn_label, key=f"city_btn_{idx}"):
+          st.session_state["selected_city_filter"] = c_name
+          st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(
