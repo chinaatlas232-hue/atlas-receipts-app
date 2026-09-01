@@ -315,12 +315,13 @@ with st.sidebar:
     return df_s
 
 
-  # --- الفلاتر في القائمة الجانبية ---
+  # --- الفلاتر في القائمة الجانبية (مع إضافة فلتر المدينة) ---
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
   selected_shipment_filter = "الكل"
   selected_code_filter = "الكل"
   selected_type_filter = "الكل"
+  selected_city_filter = "الكل"  # [تعديل] إضافة متغير فلتر المدينة
 
   temp_df = load_and_merge_data(ship_mtime, cust_mtime)
   if temp_df is not None and not temp_df.empty:
@@ -349,6 +350,31 @@ with st.sidebar:
         filtered_temp_df = filtered_temp_df[
             filtered_temp_df[ship_col] == selected_shipment_filter
         ]
+
+      # [تعديل] إضافة خيار تصفية عمود المدينة في القائمة الجانبية
+      city_col_temp = next(
+          (
+              c
+              for c in filtered_temp_df.columns
+              if "مدينة" in str(c) or "محافظ" in str(c) or "city" in str(c).lower()
+          ),
+          None,
+      )
+      if city_col_temp:
+        filtered_temp_df[city_col_temp] = (
+            filtered_temp_df[city_col_temp]
+            .fillna("غير محدد")
+            .astype(str)
+            .str.strip()
+        )
+        city_list = ["الكل"] + sorted(
+            filtered_temp_df[city_col_temp].unique().tolist()
+        )
+        selected_city_filter = st.selectbox("اختر المدينة / المحافظة:", city_list)
+        if selected_city_filter != "الكل":
+          filtered_temp_df = filtered_temp_df[
+              filtered_temp_df[city_col_temp] == selected_city_filter
+          ]
 
       code_col = next(
           (
@@ -462,6 +488,10 @@ if active_data_file is not None and active_template_file is not None:
 
     if selected_shipment_filter != "الكل":
       df = df[df[ship_col] == selected_shipment_filter]
+
+    # [تعديل] تطبيق فلتر المدينة على البيانات الأساسية
+    if selected_city_filter != "الكل" and city_col_name in df.columns:
+      df = df[df[city_col_name] == selected_city_filter]
 
     if selected_code_filter != "الكل" and code_col:
       df = df[df[code_col] == selected_code_filter]
@@ -913,8 +943,8 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(
-        f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع:"
-        f" [{selected_type_filter}]"
+        f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - المدينة:"
+        f" [{selected_city_filter}] - النوع: [{selected_type_filter}]"
     )
 
     display_table_df = df_grouped.copy()
@@ -974,7 +1004,7 @@ if active_data_file is not None and active_template_file is not None:
     st.html(custom_table_styling)
 
     # -------------------------------------------------------------
-    # كود تصدير ومعاينة الطباعة المحدث (لحل مشكلة اختفاء الأعمدة اليمنى)
+    # كود تصدير ومعاينة الطباعة المحدث
     # -------------------------------------------------------------
     table_pdf_html_component = f"""
         <!DOCTYPE html>
@@ -1009,7 +1039,7 @@ if active_data_file is not None and active_template_file is not None:
             <script>
                 const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
                 const citySummaryContent = `{city_table_html.replace('`', '\\`').replace('$', '\\$')}`;
-                const filterInfo = 'الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}';
+                const filterInfo = 'الشحنة: {selected_shipment_filter} | المدينة: {selected_city_filter} | النوع: {selected_type_filter}';
                 const totalClients = '{total_clients_count} عميل';
                 const totalPackages = '{total_packages_count} طرد';
                 const totalCbm = '{total_cbm_sum:,.2f} CBM';
@@ -1051,7 +1081,6 @@ if active_data_file is not None and active_template_file is not None:
                                 .metric-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; }}
                                 .metric-val {{ font-size: 12px; font-weight: bold; margin: 0; }}
                                 
-                                /* تعديل الجداول لجعلها تتسع لجميع الأعمدة دون قص عبر ضغط المساحة والخط */
                                 table {{ width: 100% !important; border-collapse: collapse; font-size: 8.5px !important; margin-top: 5px; table-layout: fixed; }}
                                 th, td {{ padding: 4px 3px !important; border: 1px solid #cbd5e1; text-align: right; overflow: hidden; word-wrap: break-word; }}
                                 th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
