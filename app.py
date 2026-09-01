@@ -808,6 +808,17 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
+    # --- تعديل عرض عمود عدد الطرود ليظهر الرقم فقط دون وحدة "طرد" في الجدول المعروض ---
+    if packages_col and packages_col in df_grouped.columns:
+      try:
+        df_grouped[packages_col] = df_grouped[packages_col].apply(
+            lambda x: int(float(x))
+            if pd.notnull(x) and str(x).replace(".", "", 1).isdigit()
+            else x
+        )
+      except Exception:
+        pass
+
     # --- إضافة علامة $ لعمودي "سعر" و"اجمالي مبيعات" (أو ما شابهها) في الجدول المعروض ---
     for col in df_grouped.columns:
       col_str = str(col).lower()
