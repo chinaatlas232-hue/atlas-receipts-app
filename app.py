@@ -17,10 +17,6 @@ template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
 logo_path = os.path.join(UPLOAD_DIR, "logo.png")
 customer_info_path = os.path.join(UPLOAD_DIR, "customer_info.xlsx")
 
-# --- تهيئة حالة الجلسة للمدينة المحددة ---
-if "selected_city_filter" not in st.session_state:
-  st.session_state["selected_city_filter"] = "الكل"
-
 # --- تنسيق الشريط الجانبي ---
 st.markdown(
     """
@@ -112,7 +108,6 @@ with st.sidebar:
     ]:
       if os.path.exists(path):
         os.remove(path)
-    st.session_state["selected_city_filter"] = "الكل"
     st.cache_data.clear()
     st.rerun()
 
@@ -312,6 +307,7 @@ with st.sidebar:
       except Exception as e:
         print(f"Merge error: {e}")
 
+    # تعديل اسم عمود السعر في الداتا فريم ليظهر باسم "سعر" بدلاً من "سعر الكيلو"
     for col in df_s.columns:
       if "سعر" in str(col):
         df_s.rename(columns={col: "سعر"}, inplace=True)
@@ -319,10 +315,88 @@ with st.sidebar:
     return df_s
 
 
-  # --- الفلاتر في القائمة الجانبية (تم إخفاؤها أو تبقيتها برمجياً لتجنب كسر الكود) ---
+  # --- الفلاتر في القائمة الجانبية ---
+  st.markdown("---")
+  st.header("🔍 فلتر الشحنات")
   selected_shipment_filter = "الكل"
   selected_code_filter = "الكل"
   selected_type_filter = "الكل"
+
+  temp_df = load_and_merge_data(ship_mtime, cust_mtime)
+  if temp_df is not None and not temp_df.empty:
+    try:
+      ship_col = next(
+          (
+              c
+              for c in temp_df.columns
+              if "شحنة" in str(c) or "shipment" in str(c).lower()
+          ),
+          temp_df.columns[0],
+      )
+      temp_df[ship_col] = (
+          temp_df[ship_col]
+          .fillna("بدون شحنة")
+          .astype(str)
+          .str.replace(".0", "", regex=False)
+      )
+      shipment_list = ["الكل"] + sorted(temp_df[ship_col].unique().tolist())
+      selected_shipment_filter = st.selectbox(
+          "اختر الشحنة للعرض:", shipment_list
+      )
+
+      filtered_temp_df = temp_df.copy()
+      if selected_shipment_filter != "الكل":
+        filtered_temp_df = filtered_temp_df[
+            filtered_temp_df[ship_col] == selected_shipment_filter
+        ]
+
+      code_col = next(
+          (
+              c
+              for c in filtered_temp_df.columns
+              if "كود" in str(c) or "code" in str(c).lower()
+          ),
+          None,
+      )
+      if code_col:
+        filtered_temp_df[code_col] = (
+            filtered_temp_df[code_col]
+            .fillna("بدون كود")
+            .astype(str)
+            .str.replace(".0", "", regex=False)
+        )
+        code_list = ["الكل"] + sorted(
+            filtered_temp_df[code_col].unique().tolist()
+        )
+        selected_code_filter = st.selectbox(
+            "اختر أو ابحث برقم الكود:", code_list
+        )
+        if selected_code_filter != "الكل":
+          filtered_temp_df = filtered_temp_df[
+              filtered_temp_df[code_col] == selected_code_filter
+          ]
+
+      type_col = next(
+          (
+              c
+              for c in filtered_temp_df.columns
+              if "نوع" in str(c) or "type" in str(c).lower()
+          ),
+          None,
+      )
+      if type_col:
+        filtered_temp_df[type_col] = (
+            filtered_temp_df[type_col]
+            .fillna("غير محدد")
+            .astype(str)
+            .str.strip()
+        )
+        type_list = ["الكل"] + sorted(
+            filtered_temp_df[type_col].unique().tolist()
+        )
+        selected_type_filter = st.selectbox("اختر نوع الشحنة:", type_list)
+    except Exception:
+      pass
 
 active_data_file = shipment_path if os.path.exists(shipment_path) else None
 active_template_file = template_path if os.path.exists(template_path) else None
@@ -386,7 +460,6 @@ if active_data_file is not None and active_template_file is not None:
           df[city_col_name].fillna("غير محدد").astype(str).str.strip()
       )
 
-    # --- تطبيق الفلاتر الجانبية الأساسية أولاً ---
     if selected_shipment_filter != "الكل":
       df = df[df[ship_col] == selected_shipment_filter]
 
@@ -396,124 +469,8 @@ if active_data_file is not None and active_template_file is not None:
     if selected_type_filter != "الكل" and type_col_name:
       df = df[df[type_col_name] == selected_type_filter]
 
-    # --- حساب جدول ملخص المحافظات أولاً لاستخراج المدن المتاحة ---
-    city_group_col = (
-        city_col_name if city_col_name in df.columns else "المدينة"
-    )
-    if city_group_col not in df.columns:
-      df["المدينة"] = "غير محدد"
-      city_group_col = "المدينة"
-
-    agg_city_dict = {}
-    if (
-        next(
-            (
-                c
-                for c in df.columns
-                if "طرود" in c or "packages" in c.lower()
-            ),
-            None,
-        )
-    ):
-      p_col_temp = next(
-          c for c in df.columns if "طرود" in c or "packages" in c.lower()
-      )
-      agg_city_dict[p_col_temp] = "sum"
-    if next((c for c in df.columns if "cbm" in c.lower() or "حجم" in c), None):
-      c_col_temp = next(
-          c for c in df.columns if "cbm" in c.lower() or "حجم" in c
-      )
-      agg_city_dict[c_col_temp] = "sum"
-
-    sales_col_temp = next(
-        (
-            c
-            for c in df.columns
-            if "مبيعات" in c or "اجمالي" in c or "total" in c.lower()
-        ),
-        None,
-    )
-    weight_col_temp = next(
-        (c for c in df.columns if "وزن" in c or "weight" in c.lower()), None
-    )
-    price_col_temp = next(
-        (c for c in df.columns if "سعر" in c or "price" in c.lower()), None
-    )
-
-    if sales_col_temp and sales_col_temp in df.columns:
-      agg_city_dict[sales_col_temp] = "sum"
-    elif weight_col_temp and price_col_temp:
-      df["__calc_sales__"] = df[weight_col_temp] * df[price_col_temp]
-      agg_city_dict["__calc_sales__"] = "sum"
-
-    if agg_city_dict:
-      df_city_summary = df.groupby(city_group_col, as_index=False).agg(
-          agg_city_dict
-      )
-      if "__calc_sales__" in df_city_summary.columns:
-        df_city_summary.rename(
-            columns={"__calc_sales__": "إجمالي الديون / المبيعات ($)"},
-            inplace=True,
-        )
-      if (
-          sales_col_temp
-          and sales_col_temp in df_city_summary.columns
-          and sales_col_temp != "إجمالي الديون / المبيعات ($)"
-      ):
-        df_city_summary.rename(
-            columns={sales_col_temp: "إجمالي الديون / المبيعات ($)"},
-            inplace=True,
-        )
-
-      p_col_matched = next(
-          (c for c in df_city_summary.columns if "طرود" in c), None
-      )
-      if p_col_matched:
-        df_city_summary.rename(
-            columns={p_col_matched: "إجمالي الطرود"}, inplace=True
-        )
-
-      c_col_matched = next(
-          (c for c in df_city_summary.columns if "cbm" in c.lower()), None
-      )
-      if c_col_matched:
-        df_city_summary.rename(
-            columns={c_col_matched: "إجمالي الحجم (CBM)"}, inplace=True
-        )
-
-      df_city_summary.insert(0, "التسلسل", range(1, len(df_city_summary) + 1))
-    else:
-      df_city_summary = pd.DataFrame()
-
-    # --- فلترة البيانات بناءً على المدينة المختار النقر عليها من الجدول ---
-    available_cities = (
-        ["الكل"] + sorted(df[city_group_col].unique().tolist())
-        if not df.empty
-        else ["الكل"]
-    )
-    if st.session_state["selected_city_filter"] not in available_cities:
-      st.session_state["selected_city_filter"] = "الكل"
-
-    # أداة اختيار المدينة التفاعلية أعلاه لتحديث الشاشة فوراً عند الضغط
-    st.markdown(
-        "### 📌 اختر المدينة لعرض تفاصيلها وكوداتها (أو اضغط عليها من الجدول"
-        " أدناه)"
-    )
-    selected_city = st.selectbox(
-        "اختر المدينة:",
-        available_cities,
-        index=available_cities.index(st.session_state["selected_city_filter"]),
-        key="city_selectbox_ui",
-    )
-    if selected_city != st.session_state["selected_city_filter"]:
-      st.session_state["selected_city_filter"] = selected_city
-      st.rerun()
-
-    if st.session_state["selected_city_filter"] != "الكل":
-      df = df[df[city_group_col] == st.session_state["selected_city_filter"]]
-
     if df.empty:
-      st.warning("⚠️ لا توجد بيانات مطابقة للمدينة المحددة.")
+      st.warning("⚠️ لا توجد بيانات مطابقة للفلاتر المحددة.")
       st.stop()
 
     today_date = datetime.date.today().strftime("%Y-%m-%d")
@@ -821,7 +778,7 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
-    # --- نقل بطاقات الإحصائيات العامة لتكون في أعلى الشاشة وتتحدث تلقائياً ---
+    # --- نقل بطاقات الإحصائيات العامة لتكون في أعلى الشاشة ---
     st.markdown(
         """
         <style>
@@ -879,28 +836,66 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- جدول ملخص المحافظات التفاعلي (تمت إزالته بناءً على الطلب، مع الاحتفاظ بفلتر اختيار المدينة في الأعلى فقط) ---
+    # --- جدول ملخص المحافظات ---
+    st.subheader("📊 ملخص الإحصائيات والديون حسب المحافظات (المدن)")
 
-    # --- أداة اختيار المدينة التفاعلية الوحيدة المتبقية في الأعلى ---
-    st.markdown(
-        "**اختر المدينة مباشرة لتصفية تفاصيل الشحنات وكوداتها أدناه:**"
+    city_group_col = (
+        city_col_name if city_col_name in df.columns else "المدينة"
     )
-    city_cols_btns = st.columns(
-        min(len(available_cities), 6) if len(available_cities) > 0 else 1
-    )
-    for idx, c_name in enumerate(available_cities):
-      col_idx = idx % len(city_cols_btns)
-      with city_cols_btns[col_idx]:
-        btn_label = f"📍 {c_name}"
-        if st.session_state["selected_city_filter"] == c_name:
-          btn_label = f"✅ {c_name}"
-        if st.button(btn_label, key=f"city_btn_{idx}"):
-          st.session_state["selected_city_filter"] = c_name
-          st.rerun()
+    if city_group_col not in df.columns:
+      df["المدينة"] = "غير محدد"
+      city_group_col = "المدينة"
+
+    agg_city_dict = {}
+    if packages_col and packages_col in df.columns:
+      agg_city_dict[packages_col] = "sum"
+    if cbm_col and cbm_col in df.columns:
+      agg_city_dict[cbm_col] = "sum"
+    if sales_col and sales_col in df.columns:
+      agg_city_dict[sales_col] = "sum"
+    elif weight_col and price_col:
+      df["__calc_sales__"] = df[weight_col] * df[price_col]
+      agg_city_dict["__calc_sales__"] = "sum"
+
+    if agg_city_dict:
+      df_city_summary = df.groupby(city_group_col, as_index=False).agg(
+          agg_city_dict
+      )
+      if "__calc_sales__" in df_city_summary.columns:
+        df_city_summary.rename(
+            columns={"__calc_sales__": "إجمالي الديون / المبيعات ($)"},
+            inplace=True,
+        )
+      if (
+          sales_col
+          and sales_col in df_city_summary.columns
+          and sales_col != "إجمالي الديون / المبيعات ($)"
+      ):
+        df_city_summary.rename(
+            columns={sales_col: "إجمالي الديون / المبيعات ($)"}, inplace=True
+        )
+      if packages_col and packages_col in df_city_summary.columns:
+        df_city_summary.rename(
+            columns={packages_col: "إجمالي الطرود"}, inplace=True
+        )
+      if cbm_col and cbm_col in df_city_summary.columns:
+        df_city_summary.rename(
+            columns={cbm_col: "إجمالي الحجم (CBM)"}, inplace=True
+        )
+
+      df_city_summary.insert(0, "التسلسل", range(1, len(df_city_summary) + 1))
+      city_table_html = df_city_summary.to_html(
+          classes="custom-table", index=False, escape=False
+      )
+      st.html(f"""<div class="custom-table-container">{city_table_html}</div>""")
+    else:
+      df_city_summary = pd.DataFrame()
+      city_table_html = "<p>لا توجد بيانات كافية لعرض ملخص المحافظات.</p>"
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(
-        f"📋 جدول تفاصيل الشحنة وكودات المدينة: [{st.session_state['selected_city_filter']}]"
+        f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع:"
+        f" [{selected_type_filter}]"
     )
 
     display_table_df = df_grouped.copy()
@@ -960,7 +955,7 @@ if active_data_file is not None and active_template_file is not None:
     st.html(custom_table_styling)
 
     # -------------------------------------------------------------
-    # كود تصدير ومعاينة الطباعة
+    # كود تصدير ومعاينة الطباعة المحدث (لحل مشكلة اختفاء الأعمدة اليمنى)
     # -------------------------------------------------------------
     table_pdf_html_component = f"""
         <!DOCTYPE html>
@@ -994,8 +989,8 @@ if active_data_file is not None and active_template_file is not None:
             <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول الحالي وتقرير المحافظات إلى PDF</button>
             <script>
                 const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
-                const citySummaryContent = `{df_city_summary.to_html(classes="custom-table", index=False, escape=False).replace('`', '\\`').replace('$', '\\$')}`;
-                const filterInfo = 'المدينة: {st.session_state["selected_city_filter"]}';
+                const citySummaryContent = `{city_table_html.replace('`', '\\`').replace('$', '\\$')}`;
+                const filterInfo = 'الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}';
                 const totalClients = '{total_clients_count} عميل';
                 const totalPackages = '{total_packages_count} طرد';
                 const totalCbm = '{total_cbm_sum:,.2f} CBM';
@@ -1036,6 +1031,8 @@ if active_data_file is not None and active_template_file is not None:
                                 .box-5 {{ background-color: #fdf2f8 !important; border-color: #fbcfe8; color: #9d174d; }}
                                 .metric-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; }}
                                 .metric-val {{ font-size: 12px; font-weight: bold; margin: 0; }}
+                                
+                                /* تعديل الجداول لجعلها تتسع لجميع الأعمدة دون قص عبر ضغط المساحة والخط */
                                 table {{ width: 100% !important; border-collapse: collapse; font-size: 8.5px !important; margin-top: 5px; table-layout: fixed; }}
                                 th, td {{ padding: 4px 3px !important; border: 1px solid #cbd5e1; text-align: right; overflow: hidden; word-wrap: break-word; }}
                                 th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
@@ -1136,3 +1133,4 @@ else:
   st.info(
       "الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي."
   )
+
