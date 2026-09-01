@@ -327,12 +327,15 @@ with st.sidebar:
       except Exception as e:
         print(f"Merge error: {e}")
 
-    # تعديل اسم عمود السعر بأمان دون التأثير على بقية الأعمدة المرتبطة
+    # تعديل اسم عمود السعر بأمان وحذف كلمة الكيلو لتصبح "السعر"
     for col in list(df_s.columns):
-      if col == "سعر الكيلو" or col == "السعر":
+      if col == "سعر الكيلو":
+        df_s.rename(columns={col: "السعر"}, inplace=True)
         continue
-      if "سعر" in str(col) and col != "سعر":
-        df_s.rename(columns={col: "سعر"}, inplace=True)
+      if col == "السعر":
+        continue
+      if "سعر" in str(col) and col != "السعر":
+        df_s.rename(columns={col: "السعر"}, inplace=True)
         break
 
     return df_s
@@ -580,7 +583,7 @@ if active_data_file is not None and active_template_file is not None:
       total_packages_count += packages
 
       price_col = next(
-          (c for c in df.columns if c == "سعر" or "سعر" in c), None
+          (c for c in df.columns if c == "السعر" or "سعر" in c), None
       )
       price_per_kg = float(row.get(price_col, 0) or 0) if price_col else 0.0
 
@@ -1067,6 +1070,7 @@ if active_data_file is not None and active_template_file is not None:
                         </head>
                         <body>
                             <div class="metrics-grid">
+                                .
                                 <div class="metric-box box-1">
                                     <div class="metric-title">👥 عدد العملاء</div>
                                     <div class="metric-val">${{totalClients}}</div>
