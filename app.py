@@ -857,7 +857,7 @@ if active_data_file is not None and active_template_file is not None:
       df_city_summary = df.groupby(city_group_col, as_index=False).agg(
           agg_city_dict
       )
-      
+
       rename_mapping = {}
       if code_col in df_city_summary.columns:
         rename_mapping[code_col] = "عدد العملاء"
@@ -957,7 +957,7 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
 
-    # --- تجهيز زر تصدير Excel باستخدام Streamlit download_button ---
+    # --- تجهيز زر تصدير Excel باستخدام Streamlit download_button والأزرار الإضافية ---
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
       display_table_df.to_excel(writer, sheet_name="تفاصيل الشحنات", index=False)
@@ -965,12 +965,66 @@ if active_data_file is not None and active_template_file is not None:
         df_city_summary.to_excel(writer, sheet_name="ملخص المحافظات", index=False)
     excel_buffer.seek(0)
 
-    col_btn1, col_btn2 = st.columns([1, 1])
+    # --- تجهيز ملف إكسل خاص بـ "جرد الساحة" (التسلسل، الكود، عدد الطرود، الجرد) ---
+    yard_inventory_buffer = io.BytesIO()
+    with pd.ExcelWriter(yard_inventory_buffer, engine="openpyxl") as writer:
+      yard_df = pd.DataFrame()
+      yard_df["التسلسل"] = range(1, len(display_table_df) + 1)
+      
+      # استخراج عمود الكود من البيانات المعروضة إن وجد
+      extracted_code = display_table_df[code_col] if code_col and code_col in display_table_df.columns else [""] * len(display_table_df)
+      yard_df["الكود"] = extracted_code
+
+      # استخراج عمود الطرود من البيانات المعروضة إن وجد
+      extracted_packages = display_table_df[packages_col] if packages_col and packages_col in display_table_df.columns else [0] * len(display_table_df)
+      yard_df["عدد الطرود"] = extracted_packages
+
+      # عمود الجرد فارغ تماماً كما مطلوب
+      yard_df["الجرد"] = ""
+
+      yard_df.to_excel(writer, sheet_name="جرد الساحة", index=False)
+    yard_inventory_buffer.seek(0)
+
+    # --- تصميم الأزرار (تصدير إكسل، جرد الساحة باللون الأصفر، وتصدير PDF) ---
+    col_btn1, col_btn_yard, col_btn2 = st.columns([1, 1, 1])
+    
     with col_btn1:
       st.download_button(
           label="📥 تصدير الجدول الحالي إلى إكسل",
           data=excel_buffer,
           file_name=f"Shipment_Report_{selected_shipment_filter}.xlsx",
+          mime=(
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          ),
+      )
+
+    with col_btn_yard:
+      # تطبيق الستايل الخاص بالزر الأصفر لتنسيق جرد الساحة داخل Streamlit
+      st.markdown(
+          """
+          <style>
+          div.stDownloadButton > button:nth-of-type(1) {
+              background-color: transparent;
+          }
+          /* تخصيص زر جرد الساحة بلون أصفر مميز */
+          div[data-testid="column"]:nth-of-type(2) button {
+              background-color: #facc15 !important;
+              color: #713f12 !important;
+              font-weight: bold !important;
+              border: 1px solid #eab308 !important;
+          }
+          div[data-testid="column"]:nth-of-type(2) button:hover {
+              background-color: #eab308 !important;
+              color: #422006 !important;
+          }
+          </style>
+          """,
+          unsafe_allow_html=True,
+      )
+      st.download_button(
+          label="🟡 جرد الساحة",
+          data=yard_inventory_buffer,
+          file_name=f"Yard_Inventory_{selected_shipment_filter}.xlsx",
           mime=(
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           ),
