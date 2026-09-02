@@ -983,11 +983,29 @@ if active_data_file is not None and active_template_file is not None:
       )
       yard_df["عدد الطرود"] = extracted_packages
 
-      yard_df["الجرد"] = ""
+      yard_df["الجرد الفعلي"] = ""
+
+      address_col_name = next(
+          (
+              c
+              for c in display_table_df.columns
+              if "عنوان" in c
+              or "address" in c.lower()
+              or "البض" in c
+              or "البظ" in c
+          ),
+          None,
+      )
+      yard_df["العنوان"] = (
+          display_table_df[address_col_name]
+          if address_col_name and address_col_name in display_table_df.columns
+          else ""
+      )
+
       yard_df.to_excel(writer, sheet_name="جرد الساحة", index=False)
     yard_inventory_buffer.seek(0)
 
-    # --- إنشاء جدول وطباعة جرد الساحة بتنسيق A4 (مع توسيع أقصى لعمود الجرد الفعلي وتقليل بقية الأعمدة) ---
+    # --- إنشاء جدول وطباعة جرد الساحة بتنسيق A4 (مع وضع عمود العنوان بدل الملاحظات) ---
     yard_display_df = pd.DataFrame()
     yard_display_df["التسلسل"] = range(1, len(display_table_df) + 1)
     yard_display_df["الكود"] = (
@@ -1001,7 +1019,24 @@ if active_data_file is not None and active_template_file is not None:
         else 0
     )
     yard_display_df["الجرد الفعلي"] = ""
-    yard_display_df["الملاحظات"] = ""
+
+    address_col_name = next(
+        (
+            c
+            for c in display_table_df.columns
+            if "عنوان" in c
+            or "address" in c.lower()
+            or "البض" in c
+            or "البظ" in c
+        ),
+        None,
+    )
+    yard_display_df["العنوان"] = (
+        display_table_df[address_col_name]
+        if address_col_name and address_col_name in display_table_df.columns
+        else ""
+    )
+
     yard_table_html = yard_display_df.to_html(
         classes="custom-table yard-table", index=False, escape=False
     )
@@ -1166,7 +1201,7 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- مكون طباعة جرد الساحة (نسق A4 عمودي مع توسيع أقصى لعمود الجرد الفعلي) ---
+    # --- مكون طباعة جرد الساحة (نسق A4 عمودي مع عمود العنوان بدل الملاحظات) ---
     yard_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -1222,16 +1257,16 @@ if active_data_file is not None and active_template_file is not None:
                                 p {{ margin: 5px 0 0; font-size: 12px; color: #627d98; }}
                                 .info-bar {{ font-size: 13px; font-weight: bold; margin-bottom: 15px; background: #f0f4f8; padding: 8px; border: 1px solid #bcccdc; border-radius: 4px; }}
                                 
-                                /* تخصيص أعمدة جدول جرد الساحة لإعطاء أقصى مساحة ممكنة للجرد الفعلي وضغط البقية */
+                                /* تخصيص أعمدة جدول جرد الساحة مع إعطاء عمود العنوان المساحة المناسبة */
                                 table {{ width: 100% !important; border-collapse: collapse; font-size: 12px !important; margin-top: 5px; table-layout: fixed; }}
                                 th, td {{ padding: 8px 6px !important; border: 1px solid #94a3b8; text-align: right; overflow: hidden; }}
                                 
-                                /* تعديل النسب: تقليص الأعمدة الأخرى وتوسيع الجرد الفعلي بشكل كبير جداً */
-                                th:nth-child(1), td:nth-child(1) {{ width: 9%; text-align: center; }}  /* التسلسل */
-                                th:nth-child(2), td:nth-child(2) {{ width: 18%; }} /* الكود */
-                                th:nth-child(3), td:nth-child(3) {{ width: 14%; text-align: center; }} /* عدد الطرود */
-                                th:nth-child(4), td:nth-child(4) {{ width: 44%; }} /* الجرد الفعلي (تمت زيادة مساحته للحد الأقصى) */
-                                th:nth-child(5), td:nth-child(5) {{ width: 15%; }} /* الملاحظات */
+                                /* توزيع النسب: التسلسل، الكود، عدد الطرود، الجرد الفعلي، والعنوان */
+                                th:nth-child(1), td:nth-child(1) {{ width: 8%; text-align: center; }}  /* التسلسل */
+                                th:nth-child(2), td:nth-child(2) {{ width: 16%; }} /* الكود */
+                                th:nth-child(3), td:nth-child(3) {{ width: 13%; text-align: center; }} /* عدد الطرود */
+                                th:nth-child(4), td:nth-child(4) {{ width: 25%; }} /* الجرد الفعلي */
+                                th:nth-child(5), td:nth-child(5) {{ width: 38%; }} /* العنوان (مكان الملاحظات) */
 
                                 th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                 tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
