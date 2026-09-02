@@ -2,13 +2,20 @@ import base64
 import datetime
 import io
 import os
+import gdown
 import openpyxl
 import pandas as pd
 import streamlit as st
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
-# --- مسارات الملفات ---
+# --- إعدادات التحميل التلقائي من Google Drive ---
+# المعرفات الخاصة بملفاتك على جوجل درايف
+TEMPLATE_FILE_ID = "1_DxNo3KIWWdSQ-Q4r_hatsYZ0sYT8ier"
+# يمكنك استبدال أو إضافة معرفات بقية الملفات هنا إذا أردت جلبها تلقائياً:
+# SHIPMENT_FILE_ID = "معرف_ملف_الشحنات_هنا"
+# CUSTOMER_FILE_ID = "معرف_ملف_العملاء_هنا"
+
 UPLOAD_DIR = "saved_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -16,6 +23,23 @@ shipment_path = os.path.join(UPLOAD_DIR, "shipments_data.xlsx")
 template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
 logo_path = os.path.join(UPLOAD_DIR, "logo.png")
 customer_info_path = os.path.join(UPLOAD_DIR, "customer_info.xlsx")
+
+
+# دالة التحميل التلقائي من جوجل درايف
+@st.cache_resource
+def download_from_drive(file_id, output_path):
+  try:
+    url = f"https://drive.google.com/uc?id={file_id}"
+    gdown.download(url, output_path, quiet=False, fuzzy=True)
+  except Exception as e:
+    print(f"Error downloading from drive: {e}")
+
+
+# جلب قالب الوصل تلقائياً إذا لم يكن موجوداً
+if not os.path.exists(template_path) and TEMPLATE_FILE_ID:
+  with st.spinner("جاري جلب قالب الوصل من Google Drive..."):
+    download_from_drive(TEMPLATE_FILE_ID, template_path)
+
 
 # --- تنسيق الشريط الجانبي ---
 st.markdown(
