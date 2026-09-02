@@ -4,6 +4,7 @@ import io
 import os
 import openpyxl
 import pandas as pd
+import requests
 import streamlit as st
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
@@ -14,7 +15,7 @@ TEMPLATE_FILE_ID = "1_DxNo3KIWWdSQ-Q4r_hatsYZ0sYT8ier"
 LOGO_FILE_ID = "1fAz46COaR6SgT9DNbYqx9Ea9iclQEQTA"
 CUSTOMER_INFO_FILE_ID = "1gCjzU7Gx5alpv7KZY1mxjIVDJO-yvzww"
 
-# --- مسارات التخزين المؤقت المحلية لتشغيل المكتبات بسلاسة ---
+# --- مسارات التخزين المؤقت المحلية ---
 UPLOAD_DIR = "saved_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -24,45 +25,53 @@ logo_path = os.path.join(UPLOAD_DIR, "logo.png")
 customer_info_path = os.path.join(UPLOAD_DIR, "customer_info.xlsx")
 
 
-# --- دالة سحب الملفات تلقائياً من جوجل درايف ---
+# --- دالة موثوقة لتنزيل الملفات من Google Drive (تتجاوز شاشات التحذير) ---
+def download_file_from_google_drive(file_id, destination):
+  URL = "https://docs.google.com/uc?export=download"
+  session = requests.Session()
+  response = session.get(URL, params={"id": file_id}, stream=True)
+
+  # البحث عن رمز تأكيد الحماية (للملفات التي تظهر صفحة تحذير فيروسات)
+  token = None
+  for key, value in response.cookies.items():
+    if key.startswith("download_warning"):
+      token = value
+      break
+
+  if token:
+    params = {"id": file_id, "confirm": token}
+    response = session.get(URL, params=params, stream=True)
+
+  # حفظ الملف محلياً
+  with open(destination, "wb") as f:
+    for chunk in response.iter_content(32768):
+      if chunk:
+        f.write(chunk)
+
+
 @st.cache_data(ttl=300)
 def download_files_from_drive():
   try:
     # 1. سحب ملف الشحنات
-    url_shipment = f"https://docs.google.com/spreadsheets/d/{SHIPMENT_FILE_ID}/export?format=xlsx"
-    df_s_temp = pd.read_excel(url_shipment)
-    df_s_temp.to_excel(shipment_path, index=False)
+    download_file_from_google_drive(SHIPMENT_FILE_ID, shipment_path)
 
     # 2. سحب قالب الوصل
-    url_template = f"https://docs.google.com/spreadsheets/d/{TEMPLATE_FILE_ID}/export?format=xlsx"
-    df_t_temp = pd.read_excel(url_template)
-    # لحفظ قالب الإكسل بشكل سليم
-    wb_temp = openpyxl.load_workbook(url_shipment)  # مؤقت للاختبار أو تنزيل مباشر
-    # البديل الأضمن لتنزيل ملفات الإكسل الخام من درايف:
-    import urllib.request
-
-    urllib.request.urlretrieve(
-        f"https://drive.google.com/uc?export=download&id={TEMPLATE_FILE_ID}",
-        template_path,
-    )
+    download_file_from_google_drive(TEMPLATE_FILE_ID, template_path)
 
     # 3. سحب شعار الشركة (Logo)
-    urllib.request.urlretrieve(
-        f"https://drive.google.com/uc?export=download&id={LOGO_FILE_ID}",
-        logo_path,
-    )
+    download_file_from_google_drive(LOGO_FILE_ID, logo_path)
 
     # 4. سحب ملف معلومات العملاء
-    urllib.request.urlretrieve(
-        f"https://drive.google.com/uc?export=download&id={CUSTOMER_INFO_FILE_ID}",
-        customer_info_path,
-    )
+    download_file_from_google_drive(CUSTOMER_INFO_FILE_ID, customer_info_path)
+
+    return True
   except Exception as e:
-    print(f"Drive Sync Error: {e}")
+    st.error(f"خطأ أثناء السحب من درايف: {e}")
+    return False
 
 
 # تنفيذ المزامنة التلقائية عند التشغيل
-download_files_from_drive()
+success_sync = download_files_from_drive()
 
 # --- تنسيق الشريط الجانبي ---
 st.markdown(
@@ -103,14 +112,16 @@ with st.sidebar:
   )
 
   st.header("⚙️ إدارة الملفات")
-  st.success("✅ متصل بـ Google Drive (تحديث تلقائي دائم)")
+  if success_sync:
+    st.success("✅ متصل بـ Google Drive بنجاح")
+  else:
+    st.error("⚠️ فشل الاتصال، يجدر التحقق من الروابط.")
 
   if st.button("🔄 تحديث البيانات وسحبها من درايف"):
     st.cache_data.clear()
     download_files_from_drive()
     st.rerun()
 
-  # --- تتبع وقت التعديل لتحديث الذاكرة المؤقتة ---
   ship_mtime = (
       os.path.getmtime(shipment_path) if os.path.exists(shipment_path) else 0
   )
@@ -126,7 +137,11 @@ with st.sidebar:
     if not os.path.exists(shipment_path):
       return None
 
-    df_s = pd.read_excel(shipment_path)
+    try:
+      df_s = pd.read_excel(shipment_path)
+    except Exception:
+      return None
+
     df_s.columns = df_s.columns.astype(str).str.strip()
 
     if os.path.exists(customer_info_path):
@@ -305,8 +320,8 @@ with st.sidebar:
           )
 
           df_s.drop(columns=["__s_code__"], errors="ignore", inplace=True)
-      except Exception as e:
-        print(f"Merge error: {e}")
+      except Exception:
+        pass
 
     for col in list(df_s.columns):
       if col == "سعر الكيلو":
@@ -412,7 +427,7 @@ if active_data_file is not None and active_template_file is not None:
   try:
     df = load_and_merge_data(ship_mtime, cust_mtime)
     if df is None or df.empty:
-      st.warning("⚠️ ملف البيانات فارغ.")
+      st.warning("⚠️ ملف البيانات فارغ أو لم يتم سحبه بنجاح من درايف.")
       st.stop()
 
     ship_col = next(
@@ -483,8 +498,11 @@ if active_data_file is not None and active_template_file is not None:
 
     logo_base64 = ""
     if active_logo and os.path.exists(active_logo):
-      with open(active_logo, "rb") as img_file:
-        logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
+      try:
+        with open(active_logo, "rb") as img_file:
+          logo_base64 = base64.b64encode(img_file.read()).decode("utf-8")
+      except:
+        pass
 
     name_col_for_clients = next(
         (c for c in df.columns if "الاسم" in c or "name" in c.lower()), None
@@ -650,22 +668,23 @@ if active_data_file is not None and active_template_file is not None:
       if shipment_type in ["nan", "None"]:
         shipment_type = ""
 
-      wb = openpyxl.load_workbook(active_template_file)
-      ws = wb.active
-
-      ws["B4"] = display_code
-      ws["D4"] = today_date
-      ws["B5"] = name
-      ws["B6"] = address
-      ws["D5"] = combined_phones
-      ws["B7"] = display_shipment
-      ws["D6"] = packages
-      ws["B8"] = shipment_type
-      ws["D7"] = weight
-
-      output = io.BytesIO()
-      wb.save(output)
-      output.seek(0)
+      try:
+        wb = openpyxl.load_workbook(active_template_file)
+        ws = wb.active
+        ws["B4"] = display_code
+        ws["D4"] = today_date
+        ws["B5"] = name
+        ws["B6"] = address
+        ws["D5"] = combined_phones
+        ws["B7"] = display_shipment
+        ws["D6"] = packages
+        ws["B8"] = shipment_type
+        ws["D7"] = weight
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+      except:
+        output = io.BytesIO()
 
       logo_img_tag = (
           f'<img src="data:image/png;base64,{logo_base64}" style="max-height:'
@@ -749,7 +768,6 @@ if active_data_file is not None and active_template_file is not None:
           "single_html": single_receipt_html,
       })
 
-    # --- تجميع بيانات الجدول حسب كود العميل ---
     group_cols = [
         c
         for c in [
@@ -783,7 +801,6 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
-    # --- تنسيق أعمدة العرض المالي برتبة عشرية واحدة ---
     if sales_col and sales_col in df_grouped.columns:
       df_grouped[sales_col] = df_grouped[sales_col].apply(
           lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0"
@@ -793,7 +810,6 @@ if active_data_file is not None and active_template_file is not None:
           lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0"
       )
 
-    # --- بطاقات الإحصائيات العامة ---
     st.markdown(
         """
         <style>
@@ -851,9 +867,7 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- جدول ملخص المحافظات ---
     st.subheader("📊 ملخص الإحصائيات والديون حسب المحافظات (المدن)")
-
     city_group_col = (
         city_col_name if city_col_name in df.columns else "المدينة"
     )
@@ -913,7 +927,6 @@ if active_data_file is not None and active_template_file is not None:
       )
       st.html(f"""<div class="custom-table-container">{city_table_html}</div>""")
     else:
-      df_city_summary = pd.DataFrame()
       city_table_html = "<p>لا توجد بيانات كافية لعرض ملخص المحافظات.</p>"
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -978,7 +991,6 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
 
-    # --- كود تصدير ومعاينة الطباعة للجدول ---
     table_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -1031,21 +1043,8 @@ if active_data_file is not None and active_template_file is not None:
                                 @page {{ size: A4 landscape; margin: 5mm; }}
                                 body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 5px; }}
                                 h3 {{ color: #102a43; margin-top: 10px; font-size: 13px; border-bottom: 2px solid #102a43; padding-bottom: 3px; }}
-                                .metrics-grid {{
-                                    display: flex;
-                                    justify-content: space-between;
-                                    gap: 5mm;
-                                    margin-bottom: 10px;
-                                }}
-                                .metric-box {{
-                                    flex: 1;
-                                    padding: 6px;
-                                    border-radius: 6px;
-                                    text-align: center;
-                                    border: 1px solid #cbd5e1;
-                                    -webkit-print-color-adjust: exact;
-                                    print-color-adjust: exact;
-                                }}
+                                .metrics-grid {{ display: flex; justify-content: space-between; gap: 5mm; margin-bottom: 10px; }}
+                                .metric-box {{ flex: 1; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #cbd5e1; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                 .box-1 {{ background-color: #eff6ff !important; border-color: #bfdbfe; color: #1e40af; }}
                                 .box-2 {{ background-color: #f0fdf4 !important; border-color: #bbf7d0; color: #166534; }}
                                 .box-3 {{ background-color: #f5f3ff !important; border-color: #ddd6fe; color: #5b21b6; }}
@@ -1061,31 +1060,14 @@ if active_data_file is not None and active_template_file is not None:
                         </head>
                         <body>
                             <div class="metrics-grid">
-                                <div class="metric-box box-1">
-                                    <div class="metric-title">👥 عدد العملاء</div>
-                                    <div class="metric-val">${{totalClients}}</div>
-                                </div>
-                                <div class="metric-box box-2">
-                                    <div class="metric-title">📦 إجمالي الطرود</div>
-                                    <div class="metric-val">${{totalPackages}}</div>
-                                </div>
-                                <div class="metric-box box-3">
-                                    <div class="metric-title">📐 إجمالي الحجم</div>
-                                    <div class="metric-val">${{totalCbm}}</div>
-                                </div>
-                                <div class="metric-box box-4">
-                                    <div class="metric-title">⚖️ الوزن الكلي</div>
-                                    <div class="metric-val">${{totalWeight}}</div>
-                                </div>
-                                <div class="metric-box box-5">
-                                    <div class="metric-title">💰 المبلغ الإجمالي</div>
-                                    <div class="metric-val">${{totalSales}}</div>
-                                </div>
+                                <div class="metric-box box-1"><div class="metric-title">👥 عدد العملاء</div><div class="metric-val">${{totalClients}}</div></div>
+                                <div class="metric-box box-2"><div class="metric-title">📦 إجمالي الطرود</div><div class="metric-val">${{totalPackages}}</div></div>
+                                <div class="metric-box box-3"><div class="metric-title">📐 إجمالي الحجم</div><div class="metric-val">${{totalCbm}}</div></div>
+                                <div class="metric-box box-4"><div class="metric-title">⚖️ الوزن الكلي</div><div class="metric-val">${{totalWeight}}</div></div>
+                                <div class="metric-box box-5"><div class="metric-title">💰 المبلغ الإجمالي</div><div class="metric-val">${{totalSales}}</div></div>
                             </div>
-
                             <h3>📊 ملخص الإحصائيات حسب المحافظات</h3>
                             ${{citySummaryContent}}
-
                             <h3 style="margin-top: 15px;">📋 تفاصيل الشحنات (${{filterInfo}})</h3>
                             ${{tableContent}}
                         </body>
@@ -1150,4 +1132,7 @@ if active_data_file is not None and active_template_file is not None:
   except Exception as e:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
-  st.info("الرجاء التأكد من صلاحية الوصول للملفات على Google Drive.")
+  st.info(
+      "الرجاء التأكد من صلاحية الوصول للملفات والضغط على زر (تحديث البيانات و"
+      "سحبها من درايف)."
+  )
