@@ -1044,6 +1044,7 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(table_pdf_html_component, height=55)
     st.markdown("---")
 
+    # زر طباعة الوصولات دفعة واحدة (مُصلح ومفصول تماماً ليعمل بكفاءة)
     if st.button(
         "🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)",
         key="btn_print_all_batch",
@@ -1201,4 +1202,3 @@ else:
       "الرجاء التأكد من صلاحية الوصول للملفات والضغط على زر (تحديث البيانات و"
       "سحبها من درايف)."
   )
-
