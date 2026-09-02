@@ -981,7 +981,39 @@ if active_data_file is not None and active_template_file is not None:
       yard_df.to_excel(writer, sheet_name="جرد الساحة", index=False)
     yard_inventory_buffer.seek(0)
 
-    # --- تصميم الأزرار (تصدير إكسل، جرد الساحة باللون الأصفر، وتصدير PDF) ---
+    # --- تصميم الأزرار (تصدير إكسل، جرد الساحة باللون الأصفر، وتصدير PDF) مع توحيد الارتفاع والمحاذاة ---
+    st.markdown(
+        """
+        <style>
+        /* توحيد مظهر أزرار الـ download buttons لتتطابق تماماً في الارتفاع والهوامش */
+        div.stButton > button, div.stDownloadButton > button {
+            height: 45px !important;
+            padding-top: 0px !important;
+            padding-bottom: 0px !important;
+            margin-top: 0px !important;
+            margin-bottom: 0px !important;
+            line-height: normal !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        /* تنسيق زر جرد الساحة باللون الأصفر المميز */
+        div[data-testid="column"]:nth-of-type(2) button {
+            background-color: #eab308 !important;
+            color: #422006 !important;
+            font-weight: bold !important;
+            border: 1px solid #ca8a04 !important;
+            width: 100% !important;
+        }
+        div[data-testid="column"]:nth-of-type(2) button:hover {
+            background-color: #ca8a04 !important;
+            color: #ffffff !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     col_btn1, col_btn_yard, col_btn2 = st.columns(3)
 
     with col_btn1:
@@ -996,24 +1028,6 @@ if active_data_file is not None and active_template_file is not None:
       )
 
     with col_btn_yard:
-      st.markdown(
-          """
-          <style>
-          div[data-testid="column"]:nth-of-type(2) button {
-              background-color: #eab308 !important;
-              color: #422006 !important;
-              font-weight: bold !important;
-              border: 1px solid #ca8a04 !important;
-              width: 100% !important;
-          }
-          div[data-testid="column"]:nth-of-type(2) button:hover {
-              background-color: #ca8a04 !important;
-              color: #ffffff !important;
-          }
-          </style>
-          """,
-          unsafe_allow_html=True,
-      )
       st.download_button(
           label="🟡 جرد الساحة",
           data=yard_inventory_buffer,
@@ -1035,7 +1049,8 @@ if active_data_file is not None and active_template_file is not None:
                 .export-btn {{
                     background-color: #102a43;
                     color: white;
-                    padding: 9px 16px;
+                    height: 45px;
+                    padding: 0 16px;
                     border: none;
                     border-radius: 4px;
                     cursor: pointer;
@@ -1044,6 +1059,9 @@ if active_data_file is not None and active_template_file is not None:
                     width: 100%;
                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     font-family: 'Tahoma', Arial, sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }}
                 .export-btn:hover {{
                     background-color: #0b1e33;
