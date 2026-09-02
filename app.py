@@ -964,6 +964,7 @@ if active_data_file is not None and active_template_file is not None:
         df_city_summary.to_excel(writer, sheet_name="ملخص المحافظات", index=False)
     excel_buffer.seek(0)
 
+    # --- تجهيز جرد الساحة (نقل عمود العنوان ليصبح بعد عمود الكود مباشرة) ---
     yard_inventory_buffer = io.BytesIO()
     with pd.ExcelWriter(yard_inventory_buffer, engine="openpyxl") as writer:
       yard_df = pd.DataFrame()
@@ -975,15 +976,6 @@ if active_data_file is not None and active_template_file is not None:
           else [""] * len(display_table_df)
       )
       yard_df["الكود"] = extracted_code
-
-      extracted_packages = (
-          display_table_df[packages_col]
-          if packages_col and packages_col in display_table_df.columns
-          else [0] * len(display_table_df)
-      )
-      yard_df["عدد الطرود"] = extracted_packages
-
-      yard_df["الجرد الفعلي"] = ""
 
       address_col_name = next(
           (
@@ -1002,10 +994,19 @@ if active_data_file is not None and active_template_file is not None:
           else ""
       )
 
+      extracted_packages = (
+          display_table_df[packages_col]
+          if packages_col and packages_col in display_table_df.columns
+          else [0] * len(display_table_df)
+      )
+      yard_df["عدد الطرود"] = extracted_packages
+
+      yard_df["الجرد الفعلي"] = ""
+
       yard_df.to_excel(writer, sheet_name="جرد الساحة", index=False)
     yard_inventory_buffer.seek(0)
 
-    # --- إنشاء جدول وطباعة جرد الساحة بتنسيق A4 (مع وضع عمود العنوان بدل الملاحظات) ---
+    # --- إنشاء جدول وطباعة جرد الساحة بتنسيق A4 (مع نقل عمود العنوان ليصبح بعد الكود مباشرة) ---
     yard_display_df = pd.DataFrame()
     yard_display_df["التسلسل"] = range(1, len(display_table_df) + 1)
     yard_display_df["الكود"] = (
@@ -1013,12 +1014,6 @@ if active_data_file is not None and active_template_file is not None:
         if code_col and code_col in display_table_df.columns
         else ""
     )
-    yard_display_df["عدد الطرود"] = (
-        display_table_df[packages_col]
-        if packages_col and packages_col in display_table_df.columns
-        else 0
-    )
-    yard_display_df["الجرد الفعلي"] = ""
 
     address_col_name = next(
         (
@@ -1036,6 +1031,13 @@ if active_data_file is not None and active_template_file is not None:
         if address_col_name and address_col_name in display_table_df.columns
         else ""
     )
+
+    yard_display_df["عدد الطرود"] = (
+        display_table_df[packages_col]
+        if packages_col and packages_col in display_table_df.columns
+        else 0
+    )
+    yard_display_df["الجرد الفعلي"] = ""
 
     yard_table_html = yard_display_df.to_html(
         classes="custom-table yard-table", index=False, escape=False
@@ -1201,7 +1203,7 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- مكون طباعة جرد الساحة (نسق A4 عمودي مع عمود العنوان بدل الملاحظات) ---
+    # --- مكون طباعة جرد الساحة (نسق A4 عمودي مع إعادة ترتيب الأعمدة: التسلسل، الكود، العنوان، عدد الطرود، الجرد الفعلي) ---
     yard_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -1257,16 +1259,16 @@ if active_data_file is not None and active_template_file is not None:
                                 p {{ margin: 5px 0 0; font-size: 12px; color: #627d98; }}
                                 .info-bar {{ font-size: 13px; font-weight: bold; margin-bottom: 15px; background: #f0f4f8; padding: 8px; border: 1px solid #bcccdc; border-radius: 4px; }}
                                 
-                                /* تخصيص أعمدة جدول جرد الساحة مع إعطاء عمود العنوان المساحة المناسبة */
+                                /* تخصيص أعمدة جدول جرد الساحة بعد نقل عمود العنوان ليصبح بعد الكود مباشرة */
                                 table {{ width: 100% !important; border-collapse: collapse; font-size: 12px !important; margin-top: 5px; table-layout: fixed; }}
                                 th, td {{ padding: 8px 6px !important; border: 1px solid #94a3b8; text-align: right; overflow: hidden; }}
                                 
-                                /* توزيع النسب: التسلسل، الكود، عدد الطرود، الجرد الفعلي، والعنوان */
+                                /* توزيع النسب: التسلسل، الكود، العنوان، عدد الطرود، والجرد الفعلي */
                                 th:nth-child(1), td:nth-child(1) {{ width: 8%; text-align: center; }}  /* التسلسل */
-                                th:nth-child(2), td:nth-child(2) {{ width: 16%; }} /* الكود */
-                                th:nth-child(3), td:nth-child(3) {{ width: 13%; text-align: center; }} /* عدد الطرود */
-                                th:nth-child(4), td:nth-child(4) {{ width: 25%; }} /* الجرد الفعلي */
-                                th:nth-child(5), td:nth-child(5) {{ width: 38%; }} /* العنوان (مكان الملاحظات) */
+                                th:nth-child(2), td:nth-child(2) {{ width: 15%; }} /* الكود */
+                                th:nth-child(3), td:nth-child(3) {{ width: 38%; }} /* العنوان (أصبح بعد الكود) */
+                                th:nth-child(4), td:nth-child(4) {{ width: 14%; text-align: center; }} /* عدد الطرود */
+                                th:nth-child(5), td:nth-child(5) {{ width: 25%; }} /* الجرد الفعلي */
 
                                 th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                 tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
