@@ -1044,33 +1044,55 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(table_pdf_html_component, height=55)
     st.markdown("---")
 
-    # زر طباعة الوصولات دفعة واحدة (مُصلح ومفصول تماماً ليعمل بكفاءة)
-    if st.button(
-        "🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)",
-        key="btn_print_all_batch",
-    ):
-      all_html_batch = ""
-      for _, row in df.iterrows():
-        all_html_batch += generate_single_receipt_html(row)
+    # --- تحضير كود الوصولات لطباعتها دفعة واحدة عبر مكون HTML مستقل يضمن تفاعل الزر تماماً ---
+    all_html_batch = ""
+    for _, row in df.iterrows():
+      all_html_batch += generate_single_receipt_html(row)
 
-      master_payload = f"""
-            <!DOCTYPE html>
-            <html lang="ar" dir="rtl">
-            <head><meta charset="UTF-8"></head>
-            <body>
-                <script>
-                    const content = `{all_html_batch.replace('`', '\\`').replace('$', '\\$')}`;
+    batch_print_component = f"""
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page {{ size: A5; margin: 5mm; }}
+                body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; margin: 0; padding: 0; background: transparent; }}
+                .batch-btn {{
+                    background-color: #b45309;
+                    color: white;
+                    padding: 12px 24px;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    font-size: 14px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    font-family: 'Tahoma', Arial, sans-serif;
+                }}
+                .batch-btn:hover {{
+                    background-color: #92400e;
+                }}
+            </style>
+        </head>
+        <body>
+            <button class="batch-btn" onclick="printAllBatch()">🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)</button>
+            <script>
+                const masterContent = `{all_html_batch.replace('`', '\\`').replace('$', '\\$')}`;
+                function printAllBatch() {{
                     var w = window.open('', '', 'height=900,width=800');
-                    w.document.write('<html><head><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma; }}</style></head><body>' + content + '</body></html>');
+                    w.document.write('<html><head><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma; }}</style></head><body>' + masterContent + '</body></html>');
                     w.document.close();
                     w.focus();
                     setTimeout(() => {{ w.print(); w.close(); }}, 600);
-                </script>
-            </body>
-            </html>
-            """
-      st.components.v1.html(master_payload, height=0)
-
+                }}
+            </script>
+        </body>
+        </html>
+    """
+    st.components.v1.html(batch_print_component, height=55)
     st.markdown("---")
 
     for index, row in df.iterrows():
