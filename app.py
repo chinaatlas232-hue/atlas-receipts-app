@@ -508,7 +508,6 @@ if active_data_file is not None and active_template_file is not None:
     else:
       total_clients_count = len(df)
 
-    # حساب المجاميع بسرعة باستخدام Vectorization
     weight_col = next(
         (c for c in df.columns if "وزن" in c or "weight" in c.lower()), None
     )
@@ -551,7 +550,7 @@ if active_data_file is not None and active_template_file is not None:
     else:
       total_sales_sum = 0.0
 
-    # دالة مساعدة لتوليد قالب HTML لوسل واحد عند الطلب (لتسريع التحميل)
+
     def generate_single_receipt_html(row_data):
       shipment = str(row_data.get(ship_col, "بدون شحنة")).strip()
       code = str(row_data.get(code_col, "بدون كود")).strip() if code_col else ""
@@ -732,7 +731,6 @@ if active_data_file is not None and active_template_file is not None:
             </div>
             """
 
-    # تجميع البيانات للجدول
     group_cols = [
         c
         for c in [
@@ -1046,7 +1044,6 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(table_pdf_html_component, height=55)
     st.markdown("---")
 
-    # زر الطباعة الجماعية الفوري (تجميع الـ HTML عند الضغط فقط لتوفير الأداء)
     if st.button(
         "🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)",
         key="btn_print_all_batch",
@@ -1075,7 +1072,6 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("---")
 
-    # عرض الأكواد التوسعية (Expanders) بشكل خفيف ومخصص
     for index, row in df.iterrows():
       shipment = str(row.get(ship_col, "بدون شحنة")).strip()
       code = str(row.get(code_col, "بدون كود")).strip() if code_col else ""
@@ -1109,7 +1105,6 @@ if active_data_file is not None and active_template_file is not None:
           f"📄 وصل العميل: {name} | كود: {display_code or 'بدون'} | الشحنة:"
           f" {display_shipment} | الإجمالي: {sales_col_val:,.1f} $"
       ):
-        # توليد ملف الإكسل و الـ HTML لهذا العميل فقط عند فتح الـ Expander
         try:
           wb = openpyxl.load_workbook(active_template_file)
           ws = wb.active
@@ -1136,7 +1131,6 @@ if active_data_file is not None and active_template_file is not None:
               else ""
           )
 
-          # حساب الهواتف للـ excel
           p_col = next(
               (
                   c
