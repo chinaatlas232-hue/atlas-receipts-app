@@ -957,7 +957,7 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
 
-    # --- تجهيز زر تصدير Excel باستخدام Streamlit download_button والأزرار الإضافية ---
+    # --- تجهيز ملفات التصدير (إكسل وجرد الساحة) ---
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
       display_table_df.to_excel(writer, sheet_name="تفاصيل الشحنات", index=False)
@@ -965,29 +965,25 @@ if active_data_file is not None and active_template_file is not None:
         df_city_summary.to_excel(writer, sheet_name="ملخص المحافظات", index=False)
     excel_buffer.seek(0)
 
-    # --- تجهيز ملف إكسل خاص بـ "جرد الساحة" (التسلسل، الكود، عدد الطرود، الجرد) ---
     yard_inventory_buffer = io.BytesIO()
     with pd.ExcelWriter(yard_inventory_buffer, engine="openpyxl") as writer:
       yard_df = pd.DataFrame()
       yard_df["التسلسل"] = range(1, len(display_table_df) + 1)
       
-      # استخراج عمود الكود من البيانات المعروضة إن وجد
       extracted_code = display_table_df[code_col] if code_col and code_col in display_table_df.columns else [""] * len(display_table_df)
       yard_df["الكود"] = extracted_code
 
-      # استخراج عمود الطرود من البيانات المعروضة إن وجد
       extracted_packages = display_table_df[packages_col] if packages_col and packages_col in display_table_df.columns else [0] * len(display_table_df)
       yard_df["عدد الطرود"] = extracted_packages
 
-      # عمود الجرد فارغ تماماً كما مطلوب
       yard_df["الجرد"] = ""
 
       yard_df.to_excel(writer, sheet_name="جرد الساحة", index=False)
     yard_inventory_buffer.seek(0)
 
     # --- تصميم الأزرار (تصدير إكسل، جرد الساحة باللون الأصفر، وتصدير PDF) ---
-    col_btn1, col_btn_yard, col_btn2 = st.columns([1, 1, 1])
-    
+    col_btn1, col_btn_yard, col_btn2 = st.columns(3)
+
     with col_btn1:
       st.download_button(
           label="📥 تصدير الجدول الحالي إلى إكسل",
@@ -996,26 +992,23 @@ if active_data_file is not None and active_template_file is not None:
           mime=(
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           ),
+          use_container_width=True,
       )
 
     with col_btn_yard:
-      # تطبيق الستايل الخاص بالزر الأصفر لتنسيق جرد الساحة داخل Streamlit
       st.markdown(
           """
           <style>
-          div.stDownloadButton > button:nth-of-type(1) {
-              background-color: transparent;
-          }
-          /* تخصيص زر جرد الساحة بلون أصفر مميز */
           div[data-testid="column"]:nth-of-type(2) button {
-              background-color: #facc15 !important;
-              color: #713f12 !important;
-              font-weight: bold !important;
-              border: 1px solid #eab308 !important;
-          }
-          div[data-testid="column"]:nth-of-type(2) button:hover {
               background-color: #eab308 !important;
               color: #422006 !important;
+              font-weight: bold !important;
+              border: 1px solid #ca8a04 !important;
+              width: 100% !important;
+          }
+          div[data-testid="column"]:nth-of-type(2) button:hover {
+              background-color: #ca8a04 !important;
+              color: #ffffff !important;
           }
           </style>
           """,
@@ -1028,6 +1021,7 @@ if active_data_file is not None and active_template_file is not None:
           mime=(
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           ),
+          use_container_width=True,
       )
 
     table_pdf_html_component = f"""
@@ -1041,15 +1035,13 @@ if active_data_file is not None and active_template_file is not None:
                 .export-btn {{
                     background-color: #102a43;
                     color: white;
-                    padding: 12px 24px;
+                    padding: 9px 16px;
                     border: none;
-                    border-radius: 6px;
+                    border-radius: 4px;
                     cursor: pointer;
                     font-weight: bold;
                     font-size: 14px;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 8px;
+                    width: 100%;
                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     font-family: 'Tahoma', Arial, sans-serif;
                 }}
@@ -1059,7 +1051,7 @@ if active_data_file is not None and active_template_file is not None:
             </style>
         </head>
         <body>
-            <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول الحالي وتقرير المحافظات إلى PDF</button>
+            <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول والمحافظات PDF</button>
             <script>
                 const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
                 const citySummaryContent = `{city_table_html.replace('`', '\\`').replace('$', '\\$')}`;
@@ -1121,11 +1113,11 @@ if active_data_file is not None and active_template_file is not None:
         </html>
     """
     with col_btn2:
-      st.components.v1.html(table_pdf_html_component, height=55)
+      st.components.v1.html(table_pdf_html_component, height=45)
 
     st.markdown("---")
 
-    # --- تحضير كود الوصولات لطباعتها دفعة واحدة عبر مكون HTML مستقل يضمن تفاعل الزر تماماً ---
+    # --- طباعة الوصولات دفعة واحدة ---
     all_html_batch = ""
     for _, row in df.iterrows():
       all_html_batch += generate_single_receipt_html(row)
