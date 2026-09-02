@@ -836,6 +836,7 @@ if active_data_file is not None and active_template_file is not None:
       city_group_col = "المدينة"
 
     agg_city_dict = {}
+    # حساب عدد العملاء الفريدين أو عدد الأكواد لكل مدينة
     if code_col and code_col in df.columns:
       agg_city_dict[code_col] = "nunique"
     elif name_col_for_clients and name_col_for_clients in df.columns:
@@ -858,6 +859,7 @@ if active_data_file is not None and active_template_file is not None:
           agg_city_dict
       )
       
+      # إعادة تسمية الأعمدة بشكل منظم مع إضافة حقل عدد العملاء
       rename_mapping = {}
       if code_col in df_city_summary.columns:
         rename_mapping[code_col] = "عدد العملاء"
@@ -1049,6 +1051,7 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(table_pdf_html_component, height=55)
     st.markdown("---")
 
+    # --- تحضير كود الوصولات لطباعتها دفعة واحدة عبر مكون HTML مستقل يضمن تفاعل الزر تماماً ---
     all_html_batch = ""
     for _, row in df.iterrows():
       all_html_batch += generate_single_receipt_html(row)
@@ -1228,3 +1231,4 @@ else:
       "الرجاء التأكد من صلاحية الوصول للملفات والضغط على زر (تحديث البيانات و"
       "سحبها من درايف)."
   )
+
