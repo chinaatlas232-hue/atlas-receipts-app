@@ -1041,10 +1041,8 @@ if active_data_file is not None and active_template_file is not None:
         </body>
         </html>
     """
-    st.components.v1.html(table_pdf_html_component, height=55)
-    st.markdown("---")
 
-    # --- تحضير كود الوصولات لطباعتها دفعة واحدة عبر مكون HTML مستقل يضمن تفاعل الزر تماماً ---
+    # --- تحضير كود الوصولات لطباعتها دفعة واحدة ---
     all_html_batch = ""
     for _, row in df.iterrows():
       all_html_batch += generate_single_receipt_html(row)
@@ -1092,7 +1090,14 @@ if active_data_file is not None and active_template_file is not None:
         </body>
         </html>
     """
-    st.components.v1.html(batch_print_component, height=55)
+
+    # وضع الزرين متجاورين في نفس السطر لتقليص المساحة الرأسية
+    col_pdf, col_batch = st.columns(2)
+    with col_pdf:
+      st.components.v1.html(table_pdf_html_component, height=55)
+    with col_batch:
+      st.components.v1.html(batch_print_component, height=55)
+
     st.markdown("---")
 
     for index, row in df.iterrows():
