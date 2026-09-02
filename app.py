@@ -836,6 +836,14 @@ if active_data_file is not None and active_template_file is not None:
       city_group_col = "المدينة"
 
     agg_city_dict = {}
+    # حساب عدد العملاء الفريدين أو عدد الأكواد لكل مدينة
+    if code_col and code_col in df.columns:
+      agg_city_dict[code_col] = "nunique"
+    elif name_col_for_clients and name_col_for_clients in df.columns:
+      agg_city_dict[name_col_for_clients] = "nunique"
+    else:
+      agg_city_dict[city_group_col] = "count"
+
     if packages_col and packages_col in df.columns:
       agg_city_dict[packages_col] = "sum"
     if cbm_col and cbm_col in df.columns:
@@ -850,27 +858,26 @@ if active_data_file is not None and active_template_file is not None:
       df_city_summary = df.groupby(city_group_col, as_index=False).agg(
           agg_city_dict
       )
+      
+      # إعادة تسمية الأعمدة بشكل منظم مع إضافة حقل عدد العملاء
+      rename_mapping = {}
+      if code_col in df_city_summary.columns:
+        rename_mapping[code_col] = "عدد العملاء"
+      elif name_col_for_clients in df_city_summary.columns:
+        rename_mapping[name_col_for_clients] = "عدد العملاء"
+      else:
+        rename_mapping[city_group_col] = "عدد العملاء"
+
       if "__calc_sales__" in df_city_summary.columns:
-        df_city_summary.rename(
-            columns={"__calc_sales__": "إجمالي الديون / المبيعات ($)"},
-            inplace=True,
-        )
-      if (
-          sales_col
-          and sales_col in df_city_summary.columns
-          and sales_col != "إجمالي الديون / المبيعات ($)"
-      ):
-        df_city_summary.rename(
-            columns={sales_col: "إجمالي الديون / المبيعات ($)"}, inplace=True
-        )
+        rename_mapping["__calc_sales__"] = "إجمالي الديون / المبيعات ($)"
+      if sales_col and sales_col in df_city_summary.columns:
+        rename_mapping[sales_col] = "إجمالي الديون / المبيعات ($)"
       if packages_col and packages_col in df_city_summary.columns:
-        df_city_summary.rename(
-            columns={packages_col: "إجمالي الطرود"}, inplace=True
-        )
+        rename_mapping[packages_col] = "إجمالي الطرود"
       if cbm_col and cbm_col in df_city_summary.columns:
-        df_city_summary.rename(
-            columns={cbm_col: "إجمالي الحجم (CBM)"}, inplace=True
-        )
+        rename_mapping[cbm_col] = "إجمالي الحجم (CBM)"
+
+      df_city_summary.rename(columns=rename_mapping, inplace=True)
 
       if "إجمالي الديون / المبيعات ($)" in df_city_summary.columns:
         df_city_summary["إجمالي الديون / المبيعات ($)"] = df_city_summary[
@@ -1224,4 +1231,3 @@ else:
       "الرجاء التأكد من صلاحية الوصول للملفات والضغط على زر (تحديث البيانات و"
       "سحبها من درايف)."
   )
-
