@@ -968,16 +968,43 @@ if active_data_file is not None and active_template_file is not None:
     with pd.ExcelWriter(yard_inventory_buffer, engine="openpyxl") as writer:
       yard_df = pd.DataFrame()
       yard_df["التسلسل"] = range(1, len(display_table_df) + 1)
-      
-      extracted_code = display_table_df[code_col] if code_col and code_col in display_table_df.columns else [""] * len(display_table_df)
+
+      extracted_code = (
+          display_table_df[code_col]
+          if code_col and code_col in display_table_df.columns
+          else [""] * len(display_table_df)
+      )
       yard_df["الكود"] = extracted_code
 
-      extracted_packages = display_table_df[packages_col] if packages_col and packages_col in display_table_df.columns else [0] * len(display_table_df)
+      extracted_packages = (
+          display_table_df[packages_col]
+          if packages_col and packages_col in display_table_df.columns
+          else [0] * len(display_table_df)
+      )
       yard_df["عدد الطرود"] = extracted_packages
 
       yard_df["الجرد"] = ""
       yard_df.to_excel(writer, sheet_name="جرد الساحة", index=False)
     yard_inventory_buffer.seek(0)
+
+    # --- إنشاء جدول وطباعة جرد الساحة بتنسيق A4 ---
+    yard_display_df = pd.DataFrame()
+    yard_display_df["التسلسل"] = range(1, len(display_table_df) + 1)
+    yard_display_df["الكود"] = (
+        display_table_df[code_col]
+        if code_col and code_col in display_table_df.columns
+        else ""
+    )
+    yard_display_df["عدد الطرود"] = (
+        display_table_df[packages_col]
+        if packages_col and packages_col in display_table_df.columns
+        else 0
+    )
+    yard_display_df["الجرد الفعلي"] = ""
+    yard_display_df["الملاحظات"] = ""
+    yard_table_html = yard_display_df.to_html(
+        classes="custom-table", index=False, escape=False
+    )
 
     # --- تصميم الأزرار مع ضمان توحيد الارتفاع والمحاذاة بدقة ---
     st.markdown(
@@ -1031,7 +1058,7 @@ if active_data_file is not None and active_template_file is not None:
 
     with col_btn_yard:
       st.download_button(
-          label="🟡 جرد الساحة",
+          label="🟡 جرد الساحة (إكسل)",
           data=yard_inventory_buffer,
           file_name=f"Yard_Inventory_{selected_shipment_filter}.xlsx",
           mime=(
@@ -1136,6 +1163,96 @@ if active_data_file is not None and active_template_file is not None:
     """
     with col_btn2:
       st.components.v1.html(table_pdf_html_component, height=48)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- مكون طباعة جرد الساحة (نسق A4 عمودي) ---
+    yard_pdf_html_component = f"""
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page {{ size: A4 portrait; margin: 15mm; }}
+                body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 0; background: transparent; }}
+                .yard-btn {{
+                    background-color: #b45309;
+                    color: white;
+                    min-height: 48px;
+                    height: 48px;
+                    padding: 0 16px;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    font-size: 14px;
+                    width: 100%;
+                    box-sizing: border-box;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    font-family: 'Tahoma', Arial, sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                }}
+                .yard-btn:hover {{
+                    background-color: #92400e;
+                }}
+            </style>
+        </head>
+        <body>
+            <button class="yard-btn" onclick="exportYardPDF()">📋 طباعة ورقة جرد الساحة (A4)</button>
+            <script>
+                const yardTableContent = `{yard_table_html.replace('`', '\\`').replace('$', '\\$')}`;
+                const yardFilterInfo = 'الشحنة: {selected_shipment_filter} | التاريخ: {today_date}';
+
+                function exportYardPDF() {{
+                    var w = window.open('', '', 'height=900,width=800');
+                    w.document.write(`
+                        <!DOCTYPE html>
+                        <html lang="ar" dir="rtl">
+                        <head>
+                            <meta charset="UTF-8">
+                            <title>ورقة جرد الساحة - أطلس المحيط</title>
+                            <style>
+                                @page {{ size: A4 portrait; margin: 10mm; }}
+                                body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 10px; }}
+                                .header-box {{ text-align: center; border-bottom: 2px solid #102a43; padding-bottom: 10px; margin-bottom: 15px; }}
+                                h2 {{ margin: 0; font-size: 18px; color: #102a43; }}
+                                p {{ margin: 5px 0 0; font-size: 12px; color: #627d98; }}
+                                .info-bar {{ font-size: 13px; font-weight: bold; margin-bottom: 15px; background: #f0f4f8; padding: 8px; border: 1px solid #bcccdc; border-radius: 4px; }}
+                                table {{ width: 100% !important; border-collapse: collapse; font-size: 12px !important; margin-top: 5px; }}
+                                th, td {{ padding: 8px 6px !important; border: 1px solid #94a3b8; text-align: right; }}
+                                th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+                                tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+                                .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; }}
+                            </style>
+                        </head>
+                        <body>
+                            <div class="header-box">
+                                <h2>شركة أطلس المحيط للتجارة العامة</h2>
+                                <p>نموذج جرد الساحة والمستودع</p>
+                            </div>
+                            <div class="info-bar">
+                                📌 تفاصيل الجرد: ${{yardFilterInfo}}
+                            </div>
+                            ${{yardTableContent}}
+                            <div class="footer">
+                                <div>اسم أمين المستودع / القائم بالجرد: ........................................</div>
+                                <div>التوقيع: ........................</div>
+                            </div>
+                        </body>
+                        </html>
+                    `);
+                    w.document.close();
+                    w.focus();
+                    setTimeout(() => {{ w.print(); w.close(); }}, 600);
+                }}
+            </script>
+        </body>
+        </html>
+    """
+    st.components.v1.html(yard_pdf_html_component, height=55)
 
     st.markdown("---")
 
