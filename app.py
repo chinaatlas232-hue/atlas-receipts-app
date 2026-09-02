@@ -773,11 +773,11 @@ if active_data_file is not None and active_template_file is not None:
     st.markdown(
         """
         <style>
-        .metric-card-1 { background-color: #eff6ff; border: 2px solid #000000; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-card-2 { background-color: #f0fdf4; border: 2px solid #000000; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-card-3 { background-color: #f5f3ff; border: 2px solid #000000; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-card-4 { background-color: #fffbeb; border: 2px solid #000000; padding: 15px; border-radius: 10px; text-align: center; }
-        .metric-card-5 { background-color: #fdf2f8; border: 2px solid #000000; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-1 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-2 { background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-3 { background-color: #f5f3ff; border: 1px solid #ddd6fe; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-4 { background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 10px; text-align: center; }
+        .metric-card-5 { background-color: #fdf2f8; border: 1px solid #fbcfe8; padding: 15px; border-radius: 10px; text-align: center; }
         </style>
     """,
         unsafe_allow_html=True,
@@ -1041,8 +1041,10 @@ if active_data_file is not None and active_template_file is not None:
         </body>
         </html>
     """
+    st.components.v1.html(table_pdf_html_component, height=55)
+    st.markdown("---")
 
-    # --- تحضير كود الوصولات لطباعتها دفعة واحدة ---
+    # --- تحضير كود الوصولات لطباعتها دفعة واحدة عبر مكون HTML مستقل يضمن تفاعل الزر تماماً ---
     all_html_batch = ""
     for _, row in df.iterrows():
       all_html_batch += generate_single_receipt_html(row)
@@ -1090,14 +1092,7 @@ if active_data_file is not None and active_template_file is not None:
         </body>
         </html>
     """
-
-    # وضع الزرين متجاورين في نفس السطر لتقليص المساحة الرأسية
-    col_pdf, col_batch = st.columns(2)
-    with col_pdf:
-      st.components.v1.html(table_pdf_html_component, height=55)
-    with col_batch:
-      st.components.v1.html(batch_print_component, height=55)
-
+    st.components.v1.html(batch_print_component, height=55)
     st.markdown("---")
 
     for index, row in df.iterrows():
@@ -1229,3 +1224,4 @@ else:
       "الرجاء التأكد من صلاحية الوصول للملفات والضغط على زر (تحديث البيانات و"
       "سحبها من درايف)."
   )
+
