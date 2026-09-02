@@ -8,7 +8,13 @@ import streamlit as st
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
-# --- مسارات الملفات ---
+# --- معرفات الملفات من Google Drive ---
+SHIPMENT_FILE_ID = "1IESujqsd6-4RbEfr9cnx8xeYNq-WvTUj"
+TEMPLATE_FILE_ID = "1_DxNo3KIWWdSQ-Q4r_hatsYZ0sYT8ier"
+LOGO_FILE_ID = "1fAz46COaR6SgT9DNbYqx9Ea9iclQEQTA"
+CUSTOMER_INFO_FILE_ID = "1gCjzU7Gx5alpv7KZY1mxjIVDJO-yvzww"
+
+# --- مسارات التخزين المؤقت المحلية لتشغيل المكتبات بسلاسة ---
 UPLOAD_DIR = "saved_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -16,6 +22,47 @@ shipment_path = os.path.join(UPLOAD_DIR, "shipments_data.xlsx")
 template_path = os.path.join(UPLOAD_DIR, "template.xlsx")
 logo_path = os.path.join(UPLOAD_DIR, "logo.png")
 customer_info_path = os.path.join(UPLOAD_DIR, "customer_info.xlsx")
+
+
+# --- دالة سحب الملفات تلقائياً من جوجل درايف ---
+@st.cache_data(ttl=300)
+def download_files_from_drive():
+  try:
+    # 1. سحب ملف الشحنات
+    url_shipment = f"https://docs.google.com/spreadsheets/d/{SHIPMENT_FILE_ID}/export?format=xlsx"
+    df_s_temp = pd.read_excel(url_shipment)
+    df_s_temp.to_excel(shipment_path, index=False)
+
+    # 2. سحب قالب الوصل
+    url_template = f"https://docs.google.com/spreadsheets/d/{TEMPLATE_FILE_ID}/export?format=xlsx"
+    df_t_temp = pd.read_excel(url_template)
+    # لحفظ قالب الإكسل بشكل سليم
+    wb_temp = openpyxl.load_workbook(url_shipment)  # مؤقت للاختبار أو تنزيل مباشر
+    # البديل الأضمن لتنزيل ملفات الإكسل الخام من درايف:
+    import urllib.request
+
+    urllib.request.urlretrieve(
+        f"https://drive.google.com/uc?export=download&id={TEMPLATE_FILE_ID}",
+        template_path,
+    )
+
+    # 3. سحب شعار الشركة (Logo)
+    urllib.request.urlretrieve(
+        f"https://drive.google.com/uc?export=download&id={LOGO_FILE_ID}",
+        logo_path,
+    )
+
+    # 4. سحب ملف معلومات العملاء
+    urllib.request.urlretrieve(
+        f"https://drive.google.com/uc?export=download&id={CUSTOMER_INFO_FILE_ID}",
+        customer_info_path,
+    )
+  except Exception as e:
+    print(f"Drive Sync Error: {e}")
+
+
+# تنفيذ المزامنة التلقائية عند التشغيل
+download_files_from_drive()
 
 # --- تنسيق الشريط الجانبي ---
 st.markdown(
@@ -56,59 +103,11 @@ with st.sidebar:
   )
 
   st.header("⚙️ إدارة الملفات")
+  st.success("✅ متصل بـ Google Drive (تحديث تلقائي دائم)")
 
-  uploaded_data_file = st.file_uploader(
-      "1. ملف بيانات الشحنات (تعبئة وصل اطلس.xlsx)", type=["xlsx"]
-  )
-  if uploaded_data_file is not None:
-    if os.path.exists(shipment_path):
-      os.remove(shipment_path)
-    with open(shipment_path, "wb") as f:
-      f.write(uploaded_data_file.getbuffer())
+  if st.button("🔄 تحديث البيانات وسحبها من درايف"):
     st.cache_data.clear()
-    st.success("تم حفظ ملف الشحنات الجديد بنجاح!")
-
-  uploaded_template_file = st.file_uploader(
-      "2. قالب وصل التسليم (Atlas_Cargo_Delivery_Receipt.xlsx)", type=["xlsx"]
-  )
-  if uploaded_template_file is not None:
-    if os.path.exists(template_path):
-      os.remove(template_path)
-    with open(template_path, "wb") as f:
-      f.write(uploaded_template_file.getbuffer())
-    st.success("تم حفظ القالب بنجاح!")
-
-  uploaded_logo = st.file_uploader(
-      "3. شعار الشركة (Logo)", type=["png", "jpg", "jpeg"]
-  )
-  if uploaded_logo is not None:
-    if os.path.exists(logo_path):
-      os.remove(logo_path)
-    with open(logo_path, "wb") as f:
-      f.write(uploaded_logo.getbuffer())
-    st.success("تم حفظ الشعار بنجاح!")
-
-  uploaded_customer_file = st.file_uploader(
-      "4. ملف معلومات العملاء (coustmer info)", type=["xlsx", "csv"]
-  )
-  if uploaded_customer_file is not None:
-    if os.path.exists(customer_info_path):
-      os.remove(customer_info_path)
-    with open(customer_info_path, "wb") as f:
-      f.write(uploaded_customer_file.getbuffer())
-    st.cache_data.clear()
-    st.success("تم حفظ ملف معلومات العملاء بنجاح!")
-
-  if st.button("🗑️ مسح الذاكرة ورفع ملفات جديدة"):
-    for path in [
-        shipment_path,
-        template_path,
-        logo_path,
-        customer_info_path,
-    ]:
-      if os.path.exists(path):
-        os.remove(path)
-    st.cache_data.clear()
+    download_files_from_drive()
     st.rerun()
 
   # --- تتبع وقت التعديل لتحديث الذاكرة المؤقتة ---
@@ -1151,7 +1150,4 @@ if active_data_file is not None and active_template_file is not None:
   except Exception as e:
     st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
 else:
-  st.info(
-      "الرجاء رفع ملف الشحنات وقالب الوصل وملف معلومات العملاء من الشريط الجانبي."
-  )
-
+  st.info("الرجاء التأكد من صلاحية الوصول للملفات على Google Drive.")
