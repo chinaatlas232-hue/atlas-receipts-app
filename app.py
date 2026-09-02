@@ -987,7 +987,7 @@ if active_data_file is not None and active_template_file is not None:
       yard_df.to_excel(writer, sheet_name="جرد الساحة", index=False)
     yard_inventory_buffer.seek(0)
 
-    # --- إنشاء جدول وطباعة جرد الساحة بتنسيق A4 ---
+    # --- إنشاء جدول وطباعة جرد الساحة بتنسيق A4 (مع توسيع عمود الجرد الفعلي وتقليل بقية الأعمدة) ---
     yard_display_df = pd.DataFrame()
     yard_display_df["التسلسل"] = range(1, len(display_table_df) + 1)
     yard_display_df["الكود"] = (
@@ -1003,7 +1003,7 @@ if active_data_file is not None and active_template_file is not None:
     yard_display_df["الجرد الفعلي"] = ""
     yard_display_df["الملاحظات"] = ""
     yard_table_html = yard_display_df.to_html(
-        classes="custom-table", index=False, escape=False
+        classes="custom-table yard-table", index=False, escape=False
     )
 
     # --- تصميم الأزرار مع ضمان توحيد الارتفاع والمحاذاة بدقة ---
@@ -1166,7 +1166,7 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- مكون طباعة جرد الساحة (نسق A4 عمودي) ---
+    # --- مكون طباعة جرد الساحة (نسق A4 عمودي مع ضبط أحجام الأعمدة وتوسيع عمود الجرد الفعلي) ---
     yard_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -1221,8 +1221,18 @@ if active_data_file is not None and active_template_file is not None:
                                 h2 {{ margin: 0; font-size: 18px; color: #102a43; }}
                                 p {{ margin: 5px 0 0; font-size: 12px; color: #627d98; }}
                                 .info-bar {{ font-size: 13px; font-weight: bold; margin-bottom: 15px; background: #f0f4f8; padding: 8px; border: 1px solid #bcccdc; border-radius: 4px; }}
-                                table {{ width: 100% !important; border-collapse: collapse; font-size: 12px !important; margin-top: 5px; }}
-                                th, td {{ padding: 8px 6px !important; border: 1px solid #94a3b8; text-align: right; }}
+                                
+                                /* تخصيص أعمدة جدول جرد الساحة لزيادة مساحة الجرد الفعلي وتقليل بقية الأعمدة */
+                                table {{ width: 100% !important; border-collapse: collapse; font-size: 12px !important; margin-top: 5px; table-layout: fixed; }}
+                                th, td {{ padding: 8px 6px !important; border: 1px solid #94a3b8; text-align: right; overflow: hidden; }}
+                                
+                                /* تحديد نسب عرض الأعمدة بدقة */
+                                th:nth-child(1), td:nth-child(1) {{ width: 12%; text-align: center; }} /* التسلسل */
+                                th:nth-child(2), td:nth-child(2) {{ width: 20%; }} /* الكود */
+                                th:nth-child(3), td:nth-child(3) {{ width: 18%; text-align: center; }} /* عدد الطرود */
+                                th:nth-child(4), td:nth-child(4) {{ width: 32%; }} /* الجرد الفعلي (تم توسيعه خصيصاً) */
+                                th:nth-child(5), td:nth-child(5) {{ width: 18%; }} /* الملاحظات */
+
                                 th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                 tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                 .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; }}
@@ -1408,7 +1418,7 @@ if active_data_file is not None and active_template_file is not None:
           output = io.BytesIO()
 
         single_html = generate_single_receipt_html(row)
-        file_name_id = f"Shipment_{display_shipment}_Client_{name}".replace(
+        file_name_id = f"Shipment_{display_ship_col if 'display_ship_col' in locals() else shipment}_Client_{name}".replace(
             " ", "_"
         )
 
