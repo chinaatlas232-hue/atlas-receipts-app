@@ -25,13 +25,12 @@ logo_path = os.path.join(UPLOAD_DIR, "logo.png")
 customer_info_path = os.path.join(UPLOAD_DIR, "customer_info.xlsx")
 
 
-# --- دالة موثوقة لتنزيل الملفات من Google Drive (تتجاوز شاشات التحذير) ---
+# --- دالة موثوقة لتنزيل الملفات من Google Drive ---
 def download_file_from_google_drive(file_id, destination):
   URL = "https://docs.google.com/uc?export=download"
   session = requests.Session()
   response = session.get(URL, params={"id": file_id}, stream=True)
 
-  # البحث عن رمز تأكيد الحماية (للملفات التي تظهر صفحة تحذير فيروسات)
   token = None
   for key, value in response.cookies.items():
     if key.startswith("download_warning"):
@@ -42,7 +41,6 @@ def download_file_from_google_drive(file_id, destination):
     params = {"id": file_id, "confirm": token}
     response = session.get(URL, params=params, stream=True)
 
-  # حفظ الملف محلياً
   with open(destination, "wb") as f:
     for chunk in response.iter_content(32768):
       if chunk:
@@ -52,25 +50,16 @@ def download_file_from_google_drive(file_id, destination):
 @st.cache_data(ttl=300)
 def download_files_from_drive():
   try:
-    # 1. سحب ملف الشحنات
     download_file_from_google_drive(SHIPMENT_FILE_ID, shipment_path)
-
-    # 2. سحب قالب الوصل
     download_file_from_google_drive(TEMPLATE_FILE_ID, template_path)
-
-    # 3. سحب شعار الشركة (Logo)
     download_file_from_google_drive(LOGO_FILE_ID, logo_path)
-
-    # 4. سحب ملف معلومات العملاء
     download_file_from_google_drive(CUSTOMER_INFO_FILE_ID, customer_info_path)
-
     return True
   except Exception as e:
     st.error(f"خطأ أثناء السحب من درايف: {e}")
     return False
 
 
-# تنفيذ المزامنة التلقائية عند التشغيل
 success_sync = download_files_from_drive()
 
 # --- تنسيق الشريط الجانبي ---
@@ -99,7 +88,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- عنوان التطبيق في القائمة الجانبية (Sidebar) ---
 with st.sidebar:
   st.markdown(
       """
@@ -336,7 +324,6 @@ with st.sidebar:
     return df_s
 
 
-  # --- الفلاتر في القائمة الجانبية ---
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
   selected_shipment_filter = "الكل"
@@ -521,85 +508,90 @@ if active_data_file is not None and active_template_file is not None:
     else:
       total_clients_count = len(df)
 
-    total_packages_count = 0
-    total_weight_sum = 0.0
-    total_cbm_sum = 0.0
-    total_sales_sum = 0.0
+    # حساب المجاميع بسرعة باستخدام Vectorization
+    weight_col = next(
+        (c for c in df.columns if "وزن" in c or "weight" in c.lower()), None
+    )
+    total_weight_sum = (
+        float(df[weight_col].sum())
+        if weight_col and weight_col in df.columns
+        else 0.0
+    )
 
-    receipts_data_list = []
-    all_receipts_html_for_print = ""
+    cbm_col = next(
+        (c for c in df.columns if "cbm" in c.lower() or "حجم" in c), None
+    )
+    total_cbm_sum = (
+        float(df[cbm_col].sum()) if cbm_col and cbm_col in df.columns else 0.0
+    )
 
-    for index, row in df.iterrows():
-      shipment = str(row.get(ship_col, "بدون شحنة")).strip()
-      code = str(row.get(code_col, "بدون كود")).strip() if code_col else ""
+    packages_col = next(
+        (c for c in df.columns if "طرود" in c or "packages" in c.lower()), None
+    )
+    total_packages_count = (
+        int(df[packages_col].sum())
+        if packages_col and packages_col in df.columns
+        else 0
+    )
 
+    price_col = next((c for c in df.columns if c == "السعر" or "سعر" in c), None)
+    sales_col = next(
+        (
+            c
+            for c in df.columns
+            if "مبيعات" in c or "اجمالي" in c or "total" in c.lower()
+        ),
+        None,
+    )
+
+    if sales_col and sales_col in df.columns:
+      total_sales_sum = float(df[sales_col].sum())
+    elif price_col and weight_col:
+      total_sales_sum = float((df[weight_col] * df[price_col]).sum())
+    else:
+      total_sales_sum = 0.0
+
+    # دالة مساعدة لتوليد قالب HTML لوسل واحد عند الطلب (لتسريع التحميل)
+    def generate_single_receipt_html(row_data):
+      shipment = str(row_data.get(ship_col, "بدون شحنة")).strip()
+      code = str(row_data.get(code_col, "بدون كود")).strip() if code_col else ""
       display_code = "" if code in ["بدون كود", "nan", "None"] else code
       display_shipment = (
           "" if shipment in ["بدون شحنة", "nan", "None"] else shipment
       )
 
-      name_col = next(
-          (c for c in df.columns if "الاسم" in c or "name" in c.lower()), None
-      )
       name = (
-          str(row.get(name_col, "عميل غير محدد")).strip()
-          if name_col
+          str(row_data.get(name_col_for_clients, "عميل غير محدد")).strip()
+          if name_col_for_clients
           else "عميل غير محدد"
       )
       if name in ["nan", "None", ""]:
         name = "عميل غير محدد"
 
-      file_name_id = f"Shipment_{shipment}_Client_{name}".replace(" ", "_")
-
-      weight_col = next(
-          (c for c in df.columns if "وزن" in c or "weight" in c.lower()), None
+      weight = (
+          float(row_data.get(weight_col, 0) or 0) if weight_col else 0.0
       )
-      weight = float(row.get(weight_col, 0) or 0) if weight_col else 0.0
-      total_weight_sum += weight
-
-      cbm_value = 0.0
-      cbm_col = next(
-          (c for c in df.columns if "cbm" in c.lower() or "حجم" in c), None
+      cbm_value = (
+          float(row_data.get(cbm_col, 0) or 0)
+          if cbm_col and cbm_col in row_data
+          else 0.0
       )
-      if cbm_col:
-        try:
-          cbm_value = float(row.get(cbm_col, 0) or 0)
-        except:
-          pass
-      total_cbm_sum += cbm_value
-
-      packages_col = next(
-          (c for c in df.columns if "طرود" in c or "packages" in c.lower()),
-          None,
+      packages = (
+          int(float(row_data.get(packages_col, 0) or 0))
+          if packages_col and packages_col in row_data
+          else 0
       )
-      try:
-        packages = (
-            int(float(row.get(packages_col, 0) or 0)) if packages_col else 0
-        )
-      except:
-        packages = 0
-      total_packages_count += packages
-
-      price_col = next(
-          (c for c in df.columns if c == "السعر" or "سعر" in c), None
+      price_per_kg = (
+          float(row_data.get(price_col, 0) or 0) if price_col else 0.0
       )
-      price_per_kg = float(row.get(price_col, 0) or 0) if price_col else 0.0
 
-      sales_col = next(
-          (
-              c
-              for c in df.columns
-              if "مبيعات" in c or "اجمالي" in c or "total" in c.lower()
-          ),
-          None,
-      )
       total_sales = (
-          float(row.get(sales_col, 0) or 0) if sales_col else 0.0
+          float(row_data.get(sales_col, 0) or 0)
+          if sales_col and sales_col in row_data
+          else 0.0
       )
       if total_sales == 0 and price_per_kg > 0 and weight > 0:
         total_sales = weight * price_per_kg
-
-      total_sales_sum += total_sales
 
       phone_col = next(
           (
@@ -610,7 +602,7 @@ if active_data_file is not None and active_template_file is not None:
           ),
           None,
       )
-      phone = str(row.get(phone_col, "")).strip() if phone_col else ""
+      phone = str(row_data.get(phone_col, "")).strip() if phone_col else ""
       if phone.endswith(".0"):
         phone = phone[:-2]
       phone = phone.replace("+", "").strip()
@@ -629,7 +621,7 @@ if active_data_file is not None and active_template_file is not None:
           ),
           None,
       )
-      phone2 = str(row.get(phone2_col, "")).strip() if phone2_col else ""
+      phone2 = str(row_data.get(phone2_col, "")).strip() if phone2_col else ""
       if phone2.endswith(".0"):
         phone2 = phone2[:-2]
       phone2 = phone2.replace("+", "").strip()
@@ -658,33 +650,17 @@ if active_data_file is not None and active_template_file is not None:
           ),
           None,
       )
-      address = str(row.get(address_col, "")).strip() if address_col else ""
+      address = str(row_data.get(address_col, "")).strip() if address_col else ""
       if address in ["nan", "None"]:
         address = ""
 
       shipment_type = (
-          str(row.get(type_col_name, "")).strip() if type_col_name else ""
+          str(row_data.get(type_col_name, "")).strip()
+          if type_col_name
+          else ""
       )
       if shipment_type in ["nan", "None"]:
         shipment_type = ""
-
-      try:
-        wb = openpyxl.load_workbook(active_template_file)
-        ws = wb.active
-        ws["B4"] = display_code
-        ws["D4"] = today_date
-        ws["B5"] = name
-        ws["B6"] = address
-        ws["D5"] = combined_phones
-        ws["B7"] = display_shipment
-        ws["D6"] = packages
-        ws["B8"] = shipment_type
-        ws["D7"] = weight
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-      except:
-        output = io.BytesIO()
 
       logo_img_tag = (
           f'<img src="data:image/png;base64,{logo_base64}" style="max-height:'
@@ -694,7 +670,7 @@ if active_data_file is not None and active_template_file is not None:
           else ""
       )
 
-      single_receipt_html = f"""
+      return f"""
             <div class="receipt-page" style="padding: 15px; font-family: 'Tahoma', Arial, sans-serif; direction: rtl; border: 2px solid #102a43; width: 100%; max-width: 148mm; margin: auto auto 20px auto; background: #ffffff; color: #102a43; box-sizing: border-box; page-break-after: always; break-after: page;">
                 <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px; border-collapse: collapse;">
                     <tr>
@@ -756,18 +732,7 @@ if active_data_file is not None and active_template_file is not None:
             </div>
             """
 
-      all_receipts_html_for_print += single_receipt_html
-      receipts_data_list.append({
-          "index": index,
-          "name": name,
-          "code": display_code,
-          "shipment": display_shipment,
-          "total_sales": total_sales,
-          "output": output,
-          "file_name_id": file_name_id,
-          "single_html": single_receipt_html,
-      })
-
+    # تجميع البيانات للجدول
     group_cols = [
         c
         for c in [
@@ -776,9 +741,6 @@ if active_data_file is not None and active_template_file is not None:
             name_col_for_clients,
             type_col_name,
             city_col_name,
-            phone_col,
-            phone2_col,
-            address_col,
         ]
         if c and c in df.columns
     ]
@@ -796,7 +758,7 @@ if active_data_file is not None and active_template_file is not None:
       if c not in group_cols and c not in agg_dict:
         agg_dict[c] = "first"
 
-    if code_col and code_col in df.columns:
+    if code_col and code_col in df.columns and len(group_cols) > 0:
       df_grouped = df.groupby(group_cols, as_index=False).agg(agg_dict)
     else:
       df_grouped = df.copy()
@@ -1084,46 +1046,155 @@ if active_data_file is not None and active_template_file is not None:
     st.components.v1.html(table_pdf_html_component, height=55)
     st.markdown("---")
 
-    master_payload = f"""
-        <!DOCTYPE html>
-        <html lang="ar" dir="rtl">
-        <head><meta charset="UTF-8"></head>
-        <body>
-            <button style="background-color: #047857; color: white; padding: 14px 28px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; width: 100%; max-width: 500px; display: block; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="printAll()">🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)</button>
-            <script>
-                const content = `{all_receipts_html_for_print.replace('`', '\\`').replace('$', '\\$')}`;
-                function printAll() {{
+    # زر الطباعة الجماعية الفوري (تجميع الـ HTML عند الضغط فقط لتوفير الأداء)
+    if st.button(
+        "🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)",
+        key="btn_print_all_batch",
+    ):
+      all_html_batch = ""
+      for _, row in df.iterrows():
+        all_html_batch += generate_single_receipt_html(row)
+
+      master_payload = f"""
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head><meta charset="UTF-8"></head>
+            <body>
+                <script>
+                    const content = `{all_html_batch.replace('`', '\\`').replace('$', '\\$')}`;
                     var w = window.open('', '', 'height=900,width=800');
                     w.document.write('<html><head><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma; }}</style></head><body>' + content + '</body></html>');
                     w.document.close();
                     w.focus();
                     setTimeout(() => {{ w.print(); w.close(); }}, 600);
-                }}
-            </script>
-        </body>
-        </html>
-        """
-    st.components.v1.html(master_payload, height=75)
+                </script>
+            </body>
+            </html>
+            """
+      st.components.v1.html(master_payload, height=0)
+
     st.markdown("---")
 
-    for item in receipts_data_list:
+    # عرض الأكواد التوسعية (Expanders) بشكل خفيف ومخصص
+    for index, row in df.iterrows():
+      shipment = str(row.get(ship_col, "بدون شحنة")).strip()
+      code = str(row.get(code_col, "بدون كود")).strip() if code_col else ""
+      display_code = "" if code in ["بدون كود", "nan", "None"] else code
+      display_shipment = (
+          "" if shipment in ["بدون شحنة", "nan", "None"] else shipment
+      )
+      name = (
+          str(row.get(name_col_for_clients, "عميل غير محدد")).strip()
+          if name_col_for_clients
+          else "عميل غير محدد"
+      )
+      if name in ["nan", "None", ""]:
+        name = "عميل غير محدد"
+
+      weight = (
+          float(row.get(weight_col, 0) or 0) if weight_col else 0.0
+      )
+      price_per_kg = (
+          float(row.get(price_col, 0) or 0) if price_col else 0.0
+      )
+      sales_col_val = (
+          float(row.get(sales_col, 0) or 0)
+          if sales_col and sales_col in row
+          else 0.0
+      )
+      if sales_col_val == 0 and price_per_kg > 0 and weight > 0:
+        sales_col_val = weight * price_per_kg
+
       with st.expander(
-          f"📄 وصل العميل: {item['name']} | كود: {item['code'] or 'بدون'} |"
-          f" الشحنة: {item['shipment']} | الإجمالي: {item['total_sales']:,.1f}"
-          " $"
+          f"📄 وصل العميل: {name} | كود: {display_code or 'بدون'} | الشحنة:"
+          f" {display_shipment} | الإجمالي: {sales_col_val:,.1f} $"
       ):
+        # توليد ملف الإكسل و الـ HTML لهذا العميل فقط عند فتح الـ Expander
+        try:
+          wb = openpyxl.load_workbook(active_template_file)
+          ws = wb.active
+          ws["B4"] = display_code
+          ws["D4"] = today_date
+          ws["B5"] = name
+          ws["B6"] = (
+              str(
+                  row.get(
+                      next(
+                          (
+                              c
+                              for c in df.columns
+                              if "عنوان" in c or "البض" in c
+                          ),
+                          "",
+                      ),
+                      "",
+                  )
+              ).strip()
+              if next(
+                  (c for c in df.columns if "عنوان" in c or "البض" in c), None
+              )
+              else ""
+          )
+
+          # حساب الهواتف للـ excel
+          p_col = next(
+              (
+                  c
+                  for c in df.columns
+                  if ("هاتف" in c or "عاتف" in c) and "2" not in c
+              ),
+              None,
+          )
+          p_val = str(row.get(p_col, "")).strip() if p_col else ""
+          if p_val.endswith(".0"):
+            p_val = p_val[:-2]
+          p_val = p_val.replace("+", "").strip()
+          if p_val.startswith("964"):
+            p_val = p_val[3:]
+
+          ws["D5"] = f"+964 {p_val}" if p_val else ""
+          ws["B7"] = display_shipment
+          ws["D6"] = int(
+              float(
+                  row.get(
+                      next(
+                          (c for c in df.columns if "طرود" in c), None
+                      ),
+                      0,
+                  )
+                  or 0
+              )
+          )
+          ws["B8"] = (
+              str(row.get(type_col_name, "")).strip()
+              if type_col_name
+              else ""
+          )
+          ws["D7"] = weight
+
+          output = io.BytesIO()
+          wb.save(output)
+          output.seek(0)
+        except:
+          output = io.BytesIO()
+
+        single_html = generate_single_receipt_html(row)
+        file_name_id = f"Shipment_{display_shipment}_Client_{name}".replace(
+            " ", "_"
+        )
+
         st.download_button(
-            label=f"📥 تنزيل إكسل الوصل",
-            data=item["output"],
-            file_name=f"Delivery_Receipt_{item['file_name_id']}.xlsx",
+            label="📥 تنزيل إكسل الوصل",
+            data=output,
+            file_name=f"Delivery_Receipt_{file_name_id}.xlsx",
             mime=(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             ),
-            key=f"dl_{item['index']}",
+            key=f"dl_{index}",
         )
         st.markdown("<br>", unsafe_allow_html=True)
         st.components.v1.html(
-            f"""<div style="direction:rtl">{item['single_html']}</div><button style="background:#102a43;color:white;padding:12px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin-top:15px;" onclick="window.print()">🖨️ طباعة هذا الوصل</button>""",
+            f"""<div style="direction:rtl">{single_html}</div><button style="background:#102a43;color:white;padding:12px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin-top:15px;" onclick="window.print()">🖨️ طباعة هذا الوصل</button>""",
             height=700,
             scrolling=True,
         )
