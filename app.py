@@ -857,7 +857,7 @@ if active_data_file is not None and active_template_file is not None:
       df_city_summary = df.groupby(city_group_col, as_index=False).agg(
           agg_city_dict
       )
-
+      
       rename_mapping = {}
       if code_col in df_city_summary.columns:
         rename_mapping[code_col] = "عدد العملاء"
