@@ -889,151 +889,6 @@ if active_data_file is not None and active_template_file is not None:
     else:
       city_table_html = "<p>لا توجد بيانات كافية لعرض ملخص المحافظات.</p>"
 
-    # --- إضافة تقرير بغداد المفصل حسب المناطق (توزيع بغداد حسب المناطق) ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader(
-        "📍 تقرير بغداد المفصل حسب المناطق (فرز وتوزيع عناوين بغداد)"
-    )
-
-    # البحث عن عمود العنوان لاستخراج المناطق منه
-    address_col_for_baghdad = next(
-        (
-            c
-            for c in df.columns
-            if "عنوان" in c
-            or "address" in c.lower()
-            or "البض" in c
-            or "البظ" in c
-        ),
-        None,
-    )
-
-    # تصفية صفوف بغداد فقط
-    baghdad_mask = df[city_group_col].astype(str).str.contains("بغداد", na=False)
-    df_baghdad = df[baghdad_mask].copy()
-
-    baghdad_table_html = ""
-    if not df_baghdad.empty and address_col_for_baghdad:
-
-      # دالة بسيطة لاستخراج المنطقة من حقل العنوان (يمكن تعديل الكلمات المفتاحية حسب الحاجة)
-      def extract_baghdad_region(addr):
-        addr_str = str(addr).strip()
-        if not addr_str or addr_str in ["nan", "None"]:
-          return "أخرى / غير محدد"
-
-        # قائمة بأبرز مناطق بغداد للبحث المطابق
-        known_regions = [
-            "المنصور",
-            "الكرادة",
-            "الكاظمية",
-            "الأعظمية",
-            "الدورة",
-            "الصالحية",
-            "الجادرية",
-            "زيونة",
-            "البياع",
-            "الشرطة الرابعة",
-            "الشرطة الخامسة",
-            "الغدير",
-            "حي العامل",
-            "حي الجامعة",
-            "حضلية",
-            "المتجددة",
-            "الشعلة",
-            "الكاظمية",
-            "الرصافة",
-            "الكرخ",
-            "العطيفية",
-            "السادة",
-            "البطحاء",
-            "حي الباقر",
-            "الزعفرانية",
-            "بغداد الجديدة",
-            "الامين",
-            "المفيدة",
-            "الفضل",
-            "الميدان",
-            "شارع الرشيد",
-            "شارع السعدون",
-        ]
-
-        for reg in known_regions:
-          if reg in addr_str:
-            return reg
-
-        # إذا لم يتم مطابقة منطقة معروفة، يتم أخذ أول كلمتين أو اعتبارها ضمن المناطق العامة
-        parts = addr_str.split("/")
-        if len(parts) > 1:
-          return parts[0].strip()
-        return "أخرى / غير محدد"
-
-      df_baghdad["منطقة بغداد"] = df_baghdad[address_col_for_baghdad].apply(
-          extract_baghdad_region
-      )
-
-      agg_baghdad_dict = {}
-      if packages_col and packages_col in df_baghdad.columns:
-        agg_baghdad_dict[packages_col] = "sum"
-      if cbm_col and cbm_col in df_baghdad.columns:
-        agg_baghdad_dict[cbm_col] = "sum"
-      if sales_col and sales_col in df_baghdad.columns:
-        agg_baghdad_dict[sales_col] = "sum"
-      elif weight_col and price_col:
-        df_baghdad["__calc_sales_bg__"] = (
-            df_baghdad[weight_col] * df_baghdad[price_col]
-        )
-        agg_baghdad_dict["__calc_sales_bg__"] = "sum"
-
-      df_baghdad_summary = df_baghdad.groupby("منطقة بغداد", as_index=False).agg(
-          agg_baghdad_dict
-      )
-
-      if "__calc_sales_bg__" in df_baghdad_summary.columns:
-        df_baghdad_summary.rename(
-            columns={"__calc_sales_bg__": "إجمالي الديون / المبيعات ($)"},
-            inplace=True,
-        )
-      if (
-          sales_col
-          and sales_col in df_baghdad_summary.columns
-          and sales_col != "إجمالي الديون / المبيعات ($)"
-      ):
-        df_baghdad_summary.rename(
-            columns={sales_col: "إجمالي الديون / المبيعات ($)"}, inplace=True
-        )
-      if packages_col and packages_col in df_baghdad_summary.columns:
-        df_baghdad_summary.rename(
-            columns={packages_col: "إجمالي الطرود"}, inplace=True
-        )
-      if cbm_col and cbm_col in df_baghdad_summary.columns:
-        df_baghdad_summary.rename(
-            columns={cbm_col: "إجمالي الحجم (CBM)"}, inplace=True
-        )
-
-      if "إجمالي الديون / المبيعات ($)" in df_baghdad_summary.columns:
-        df_baghdad_summary["إجمالي الديون / المبيعات ($)"] = df_baghdad_summary[
-            "إجمالي الديون / المبيعات ($)"
-        ].apply(lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0")
-      if "إجمالي الحجم (CBM)" in df_baghdad_summary.columns:
-        df_baghdad_summary["إجمالي الحجم (CBM)"] = df_baghdad_summary[
-            "إجمالي الحجم (CBM)"
-        ].apply(lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0")
-
-      df_baghdad_summary.insert(
-          0, "التسلسل", range(1, len(df_baghdad_summary) + 1)
-      )
-      baghdad_table_html = df_baghdad_summary.to_html(
-          classes="custom-table", index=False, escape=False
-      )
-      st.html(
-          f"""<div class="custom-table-container">{baghdad_table_html}</div>"""
-      )
-    else:
-      baghdad_table_html = (
-          "<p>لا توجد شحنات خاصة بمدينة بغداد أو عمدة عنوان غير متوفرة.</p>"
-      )
-      st.info("لا توجد بيانات كافية لعرض تقرير مناطق بغداد.")
-
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(
         f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع:"
@@ -1125,11 +980,10 @@ if active_data_file is not None and active_template_file is not None:
             </style>
         </head>
         <body>
-            <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول الحالي وتقارير المحافظات ومناطق بغداد إلى PDF</button>
+            <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول الحالي وتقرير المحافظات إلى PDF</button>
             <script>
                 const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
                 const citySummaryContent = `{city_table_html.replace('`', '\\`').replace('$', '\\$')}`;
-                const baghdadSummaryContent = `{baghdad_table_html.replace('`', '\\`').replace('$', '\\$')}`;
                 const filterInfo = 'الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}';
                 const totalClients = '{total_clients_count} عميل';
                 const totalPackages = '{total_packages_count} طرد';
@@ -1144,7 +998,7 @@ if active_data_file is not None and active_template_file is not None:
                         <html lang="ar" dir="rtl">
                         <head>
                             <meta charset="UTF-8">
-                            <title>تقرير جدول الشحنات والمحافظات ومناطق بغداد - أطلس</title>
+                            <title>تقرير جدول الشحنات والمحافظات - أطلس</title>
                             <style>
                                 @page {{ size: A4 landscape; margin: 5mm; }}
                                 body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 5px; }}
@@ -1174,8 +1028,6 @@ if active_data_file is not None and active_template_file is not None:
                             </div>
                             <h3>📊 ملخص الإحصائيات حسب المحافظات</h3>
                             ${{citySummaryContent}}
-                            <h3 style="margin-top: 15px;">📍 تقرير بغداد المفصل حسب المناطق</h3>
-                            ${{baghdadSummaryContent}}
                             <h3 style="margin-top: 15px;">📋 تفاصيل الشحنات (${{filterInfo}})</h3>
                             ${{tableContent}}
                         </body>
@@ -1349,3 +1201,4 @@ else:
       "الرجاء التأكد من صلاحية الوصول للملفات والضغط على زر (تحديث البيانات و"
       "سحبها من درايف)."
   )
+
