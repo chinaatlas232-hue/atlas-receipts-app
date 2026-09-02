@@ -836,7 +836,6 @@ if active_data_file is not None and active_template_file is not None:
       city_group_col = "المدينة"
 
     agg_city_dict = {}
-    # حساب عدد العملاء الفريدين أو عدد الأكواد لكل مدينة
     if code_col and code_col in df.columns:
       agg_city_dict[code_col] = "nunique"
     elif name_col_for_clients and name_col_for_clients in df.columns:
@@ -859,7 +858,6 @@ if active_data_file is not None and active_template_file is not None:
           agg_city_dict
       )
       
-      # إعادة تسمية الأعمدة بشكل منظم مع إضافة حقل عدد العملاء
       rename_mapping = {}
       if code_col in df_city_summary.columns:
         rename_mapping[code_col] = "عدد العملاء"
@@ -895,6 +893,7 @@ if active_data_file is not None and active_template_file is not None:
       st.html(f"""<div class="custom-table-container">{city_table_html}</div>""")
     else:
       city_table_html = "<p>لا توجد بيانات كافية لعرض ملخص المحافظات.</p>"
+      df_city_summary = pd.DataFrame()
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(
@@ -957,6 +956,25 @@ if active_data_file is not None and active_template_file is not None:
     </div>
     """
     st.html(custom_table_styling)
+
+    # --- تجهيز زر تصدير Excel باستخدام Streamlit download_button ---
+    excel_buffer = io.BytesIO()
+    with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+      display_table_df.to_excel(writer, sheet_name="تفاصيل الشحنات", index=False)
+      if not df_city_summary.empty:
+        df_city_summary.to_excel(writer, sheet_name="ملخص المحافظات", index=False)
+    excel_buffer.seek(0)
+
+    col_btn1, col_btn2 = st.columns([1, 1])
+    with col_btn1:
+      st.download_button(
+          label="📥 تصدير الجدول الحالي إلى إكسل",
+          data=excel_buffer,
+          file_name=f"Shipment_Report_{selected_shipment_filter}.xlsx",
+          mime=(
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          ),
+      )
 
     table_pdf_html_component = f"""
         <!DOCTYPE html>
@@ -1048,7 +1066,9 @@ if active_data_file is not None and active_template_file is not None:
         </body>
         </html>
     """
-    st.components.v1.html(table_pdf_html_component, height=55)
+    with col_btn2:
+      st.components.v1.html(table_pdf_html_component, height=55)
+
     st.markdown("---")
 
     # --- تحضير كود الوصولات لطباعتها دفعة واحدة عبر مكون HTML مستقل يضمن تفاعل الزر تماماً ---
@@ -1231,4 +1251,3 @@ else:
       "الرجاء التأكد من صلاحية الوصول للملفات والضغط على زر (تحديث البيانات و"
       "سحبها من درايف)."
   )
-
