@@ -25,7 +25,6 @@ logo_path = os.path.join(UPLOAD_DIR, "logo.png")
 customer_info_path = os.path.join(UPLOAD_DIR, "customer_info.xlsx")
 
 
-# --- دالة موثوقة لتنزيل الملفات من Google Drive ---
 def download_file_from_google_drive(file_id, destination):
   URL = "https://docs.google.com/uc?export=download"
   session = requests.Session()
@@ -957,7 +956,7 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
 
-    # --- تجهيز ملفات التصدير (إكسل وجرد الساحة) ---
+    # --- تجهيز ملفات التصدير ---
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
       display_table_df.to_excel(writer, sheet_name="تفاصيل الشحنات", index=False)
@@ -977,36 +976,36 @@ if active_data_file is not None and active_template_file is not None:
       yard_df["عدد الطرود"] = extracted_packages
 
       yard_df["الجرد"] = ""
-
       yard_df.to_excel(writer, sheet_name="جرد الساحة", index=False)
     yard_inventory_buffer.seek(0)
 
-    # --- تصميم الأزرار (تصدير إكسل، جرد الساحة باللون الأصفر، وتصدير PDF) مع توحيد الارتفاع والمحاذاة ---
+    # --- تصميم الأزرار مع ضمان توحيد الارتفاع والمحاذاة بدقة ---
     st.markdown(
         """
         <style>
-        /* توحيد مظهر أزرار الـ download buttons لتتطابق تماماً في الارتفاع والهوامش */
+        /* إجبار أزرار ستريمليت على الارتفاع الموحد والمتناسق تماماً */
         div.stButton > button, div.stDownloadButton > button {
-            height: 45px !important;
-            padding-top: 0px !important;
-            padding-bottom: 0px !important;
-            margin-top: 0px !important;
-            margin-bottom: 0px !important;
-            line-height: normal !important;
+            min-height: 48px !important;
+            height: 48px !important;
+            max-height: 48px !important;
+            padding: 0px 15px !important;
+            margin: 0px !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            line-height: 1.2 !important;
         }
-        /* تنسيق زر جرد الساحة باللون الأصفر المميز */
-        div[data-testid="column"]:nth-of-type(2) button {
-            background-color: #eab308 !important;
+        /* تلوين وتخصيص زر جرد الساحة باللون الأصفر المميز مع المطابقة بالارتفاع */
+        div[data-testid="column"]:nth-of-type(2) div.stDownloadButton > button {
+            background-color: #facc15 !important;
             color: #422006 !important;
             font-weight: bold !important;
             border: 1px solid #ca8a04 !important;
-            width: 100% !important;
         }
-        div[data-testid="column"]:nth-of-type(2) button:hover {
-            background-color: #ca8a04 !important;
+        div[data-testid="column"]:nth-of-type(2) div.stDownloadButton > button:hover {
+            background-color: #eab308 !important;
             color: #ffffff !important;
         }
         </style>
@@ -1049,7 +1048,8 @@ if active_data_file is not None and active_template_file is not None:
                 .export-btn {{
                     background-color: #102a43;
                     color: white;
-                    height: 45px;
+                    min-height: 48px;
+                    height: 48px;
                     padding: 0 16px;
                     border: none;
                     border-radius: 4px;
@@ -1057,6 +1057,7 @@ if active_data_file is not None and active_template_file is not None:
                     font-weight: bold;
                     font-size: 14px;
                     width: 100%;
+                    box-sizing: border-box;
                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     font-family: 'Tahoma', Arial, sans-serif;
                     display: flex;
@@ -1131,7 +1132,7 @@ if active_data_file is not None and active_template_file is not None:
         </html>
     """
     with col_btn2:
-      st.components.v1.html(table_pdf_html_component, height=45)
+      st.components.v1.html(table_pdf_html_component, height=48)
 
     st.markdown("---")
 
