@@ -997,15 +997,15 @@ if active_data_file is not None and active_template_file is not None:
             box-sizing: border-box !important;
             line-height: 1.2 !important;
         }
-        /* تلوين وتخصيص زر جرد الساحة باللون الأصفر المميز مع المطابقة بالارتفاع */
+        /* تلوين وتخصيص زر جرد الساحة باللون الرصاي المتوسط مع المطابقة بالارتفاع */
         div[data-testid="column"]:nth-of-type(2) div.stDownloadButton > button {
-            background-color: #facc15 !important;
-            color: #422006 !important;
+            background-color: #64748b !important;
+            color: #ffffff !important;
             font-weight: bold !important;
-            border: 1px solid #ca8a04 !important;
+            border: 1px solid #475569 !important;
         }
         div[data-testid="column"]:nth-of-type(2) div.stDownloadButton > button:hover {
-            background-color: #eab308 !important;
+            background-color: #475569 !important;
             color: #ffffff !important;
         }
         </style>
