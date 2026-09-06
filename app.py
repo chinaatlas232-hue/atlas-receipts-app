@@ -310,14 +310,23 @@ with st.sidebar:
       except Exception:
         pass
 
+    # --- تصحيح وتحويل الأعمدة الرقمية لمنع أخطاء تباين الأنواع (str & float) ---
+    for col in df_s.columns:
+      if "وزن" in str(col) or "cbm" in str(col).lower() or "حجم" in str(col):
+        df_s[col] = pd.to_numeric(df_s[col], errors="coerce").fillna(0.0)
+      if "طرود" in str(col) or "packages" in str(col).lower():
+        df_s[col] = pd.to_numeric(df_s[col], errors="coerce").fillna(0).astype(int)
+
     for col in list(df_s.columns):
       if col == "سعر الكيلو":
         df_s.rename(columns={col: "السعر"}, inplace=True)
         continue
       if col == "السعر":
+        df_s["السعر"] = pd.to_numeric(df_s["السعر"], errors="coerce").fillna(0.0)
         continue
       if "سعر" in str(col) and col != "السعر":
         df_s.rename(columns={col: "السعر"}, inplace=True)
+        df_s["السعر"] = pd.to_numeric(df_s["السعر"], errors="coerce").fillna(0.0)
         break
 
     return df_s
@@ -511,7 +520,7 @@ if active_data_file is not None and active_template_file is not None:
         (c for c in df.columns if "وزن" in c or "weight" in c.lower()), None
     )
     total_weight_sum = (
-        float(df[weight_col].sum())
+        float(pd.to_numeric(df[weight_col], errors="coerce").sum())
         if weight_col and weight_col in df.columns
         else 0.0
     )
@@ -520,14 +529,16 @@ if active_data_file is not None and active_template_file is not None:
         (c for c in df.columns if "cbm" in c.lower() or "حجم" in c), None
     )
     total_cbm_sum = (
-        float(df[cbm_col].sum()) if cbm_col and cbm_col in df.columns else 0.0
+        float(pd.to_numeric(df[cbm_col], errors="coerce").sum())
+        if cbm_col and cbm_col in df.columns
+        else 0.0
     )
 
     packages_col = next(
         (c for c in df.columns if "طرود" in c or "packages" in c.lower()), None
     )
     total_packages_count = (
-        int(df[packages_col].sum())
+        int(pd.to_numeric(df[packages_col], errors="coerce").sum())
         if packages_col and packages_col in df.columns
         else 0
     )
@@ -543,9 +554,11 @@ if active_data_file is not None and active_template_file is not None:
     )
 
     if sales_col and sales_col in df.columns:
-      total_sales_sum = float(df[sales_col].sum())
+      total_sales_sum = float(pd.to_numeric(df[sales_col], errors="coerce").sum())
     elif price_col and weight_col:
-      total_sales_sum = float((df[weight_col] * df[price_col]).sum())
+      s_weights = pd.to_numeric(df[weight_col], errors="coerce").fillna(0.0)
+      s_prices = pd.to_numeric(df[price_col], errors="coerce").fillna(0.0)
+      total_sales_sum = float((s_weights * s_prices).sum())
     else:
       total_sales_sum = 0.0
 
@@ -567,26 +580,25 @@ if active_data_file is not None and active_template_file is not None:
         name = "عميل غير محدد"
 
       weight = (
-          float(row_data.get(weight_col, 0) or 0) if weight_col else 0.0
+          float(pd.to_numeric(pd.Series([row_data.get(weight_col, 0)]), errors="coerce").iloc[0] or 0)
+          if weight_col else 0.0
       )
       cbm_value = (
-          float(row_data.get(cbm_col, 0) or 0)
-          if cbm_col and cbm_col in row_data
-          else 0.0
+          float(pd.to_numeric(pd.Series([row_data.get(cbm_col, 0)]), errors="coerce").iloc[0] or 0)
+          if cbm_col and cbm_col in row_data else 0.0
       )
       packages = (
-          int(float(row_data.get(packages_col, 0) or 0))
-          if packages_col and packages_col in row_data
-          else 0
+          int(float(pd.to_numeric(pd.Series([row_data.get(packages_col, 0)]), errors="coerce").iloc[0] or 0))
+          if packages_col and packages_col in row_data else 0
       )
       price_per_kg = (
-          float(row_data.get(price_col, 0) or 0) if price_col else 0.0
+          float(pd.to_numeric(pd.Series([row_data.get(price_col, 0)]), errors="coerce").iloc[0] or 0)
+          if price_col else 0.0
       )
 
       total_sales = (
-          float(row_data.get(sales_col, 0) or 0)
-          if sales_col and sales_col in row_data
-          else 0.0
+          float(pd.to_numeric(pd.Series([row_data.get(sales_col, 0)]), errors="coerce").iloc[0] or 0)
+          if sales_col and sales_col in row_data else 0.0
       )
       if total_sales == 0 and price_per_kg > 0 and weight > 0:
         total_sales = weight * price_per_kg
@@ -761,12 +773,12 @@ if active_data_file is not None and active_template_file is not None:
       df_grouped = df.copy()
 
     if sales_col and sales_col in df_grouped.columns:
-      df_grouped[sales_col] = df_grouped[sales_col].apply(
-          lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0"
+      df_grouped[sales_col] = pd.to_numeric(df_grouped[sales_col], errors="coerce").fillna(0.0).apply(
+          lambda x: f"{float(x):,.1f}"
       )
     if price_col and price_col in df_grouped.columns:
-      df_grouped[price_col] = df_grouped[price_col].apply(
-          lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0"
+      df_grouped[price_col] = pd.to_numeric(df_grouped[price_col], errors="coerce").fillna(0.0).apply(
+          lambda x: f"{float(x):,.1f}"
       )
 
     st.markdown(
@@ -849,7 +861,9 @@ if active_data_file is not None and active_template_file is not None:
     if sales_col and sales_col in df.columns:
       agg_city_dict[sales_col] = "sum"
     elif weight_col and price_col:
-      df["__calc_sales__"] = df[weight_col] * df[price_col]
+      s_weights = pd.to_numeric(df[weight_col], errors="coerce").fillna(0.0)
+      s_prices = pd.to_numeric(df[price_col], errors="coerce").fillna(0.0)
+      df["__calc_sales__"] = s_weights * s_prices
       agg_city_dict["__calc_sales__"] = "sum"
 
     if agg_city_dict:
@@ -877,13 +891,13 @@ if active_data_file is not None and active_template_file is not None:
       df_city_summary.rename(columns=rename_mapping, inplace=True)
 
       if "إجمالي الديون / المبيعات ($)" in df_city_summary.columns:
-        df_city_summary["إجمالي الديون / المبيعات ($)"] = df_city_summary[
-            "إجمالي الديون / المبيعات ($)"
-        ].apply(lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0")
+        df_city_summary["إجمالي الديون / المبيعات ($)"] = pd.to_numeric(
+            df_city_summary["إجمالي الديون / المبيعات ($)"], errors="coerce"
+        ).fillna(0.0).apply(lambda x: f"{float(x):,.1f}")
       if "إجمالي الحجم (CBM)" in df_city_summary.columns:
-        df_city_summary["إجمالي الحجم (CBM)"] = df_city_summary[
-            "إجمالي الحجم (CBM)"
-        ].apply(lambda x: f"{float(x):,.1f}" if pd.notnull(x) else "0.0")
+        df_city_summary["إجمالي الحجم (CBM)"] = pd.to_numeric(
+            df_city_summary["إجمالي الحجم (CBM)"], errors="coerce"
+        ).fillna(0.0).apply(lambda x: f"{float(x):,.1f}")
 
       df_city_summary.insert(0, "التسلسل", range(1, len(df_city_summary) + 1))
       city_table_html = df_city_summary.to_html(
@@ -964,7 +978,7 @@ if active_data_file is not None and active_template_file is not None:
         df_city_summary.to_excel(writer, sheet_name="ملخص المحافظات", index=False)
     excel_buffer.seek(0)
 
-    # --- تجهيز جرد الساحة (نقل عمود العنوان ليصبح بعد عمود الكود مباشرة) ---
+    # --- تجهيز جرد الساحة ---
     yard_inventory_buffer = io.BytesIO()
     with pd.ExcelWriter(yard_inventory_buffer, engine="openpyxl") as writer:
       yard_df = pd.DataFrame()
@@ -1000,13 +1014,11 @@ if active_data_file is not None and active_template_file is not None:
           else [0] * len(display_table_df)
       )
       yard_df["عدد الطرود"] = extracted_packages
-
       yard_df["الجرد الفعلي"] = ""
 
       yard_df.to_excel(writer, sheet_name="جرد الساحة", index=False)
     yard_inventory_buffer.seek(0)
 
-    # --- إنشاء جدول وطباعة جرد الساحة بتنسيق A4 (مع نقل عمود العنوان ليصبح بعد الكود مباشرة) ---
     yard_display_df = pd.DataFrame()
     yard_display_df["التسلسل"] = range(1, len(display_table_df) + 1)
     yard_display_df["الكود"] = (
@@ -1043,11 +1055,9 @@ if active_data_file is not None and active_template_file is not None:
         classes="custom-table yard-table", index=False, escape=False
     )
 
-    # --- تصميم الأزرار مع ضمان توحيد الارتفاع والمحاذاة بدقة ---
     st.markdown(
         """
         <style>
-        /* إجبار أزرار ستريمليت على الارتفاع الموحد والمتناسق تماماً */
         div.stButton > button, div.stDownloadButton > button {
             min-height: 48px !important;
             height: 48px !important;
@@ -1061,7 +1071,6 @@ if active_data_file is not None and active_template_file is not None:
             box-sizing: border-box !important;
             line-height: 1.2 !important;
         }
-        /* تلوين عنصر الزر الداخلي والخارجي لزر جرد الساحة باللون الرمادي المتوسط */
         div[data-testid="column"]:nth-of-type(2) div.stDownloadButton > button,
         div[data-testid="column"]:nth-of-type(2) div.stDownloadButton button,
         div[data-testid="column"]:nth-of-type(2) button {
@@ -1203,7 +1212,6 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- مكون طباعة جرد الساحة (نسق A4 عمودي مع إعادة ترتيب الأعمدة: التسلسل، الكود، العنوان، عدد الطرود، الجرد الفعلي) ---
     yard_pdf_html_component = f"""
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -1258,18 +1266,13 @@ if active_data_file is not None and active_template_file is not None:
                                 h2 {{ margin: 0; font-size: 18px; color: #102a43; }}
                                 p {{ margin: 5px 0 0; font-size: 12px; color: #627d98; }}
                                 .info-bar {{ font-size: 13px; font-weight: bold; margin-bottom: 15px; background: #f0f4f8; padding: 8px; border: 1px solid #bcccdc; border-radius: 4px; }}
-                                
-                                /* تخصيص أعمدة جدول جرد الساحة بعد نقل عمود العنوان ليصبح بعد الكود مباشرة */
                                 table {{ width: 100% !important; border-collapse: collapse; font-size: 12px !important; margin-top: 5px; table-layout: fixed; }}
                                 th, td {{ padding: 8px 6px !important; border: 1px solid #94a3b8; text-align: right; overflow: hidden; }}
-                                
-                                /* توزيع النسب: التسلسل، الكود، العنوان، عدد الطرود، والجرد الفعلي */
-                                th:nth-child(1), td:nth-child(1) {{ width: 8%; text-align: center; }}  /* التسلسل */
-                                th:nth-child(2), td:nth-child(2) {{ width: 15%; }} /* الكود */
-                                th:nth-child(3), td:nth-child(3) {{ width: 38%; }} /* العنوان (أصبح بعد الكود) */
-                                th:nth-child(4), td:nth-child(4) {{ width: 14%; text-align: center; }} /* عدد الطرود */
-                                th:nth-child(5), td:nth-child(5) {{ width: 25%; }} /* الجرد الفعلي */
-
+                                th:nth-child(1), td:nth-child(1) {{ width: 8%; text-align: center; }}
+                                th:nth-child(2), td:nth-child(2) {{ width: 15%; }}
+                                th:nth-child(3), td:nth-child(3) {{ width: 38%; }}
+                                th:nth-child(4), td:nth-child(4) {{ width: 14%; text-align: center; }}
+                                th:nth-child(5), td:nth-child(5) {{ width: 25%; }}
                                 th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                 tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                 .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; }}
@@ -1303,7 +1306,6 @@ if active_data_file is not None and active_template_file is not None:
 
     st.markdown("---")
 
-    # --- طباعة الوصولات دفعة واحدة ---
     all_html_batch = ""
     for _, row in df.iterrows():
       all_html_batch += generate_single_receipt_html(row)
@@ -1370,15 +1372,16 @@ if active_data_file is not None and active_template_file is not None:
         name = "عميل غير محدد"
 
       weight = (
-          float(row.get(weight_col, 0) or 0) if weight_col else 0.0
+          float(pd.to_numeric(pd.Series([row.get(weight_col, 0)]), errors="coerce").iloc[0] or 0)
+          if weight_col else 0.0
       )
       price_per_kg = (
-          float(row.get(price_col, 0) or 0) if price_col else 0.0
+          float(pd.to_numeric(pd.Series([row.get(price_col, 0)]), errors="coerce").iloc[0] or 0)
+          if price_col else 0.0
       )
       sales_col_val = (
-          float(row.get(sales_col, 0) or 0)
-          if sales_col and sales_col in row
-          else 0.0
+          float(pd.to_numeric(pd.Series([row.get(sales_col, 0)]), errors="coerce").iloc[0] or 0)
+          if sales_col and sales_col in row else 0.0
       )
       if sales_col_val == 0 and price_per_kg > 0 and weight > 0:
         sales_col_val = weight * price_per_kg
@@ -1432,12 +1435,17 @@ if active_data_file is not None and active_template_file is not None:
           ws["B7"] = display_shipment
           ws["D6"] = int(
               float(
-                  row.get(
-                      next(
-                          (c for c in df.columns if "طرود" in c), None
-                      ),
-                      0,
-                  )
+                  pd.to_numeric(
+                      pd.Series([
+                          row.get(
+                              next(
+                                  (c for c in df.columns if "طرود" in c), None
+                              ),
+                              0,
+                          )
+                      ]),
+                      errors="coerce",
+                  ).iloc[0]
                   or 0
               )
           )
@@ -1455,7 +1463,7 @@ if active_data_file is not None and active_template_file is not None:
           output = io.BytesIO()
 
         single_html = generate_single_receipt_html(row)
-        file_name_id = f"Shipment_{display_ship_col if 'display_ship_col' in locals() else shipment}_Client_{name}".replace(
+        file_name_id = f"Shipment_{display_shipment}_Client_{name}".replace(
             " ", "_"
         )
 
