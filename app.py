@@ -891,6 +891,18 @@ if active_data_file is not None and active_template_file is not None:
       df["المدينة"] = "غير محدد"
       city_group_col = "المدينة"
 
+    # --- تحويل أعمدة التجميع والتأكد من صفتها الرقمية لمنع أخطاء ttypes ---
+    if weight_col and weight_col in df.columns:
+      df[weight_col] = pd.to_numeric(df[weight_col], errors="coerce").fillna(0.0)
+    if cbm_col and cbm_col in df.columns:
+      df[cbm_col] = pd.to_numeric(df[cbm_col], errors="coerce").fillna(0.0)
+    if packages_col and packages_col in df.columns:
+      df[packages_col] = (
+          pd.to_numeric(df[packages_col], errors="coerce").fillna(0).astype(int)
+      )
+    if sales_col and sales_col in df.columns:
+      df[sales_col] = pd.to_numeric(df[sales_col], errors="coerce").fillna(0.0)
+
     agg_city_dict = {}
     if code_col and code_col in df.columns:
       agg_city_dict[code_col] = "nunique"
