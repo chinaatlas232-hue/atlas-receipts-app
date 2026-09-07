@@ -1660,6 +1660,21 @@ elif app_page == "الصفحة الرئيسية":
             use_container_width=True,
         )
 
+      safe_table_html = (
+          table_html.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
+      )
+      safe_city_summary_content = (
+          city_table_html.replace("\\", "\\\\")
+          .replace("`", "\\`")
+          .replace("$", "\\$")
+      )
+      safe_filter_info = f"الشحنة: {selected_shipment_filter} | الكفيل: {selected_guarantor_filter} | النوع: {selected_type_filter}"
+      safe_total_clients = f"{total_clients_count} عميل"
+      safe_total_packages = f"{total_packages_count} طرد"
+      safe_total_cbm = f"{total_cbm_sum:,.1f} CBM"
+      safe_total_weight = f"{total_weight_sum:,.1f} كغ"
+      safe_total_sales = f"{total_sales_sum:,.1f} $"
+
       table_pdf_html_component = f"""
           <!DOCTYPE html>
           <html lang="ar" dir="rtl">
@@ -1695,14 +1710,14 @@ elif app_page == "الصفحة الرئيسية":
           <body>
               <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول والمحافظات PDF</button>
               <script>
-                  const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
-                  const citySummaryContent = `{city_table_html.replace('`', '\\`').replace('$', '\\$')}`;
-                  const filterInfo = 'الشحنة: {selected_shipment_filter} | الكفيل: {selected_guarantor_filter} | النوع: {selected_type_filter}';
-                  const totalClients = '{total_clients_count} عميل';
-                  const totalPackages = '{total_packages_count} طرد';
-                  const totalCbm = '{total_cbm_sum:,.1f} CBM';
-                  const totalWeight = '{total_weight_sum:,.1f} كغ';
-                  const totalSales = '{total_sales_sum:,.1f} $';
+                  const tableContent = `{safe_table_html}`;
+                  const citySummaryContent = `{safe_city_summary_content}`;
+                  const filterInfo = `{safe_filter_info}`;
+                  const totalClients = `{safe_total_clients}`;
+                  const totalPackages = `{safe_total_packages}`;
+                  const totalCbm = `{safe_total_cbm}`;
+                  const totalWeight = `{safe_total_weight}`;
+                  const totalSales = `{safe_total_sales}`;
 
                   function exportTablePDF() {{
                       var w = window.open('', '', 'height=900,width=1200');
