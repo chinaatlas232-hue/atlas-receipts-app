@@ -357,15 +357,86 @@ with st.sidebar:
         )
         break
 
-    # نقل عمود "الكفيل" ليصبح قبل الأخير (أو أقصى اليسار قبل الأعمدة الإضافية)
-    if guarantor_col and guarantor_col in df_s.columns:
-      cols = [c for c in df_s.columns if c != guarantor_col]
-      cols.insert(len(cols) - 1, guarantor_col)
-      df_s = df_s[cols]
-    elif "الكفيل" in df_s.columns:
-      cols = [c for c in df_s.columns if c != "الكفيل"]
-      cols.insert(len(cols) - 1, "الكفيل")
-      df_s = df_s[cols]
+    # --- إعادة ترتيب الأعمدة بالترتيب المطلوب تماماً ---
+    # البحث عن الأسماء الفعلية للأعمدة الحالية في ملف الإكسل
+    c_ship = next(
+        (c for c in df_s.columns if "شحنة" in str(c) or "shipment" in str(c).lower()),
+        None,
+    )
+    c_code = next(
+        (c for c in df_s.columns if "كود" in str(c) or "code" in str(c).lower()),
+        None,
+    )
+    c_name = next(
+        (c for c in df_s.columns if "الاسم" in str(c) or "name" in str(c).lower()),
+        None,
+    )
+    c_guarantor = next(
+        (c for c in df_s.columns if "كفيل" in str(c) or "guarantor" in str(c).lower()),
+        None,
+    )
+    c_weight = next(
+        (c for c in df_s.columns if "وزن" in str(c) or "weight" in str(c).lower()),
+        None,
+    )
+    c_cbm = next(
+        (c for c in df_s.columns if "cbm" in str(c).lower() or "حجم" in str(c)),
+        None,
+    )
+    c_packages = next(
+        (c for c in df_s.columns if "طرود" in str(c) or "packages" in str(c).lower()),
+        None,
+    )
+    c_price = next(
+        (c for c in df_s.columns if c == "السعر" or "سعر" in str(c)), None
+    )
+    c_sales = next(
+        (c for c in df_s.columns if "مبيعات" in str(c) or "اجمالي" in str(c) or "total" in str(c).lower()),
+        None,
+    )
+    c_phone1 = next(
+        (c for c in df_s.columns if ("هاتف" in str(c) or "عاتف" in str(c)) and "2" not in str(c)),
+        None,
+    )
+    c_phone2 = next(
+        (c for c in df_s.columns if ("هاتف" in str(c) or "عاتف" in str(c)) and "2" in str(c)),
+        None,
+    )
+    c_addr = next(
+        (c for c in df_s.columns if "عنوان" in str(c) or "البض" in str(c) or "البظ" in str(c)),
+        None,
+    )
+    c_city = next(
+        (c for c in df_s.columns if "مدينة" in str(c) or "محافظ" in str(c)), None
+    )
+    c_type = next(
+        (c for c in df_s.columns if "نوع" in str(c) or "type" in str(c).lower()),
+        None,
+    )
+
+    desired_order = [
+        c_ship,
+        c_code,
+        c_name,
+        c_guarantor,
+        c_weight,
+        c_cbm,
+        c_packages,
+        c_price,
+        c_sales,
+        c_phone1,
+        c_phone2,
+        c_addr,
+        c_city,
+        c_type,
+    ]
+
+    # تصفية الأعمدة الموجودة فعلياً لضمان عدم حدوث خطأ
+    valid_order = [c for c in desired_order if c and c in df_s.columns]
+    # إضافة أي أعمدة إضافية إن وجدت في الملف الأصلي ولم تُذكر في القائمة
+    remaining_cols = [c for c in df_s.columns if c not in valid_order]
+
+    df_s = df_s[valid_order + remaining_cols]
 
     return df_s
 
@@ -1045,6 +1116,30 @@ elif app_page == "الصفحة الرئيسية":
         df_grouped = df.groupby(group_cols, as_index=False).agg(agg_dict)
       else:
         df_grouped = df.copy()
+
+      # إعادة ترتيب الأعمدة في df_grouped بناءً على الترتيب الصحيح
+      c_ship = next((c for c in df_grouped.columns if "شحنة" in str(c) or "shipment" in str(c).lower()), None)
+      c_code = next((c for c in df_grouped.columns if "كود" in str(c) or "code" in str(c).lower()), None)
+      c_name = next((c for c in df_grouped.columns if "الاسم" in str(c) or "name" in str(c).lower()), None)
+      c_guarantor = next((c for c in df_grouped.columns if "كفيل" in str(c) or "guarantor" in str(c).lower()), None)
+      c_weight = next((c for c in df_grouped.columns if "وزن" in str(c) or "weight" in str(c).lower()), None)
+      c_cbm = next((c for c in df_grouped.columns if "cbm" in str(c).lower() or "حجم" in str(c)), None)
+      c_packages = next((c for c in df_grouped.columns if "طرود" in str(c) or "packages" in str(c).lower()), None)
+      c_price = next((c for c in df_grouped.columns if c == "السعر" or "سعر" in str(c)), None)
+      c_sales = next((c for c in df_grouped.columns if "مبيعات" in str(c) or "اجمالي" in str(c) or "total" in str(c).lower()), None)
+      c_phone1 = next((c for c in df_grouped.columns if ("هاتف" in str(c) or "عاتف" in str(c)) and "2" not in str(c)), None)
+      c_phone2 = next((c for c in df_grouped.columns if ("هاتف" in str(c) or "عاتف" in str(c)) and "2" in str(c)), None)
+      c_addr = next((c for c in df_grouped.columns if "عنوان" in str(c) or "البض" in str(c) or "البظ" in str(c)), None)
+      c_city = next((c for c in df_grouped.columns if "مدينة" in str(c) or "محافظ" in str(c)), None)
+      c_type = next((c for c in df_grouped.columns if "نوع" in str(c) or "type" in str(c).lower()), None)
+
+      desired_order_g = [
+          c_ship, c_code, c_name, c_guarantor, c_weight, c_cbm, c_packages,
+          c_price, c_sales, c_phone1, c_phone2, c_addr, c_city, c_type
+      ]
+      valid_order_g = [c for c in desired_order_g if c and c in df_grouped.columns]
+      remaining_cols_g = [c for c in df_grouped.columns if c not in valid_order_g]
+      df_grouped = df_grouped[valid_order_g + remaining_cols_g]
 
       df_grouped_display = df_grouped.copy()
       if sales_col and sales_col in df_grouped_display.columns:
