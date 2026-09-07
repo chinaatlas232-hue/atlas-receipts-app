@@ -319,11 +319,17 @@ with st.sidebar:
 
     # التأكد من وجود عميل "الكفيل" وتعامل آمن معه
     guarantor_col = next(
-        (c for c in df_s.columns if "كفيل" in str(c) or "guarantor" in str(c).lower()),
+        (
+            c
+            for c in df_s.columns
+            if "كفيل" in str(c) or "guarantor" in str(c).lower()
+        ),
         None,
     )
     if guarantor_col:
-      df_s[guarantor_col] = df_s[guarantor_col].fillna("").astype(str).str.strip()
+      df_s[guarantor_col] = (
+          df_s[guarantor_col].fillna("").astype(str).str.strip()
+      )
     else:
       df_s["الكفيل"] = ""
 
@@ -359,6 +365,7 @@ with st.sidebar:
   selected_shipment_filter = "الكل"
   selected_code_filter = "الكل"
   selected_type_filter = "الكل"
+  selected_guarantor_filter = "الكل"
 
   temp_df = load_and_merge_data(ship_mtime, cust_mtime)
   if temp_df is not None and not temp_df.empty:
@@ -387,6 +394,31 @@ with st.sidebar:
         filtered_temp_df = filtered_temp_df[
             filtered_temp_df[ship_col] == selected_shipment_filter
         ]
+
+      # فلتر الكفيل
+      guarantor_col = next(
+          (
+              c
+              for c in filtered_temp_df.columns
+              if "كفيل" in str(c) or "guarantor" in str(c).lower()
+          ),
+          None,
+      )
+      if guarantor_col:
+        filtered_temp_df[guarantor_col] = (
+            filtered_temp_df[guarantor_col]
+            .fillna("بدون كفيل")
+            .astype(str)
+            .str.strip()
+        )
+        guarantor_list = ["الكل"] + sorted(
+            [g for g in filtered_temp_df[guarantor_col].unique() if g != ""]
+        )
+        selected_guarantor_filter = st.selectbox("اختر الكفيل:", guarantor_list)
+        if selected_guarantor_filter != "الكل":
+          filtered_temp_df = filtered_temp_df[
+              filtered_temp_df[guarantor_col] == selected_guarantor_filter
+          ]
 
       code_col = next(
           (
@@ -495,7 +527,9 @@ if app_page == "موافقة إخراج البضائع":
           full_approval_df.columns[0],
       )
       subset_df = full_approval_df[
-          full_approval_df[ship_col_app].astype(str).str.replace(".0", "", regex=False)
+          full_approval_df[ship_col_app]
+          .astype(str)
+          .str.replace(".0", "", regex=False)
           == selected_approval_shipment
       ].copy()
 
@@ -519,7 +553,9 @@ if app_page == "موافقة إخراج البضائع":
           (
               c
               for c in subset_df.columns
-              if "عنوان" in str(c) or "address" in str(c).lower() or "البض" in str(c)
+              if "عنوان" in str(c)
+              or "address" in str(c).lower()
+              or "البض" in str(c)
           ),
           "العنوان",
       )
@@ -527,12 +563,18 @@ if app_page == "موافقة إخراج البضائع":
           (
               c
               for c in subset_df.columns
-              if "مدينة" in str(c) or "محافظ" in str(c) or "city" in str(c).lower()
+              if "مدينة" in str(c)
+              or "محافظ" in str(c)
+              or "city" in str(c).lower()
           ),
           "المحافظة",
       )
       g_col = next(
-          (c for c in subset_df.columns if "كفيل" in str(c) or "guarantor" in str(c).lower()),
+          (
+              c
+              for c in subset_df.columns
+              if "كفيل" in str(c) or "guarantor" in str(c).lower()
+          ),
           "الكفيل",
       )
 
@@ -549,9 +591,14 @@ if app_page == "موافقة إخراج البضائع":
         })
       df_approval_display = pd.DataFrame(formatted_data)
     else:
-      data = [
-          {"التسلسل": 1, "الكود": "B1020", "الاسم": "إبراهيم قاسم", "العنوان": "المنطقة التجارية", "المحافظة": "بغداد", "الكفيل": ""},
-      ]
+      data = [{
+          "التسلسل": 1,
+          "الكود": "B1020",
+          "الاسم": "إبراهيم قاسم",
+          "العنوان": "المنطقة التجارية",
+          "المحافظة": "بغداد",
+          "الكفيل": "",
+      }]
       df_approval_display = pd.DataFrame(data)
 
     st.subheader(f"تفاصيل الشحنة: {selected_approval_shipment}")
@@ -593,12 +640,18 @@ elif app_page == "الصفحة الرئيسية":
           (
               c
               for c in df.columns
-              if "مدينة" in str(c) or "محافظ" in str(c) or "city" in str(c).lower()
+              if "مدينة" in str(c)
+              or "محافظ" in str(c)
+              or "city" in str(c).lower()
           ),
           "المدينة",
       )
       guarantor_col_name = next(
-          (c for c in df.columns if "كفيل" in str(c) or "guarantor" in str(c).lower()),
+          (
+              c
+              for c in df.columns
+              if "كفيل" in str(c) or "guarantor" in str(c).lower()
+          ),
           None,
       )
 
@@ -624,10 +677,15 @@ elif app_page == "الصفحة الرئيسية":
             df[city_col_name].fillna("غير محدد").astype(str).str.strip()
         )
       if guarantor_col_name and guarantor_col_name in df.columns:
-        df[guarantor_col_name] = df[guarantor_col_name].fillna("").astype(str).str.strip()
+        df[guarantor_col_name] = (
+            df[guarantor_col_name].fillna("").astype(str).str.strip()
+        )
 
       if selected_shipment_filter != "الكل":
         df = df[df[ship_col] == selected_shipment_filter]
+
+      if selected_guarantor_filter != "الكل" and guarantor_col_name:
+        df = df[df[guarantor_col_name] == selected_guarantor_filter]
 
       if selected_code_filter != "الكل" and code_col:
         df = df[df[code_col] == selected_code_filter]
@@ -693,7 +751,9 @@ elif app_page == "الصفحة الرئيسية":
           else 0
       )
 
-      price_col = next((c for c in df.columns if c == "السعر" or "سعر" in c), None)
+      price_col = next(
+          (c for c in df.columns if c == "السعر" or "سعر" in c), None
+      )
       sales_col = next(
           (
               c
@@ -704,7 +764,9 @@ elif app_page == "الصفحة الرئيسية":
       )
 
       if sales_col and sales_col in df.columns:
-        total_sales_sum = float(pd.to_numeric(df[sales_col], errors="coerce").sum())
+        total_sales_sum = float(
+            pd.to_numeric(df[sales_col], errors="coerce").sum()
+        )
       elif price_col and weight_col:
         s_weights = pd.to_numeric(df[weight_col], errors="coerce").fillna(0.0)
         s_prices = pd.to_numeric(df[price_col], errors="coerce").fillna(0.0)
@@ -850,7 +912,9 @@ elif app_page == "الصفحة الرئيسية":
             ),
             None,
         )
-        address = str(row_data.get(address_col, "")).strip() if address_col else ""
+        address = (
+            str(row_data.get(address_col, "")).strip() if address_col else ""
+        )
         if address in ["nan", "None"]:
           address = ""
 
@@ -871,7 +935,9 @@ elif app_page == "الصفحة الرئيسية":
         )
 
         guarantor_row_html = (
-            f'<tr><td style="padding: 5px; border: 1px solid #bcccdc;" colspan="2"><strong>الكفيل:</strong> <span style="color: #102a43; font-weight: bold;">{guarantor}</span></td></tr>'
+            f'<tr><td style="padding: 5px; border: 1px solid #bcccdc;"'
+            f' colspan="2"><strong>الكفيل:</strong> <span style="color:'
+            f' #102a43; font-weight: bold;">{guarantor}</span></td></tr>'
             if guarantor
             else ""
         )
@@ -1050,7 +1116,9 @@ elif app_page == "الصفحة الرئيسية":
         city_group_col = "المدينة"
 
       if weight_col and weight_col in df.columns:
-        df[weight_col] = pd.to_numeric(df[weight_col], errors="coerce").fillna(0.0)
+        df[weight_col] = pd.to_numeric(df[weight_col], errors="coerce").fillna(
+            0.0
+        )
       if cbm_col and cbm_col in df.columns:
         df[cbm_col] = pd.to_numeric(df[cbm_col], errors="coerce").fillna(0.0)
       if packages_col and packages_col in df.columns:
@@ -1137,8 +1205,8 @@ elif app_page == "الصفحة الرئيسية":
 
       st.markdown("<br>", unsafe_allow_html=True)
       st.subheader(
-          f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - النوع:"
-          f" [{selected_type_filter}]"
+          f"📋 جدول تفاصيل الشحنة المعروضة: [{selected_shipment_filter}] - الكفيل:"
+          f" [{selected_guarantor_filter}] - النوع: [{selected_type_filter}]"
       )
 
       display_table_df = df_grouped_display.copy()
@@ -1206,8 +1274,12 @@ elif app_page == "الصفحة الرئيسية":
         )
         if not df_city_summary.empty:
           export_city_df = df_city_summary.copy()
-          export_city_df.insert(0, "التسلسل", range(1, len(export_city_df) + 1))
-          export_city_df.to_excel(writer, sheet_name="ملخص المحافظات", index=False)
+          export_city_df.insert(
+              0, "التسلسل", range(1, len(export_city_df) + 1)
+          )
+          export_city_df.to_excel(
+              writer, sheet_name="ملخص المحافظات", index=False
+          )
       excel_buffer.seek(0)
 
       yard_inventory_buffer = io.BytesIO()
@@ -1326,7 +1398,9 @@ elif app_page == "الصفحة الرئيسية":
         st.download_button(
             label="📥 تصدير الجدول الحالي إلى إكسل",
             data=excel_buffer,
-            file_name=f"Shipment_Report_{selected_shipment_filter}.xlsx",
+            file_name=(
+                f"Shipment_Report_{selected_shipment_filter}_Guarantor_{selected_guarantor_filter}.xlsx"
+            ),
             mime=(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             ),
@@ -1337,7 +1411,9 @@ elif app_page == "الصفحة الرئيسية":
         st.download_button(
             label="🟡 جرد الساحة (إكسل)",
             data=yard_inventory_buffer,
-            file_name=f"Yard_Inventory_{selected_shipment_filter}.xlsx",
+            file_name=(
+                f"Yard_Inventory_{selected_shipment_filter}_Guarantor_{selected_guarantor_filter}.xlsx"
+            ),
             mime=(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             ),
@@ -1381,7 +1457,7 @@ elif app_page == "الصفحة الرئيسية":
               <script>
                   const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
                   const citySummaryContent = `{city_table_html.replace('`', '\\`').replace('$', '\\$')}`;
-                  const filterInfo = 'الشحنة: {selected_shipment_filter} | النوع: {selected_type_filter}';
+                  const filterInfo = 'الشحنة: {selected_shipment_filter} | الكفيل: {selected_guarantor_filter} | النوع: {selected_type_filter}';
                   const totalClients = '{total_clients_count} عميل';
                   const totalPackages = '{total_packages_count} طرد';
                   const totalCbm = '{total_cbm_sum:,.1f} CBM';
@@ -1480,7 +1556,7 @@ elif app_page == "الصفحة الرئيسية":
               <button class="yard-btn" onclick="exportYardPDF()">📋 طباعة ورقة جرد الساحة (A4)</button>
               <script>
                   const yardTableContent = `{yard_table_html.replace('`', '\\`').replace('$', '\\$')}`;
-                  const yardFilterInfo = 'الشحنة: {selected_shipment_filter} | التاريخ: {today_date}';
+                  const yardFilterInfo = 'الشحنة: {selected_shipment_filter} | الكفيل: {selected_guarantor_filter} | التاريخ: {today_date}';
 
                   function exportYardPDF() {{
                       var w = window.open('', '', 'height=900,width=800');
