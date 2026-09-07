@@ -1660,21 +1660,6 @@ elif app_page == "الصفحة الرئيسية":
             use_container_width=True,
         )
 
-      safe_table_html = (
-          table_html.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
-      )
-      safe_city_summary_content = (
-          city_table_html.replace("\\", "\\\\")
-          .replace("`", "\\`")
-          .replace("$", "\\$")
-      )
-      safe_filter_info = f"الشحنة: {selected_shipment_filter} | الكفيل: {selected_guarantor_filter} | النوع: {selected_type_filter}"
-      safe_total_clients = f"{total_clients_count} عميل"
-      safe_total_packages = f"{total_packages_count} طرد"
-      safe_total_cbm = f"{total_cbm_sum:,.1f} CBM"
-      safe_total_weight = f"{total_weight_sum:,.1f} كغ"
-      safe_total_sales = f"{total_sales_sum:,.1f} $"
-
       table_pdf_html_component = f"""
           <!DOCTYPE html>
           <html lang="ar" dir="rtl">
@@ -1710,14 +1695,14 @@ elif app_page == "الصفحة الرئيسية":
           <body>
               <button class="export-btn" onclick="exportTablePDF()">📄 تصدير الجدول والمحافظات PDF</button>
               <script>
-                  const tableContent = `{safe_table_html}`;
-                  const citySummaryContent = `{safe_city_summary_content}`;
-                  const filterInfo = `{safe_filter_info}`;
-                  const totalClients = `{safe_total_clients}`;
-                  const totalPackages = `{safe_total_packages}`;
-                  const totalCbm = `{safe_total_cbm}`;
-                  const totalWeight = `{safe_total_weight}`;
-                  const totalSales = `{safe_total_sales}`;
+                  const tableContent = `{table_html.replace('`', '\\`').replace('$', '\\$')}`;
+                  const citySummaryContent = `{city_table_html.replace('`', '\\`').replace('$', '\\$')}`;
+                  const filterInfo = 'الشحنة: {selected_shipment_filter} | الكفيل: {selected_guarantor_filter} | النوع: {selected_type_filter}';
+                  const totalClients = '{total_clients_count} عميل';
+                  const totalPackages = '{total_packages_count} طرد';
+                  const totalCbm = '{total_cbm_sum:,.1f} CBM';
+                  const totalWeight = '{total_weight_sum:,.1f} كغ';
+                  const totalSales = '{total_sales_sum:,.1f} $';
 
                   function exportTablePDF() {{
                       var w = window.open('', '', 'height=900,width=1200');
@@ -1747,37 +1732,328 @@ elif app_page == "الصفحة الرئيسية":
                               </style>
                           </head>
                           <body>
-                              <h2 style="text-align: center; color: #102a43; margin-bottom: 5px; font-size: 15px;">شركة أطلس المحيط للتجارة العامة - تقرير الشحنات والمحافظات</h2>
-                              <p style="text-align: center; font-size: 10px; color: #627d98; margin-top: 0; margin-bottom: 10px;">${{filterInfo}}</p>
-                              
                               <div class="metrics-grid">
-                                  <div class="metric-box box-1"><div class="metric-title">عدد العملاء</div><div class="metric-val">${{totalClients}}</div></div>
-                                  <div class="metric-box box-2"><div class="metric-title">إجمالي الطرود</div><div class="metric-val">${{totalPackages}}</div></div>
-                                  <div class="metric-box box-3"><div class="metric-title">إجمالي الحجم</div><div class="metric-val">${{totalCbm}}</div></div>
-                                  <div class="metric-box box-4"><div class="metric-title">الوزن الكلي</div><div class="metric-val">${{totalWeight}}</div></div>
-                                  <div class="metric-box box-5"><div class="metric-title">المبلغ الإجمالي</div><div class="metric-val">${{totalSales}}</div></div>
+                                  <div class="metric-box box-1"><div class="metric-title">👥 عدد العملاء</div><div class="metric-val">${{totalClients}}</div></div>
+                                  <div class="metric-box box-2"><div class="metric-title">📦 إجمالي الطرود</div><div class="metric-val">${{totalPackages}}</div></div>
+                                  <div class="metric-box box-3"><div class="metric-title">📐 إجمالي الحجم</div><div class="metric-val">${{totalCbm}}</div></div>
+                                  <div class="metric-box box-4"><div class="metric-title">⚖️ الوزن الكلي</div><div class="metric-val">${{totalWeight}}</div></div>
+                                  <div class="metric-box box-5"><div class="metric-title">💰 المبلغ الإجمالي</div><div class="metric-val">${{totalSales}}</div></div>
                               </div>
-
-                              <h3>ملخص المحافظات</h3>
+                              <h3>📊 ملخص الإحصائيات حسب المحافظات</h3>
                               ${{citySummaryContent}}
-
-                              <h3 style="margin-page-break-before: always;">تفاصيل الشحنة</h3>
+                              <h3 style="margin-top: 15px;">📋 تفاصيل الشحنات (${{filterInfo}})</h3>
                               ${{tableContent}}
                           </body>
                           </html>
                       `);
                       w.document.close();
-                      setTimeout(function() {{
-                          w.print();
-                      }, 500);
+                      w.focus();
+                      setTimeout(() => {{ w.print(); w.close(); }}, 600);
                   }}
               </script>
           </body>
           </html>
       """
-
       with col_btn2:
-        st.html(table_pdf_html_component)
+        st.components.v1.html(table_pdf_html_component, height=48)
+
+      st.markdown("<br>", unsafe_allow_html=True)
+
+      yard_pdf_html_component = f"""
+          <!DOCTYPE html>
+          <html lang="ar" dir="rtl">
+          <head>
+              <meta charset="UTF-8">
+              <style>
+                  @page {{ size: A4 portrait; margin: 15mm; }}
+                  body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 0; background: transparent; }}
+                  .yard-btn {{
+                      background-color: #b45309;
+                      color: white;
+                      min-height: 48px;
+                      height: 48px;
+                      padding: 0 16px;
+                      border: none;
+                      border-radius: 6px;
+                      cursor: pointer;
+                      font-weight: bold;
+                      font-size: 14px;
+                      width: 100%;
+                      box-sizing: border-box;
+                      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                      font-family: 'Tahoma', Arial, sans-serif;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      gap: 8px;
+                  }}
+                  .yard-btn:hover {{
+                      background-color: #92400e;
+                  }}
+              </style>
+          </head>
+          <body>
+              <button class="yard-btn" onclick="exportYardPDF()">📋 طباعة ورقة جرد الساحة (A4)</button>
+              <script>
+                  const yardTableContent = `{yard_table_html.replace('`', '\\`').replace('$', '\\$')}`;
+                  const yardFilterInfo = 'الشحنة: {selected_shipment_filter} | الكفيل: {selected_guarantor_filter} | التاريخ: {today_date}';
+
+                  function exportYardPDF() {{
+                      var w = window.open('', '', 'height=900,width=800');
+                      w.document.write(`
+                          <!DOCTYPE html>
+                          <html lang="ar" dir="rtl">
+                          <head>
+                              <meta charset="UTF-8">
+                              <title>ورقة جرد الساحة - أطلس المحيط</title>
+                              <style>
+                                  @page {{ size: A4 portrait; margin: 10mm; }}
+                                  body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 10px; }}
+                                  .header-box {{ text-align: center; border-bottom: 2px solid #102a43; padding-bottom: 10px; margin-bottom: 15px; }}
+                                  h2 {{ margin: 0; font-size: 18px; color: #102a43; }}
+                                  p {{ margin: 5px 0 0; font-size: 12px; color: #627d98; }}
+                                  .info-bar {{ font-size: 13px; font-weight: bold; margin-bottom: 15px; background: #f0f4f8; padding: 8px; border: 1px solid #bcccdc; border-radius: 4px; }}
+                                  table {{ width: 100% !important; border-collapse: collapse; font-size: 12px !important; margin-top: 5px; table-layout: fixed; }}
+                                  th, td {{ padding: 8px 6px !important; border: 1px solid #94a3b8; text-align: right; overflow: hidden; }}
+                                  th:nth-child(1), td:nth-child(1) {{ width: 8%; text-align: center; }}
+                                  th:nth-child(2), td:nth-child(2) {{ width: 15%; }}
+                                  th:nth-child(3), td:nth-child(3) {{ width: 38%; }}
+                                  th:nth-child(4), td:nth-child(4) {{ width: 14%; text-align: center; }}
+                                  th:nth-child(5), td:nth-child(5) {{ width: 25%; }}
+                                  th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+                                  tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+                                  .footer {{ margin-top: 30px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; }}
+                              </style>
+                          </head>
+                          <body>
+                              <div class="header-box">
+                                  <h2>شركة أطلس المحيط للتجارة العامة</h2>
+                                  <p>نموذج جرد الساحة والمستودع</p>
+                              </div>
+                              <div class="info-bar">
+                                  📌 تفاصيل الجرد: ${{yardFilterInfo}}
+                              </div>
+                              ${{yardTableContent}}
+                              <div class="footer">
+                                  <div>اسم أمين المستودع / القائم بالجرد: ........................................</div>
+                                  <div>التوقيع: ........................</div>
+                              </div>
+                          </body>
+                          </html>
+                      `);
+                      w.document.close();
+                      w.focus();
+                      setTimeout(() => {{ w.print(); w.close(); }}, 600);
+                  }}
+              </script>
+          </body>
+          </html>
+      """
+      st.components.v1.html(yard_pdf_html_component, height=55)
+
+      st.markdown("---")
+
+      all_html_batch = ""
+      for _, row in df.iterrows():
+        all_html_batch += generate_single_receipt_html(row)
+
+      batch_print_component = f"""
+          <!DOCTYPE html>
+          <html lang="ar" dir="rtl">
+          <head>
+              <meta charset="UTF-8">
+              <style>
+                  @page {{ size: A5; margin: 5mm; }}
+                  body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; margin: 0; padding: 0; background: transparent; }}
+                  .batch-btn {{
+                      background-color: #b45309;
+                      color: white;
+                      padding: 12px 24px;
+                      border: none;
+                      border-radius: 6px;
+                      cursor: pointer;
+                      font-weight: bold;
+                      font-size: 14px;
+                      display: inline-flex;
+                      align-items: center;
+                      gap: 8px;
+                      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                      font-family: 'Tahoma', Arial, sans-serif;
+                  }}
+                  .batch-btn:hover {{
+                      background-color: #92400e;
+                  }}
+              </style>
+          </head>
+          <body>
+              <button class="batch-btn" onclick="printAllBatch()">🖨️ طباعة الوصولات المعروضة دفعة واحدة (مقاس A5)</button>
+              <script>
+                  const masterContent = `{all_html_batch.replace('`', '\\`').replace('$', '\\$')}`;
+                  function printAllBatch() {{
+                      var w = window.open('', '', 'height=900,width=800');
+                      w.document.write('<html><head><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma; }}</style></head><body>' + masterContent + '</body></html>');
+                      w.document.close();
+                      w.focus();
+                      setTimeout(() => {{ w.print(); w.close(); }}, 600);
+                  }}
+              </script>
+          </body>
+          </html>
+      """
+      st.components.v1.html(batch_print_component, height=55)
+      st.markdown("---")
+
+      for index, row in df.iterrows():
+        shipment = str(row.get(ship_col, "بدون شحنة")).strip()
+        code = str(row.get(code_col, "بدون كود")).strip() if code_col else ""
+        display_code = "" if code in ["بدون كود", "nan", "None"] else code
+        display_shipment = (
+            "" if shipment in ["بدون شحنة", "nan", "None"] else shipment
+        )
+        name = (
+            str(row.get(name_col_for_clients, "عميل غير محدد")).strip()
+            if name_col_for_clients
+            else "عميل غير محدد"
+        )
+        if name in ["nan", "None", ""]:
+          name = "عميل غير محدد"
+
+        weight = (
+            float(
+                pd.to_numeric(
+                    pd.Series([row.get(weight_col, 0)]), errors="coerce"
+                ).iloc[0]
+                or 0
+            )
+            if weight_col
+            else 0.0
+        )
+        price_per_kg = (
+            float(
+                pd.to_numeric(
+                    pd.Series([row.get(price_col, 0)]), errors="coerce"
+                ).iloc[0]
+                or 0
+            )
+            if price_col
+            else 0.0
+        )
+        sales_col_val = (
+            float(
+                pd.to_numeric(
+                    pd.Series([row.get(sales_col, 0)]), errors="coerce"
+                ).iloc[0]
+                or 0
+            )
+            if sales_col and sales_col in row
+            else 0.0
+        )
+        if sales_col_val == 0 and price_per_kg > 0 and weight > 0:
+          sales_col_val = weight * price_per_kg
+
+        with st.expander(
+            f"📄 وصل العميل: {name} | كود: {display_code or 'بدون'} | الشحنة:"
+            f" {display_shipment} | الإجمالي: {sales_col_val:,.1f} $"
+        ):
+          try:
+            wb = openpyxl.load_workbook(active_template_file)
+            ws = wb.active
+            ws["B4"] = display_code
+            ws["D4"] = today_date
+            ws["B5"] = name
+            ws["B6"] = (
+                str(
+                    row.get(
+                        next(
+                            (
+                                c
+                                for c in df.columns
+                                if "عنوان" in c or "البض" in c
+                            ),
+                            "",
+                        ),
+                        "",
+                    )
+                ).strip()
+                if next(
+                    (c for c in df.columns if "عنوان" in c or "البض" in c), None
+                )
+                else ""
+            )
+
+            p_col = next(
+                (
+                    c
+                    for c in df.columns
+                    if ("هاتف" in c or "عاتف" in c) and "2" not in c
+                ),
+                None,
+            )
+            p_val = str(row.get(p_col, "")).strip() if p_col else ""
+            if p_val.endswith(".0"):
+              p_val = p_val[:-2]
+            p_val = p_val.replace("+", "").strip()
+            if p_val.startswith("964"):
+              p_val = p_val[3:]
+
+            ws["D5"] = f"+964 {p_val}" if p_val else ""
+            ws["B7"] = display_shipment
+            ws["D6"] = int(
+                float(
+                    pd.to_numeric(
+                        pd.Series([
+                            row.get(
+                                next(
+                                    (c for c in df.columns if "طرود" in c), None
+                                ),
+                                0,
+                            )
+                        ]),
+                        errors="coerce",
+                    ).iloc[0]
+                    or 0
+                )
+            )
+            ws["B8"] = (
+                str(row.get(type_col_name, "")).strip()
+                if type_col_name
+                else ""
+            )
+            ws["D7"] = weight
+
+            output = io.BytesIO()
+            wb.save(output)
+            output.seek(0)
+          except:
+            output = io.BytesIO()
+
+          single_html = generate_single_receipt_html(row)
+          file_name_id = f"Shipment_{display_shipment}_Client_{name}".replace(
+              " ", "_"
+          )
+
+          st.download_button(
+              label="📥 تنزيل إكسل الوصل",
+              data=output,
+              file_name=f"Delivery_Receipt_{file_name_id}.xlsx",
+              mime=(
+                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              ),
+              key=f"dl_{index}",
+          )
+          st.markdown("<br>", unsafe_allow_html=True)
+          st.components.v1.html(
+              f"""<div style="direction:rtl">{single_html}</div><button style="background:#102a43;color:white;padding:12px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin-top:15px;" onclick="window.print()">🖨️ طباعة هذا الوصل</button>""",
+              height=700,
+              scrolling=True,
+          )
+        st.markdown("---")
 
     except Exception as e:
-      st.error(f"حدث خطأ أثناء تحميل أو عرض البيانات: {e}")
+      st.error(f"حدث خطأ أثناء معالجة الملفات: {e}")
+  else:
+    st.info(
+        "الرجاء التأكد من صلاحية الوصول للملفات والضغط على زر (تحديث البيانات و"
+        "سحبها من درايف)."
+    )
+
