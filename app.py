@@ -315,18 +315,24 @@ with st.sidebar:
       if "وزن" in str(col) or "cbm" in str(col).lower() or "حجم" in str(col):
         df_s[col] = pd.to_numeric(df_s[col], errors="coerce").fillna(0.0)
       if "طرود" in str(col) or "packages" in str(col).lower():
-        df_s[col] = pd.to_numeric(df_s[col], errors="coerce").fillna(0).astype(int)
+        df_s[col] = (
+            pd.to_numeric(df_s[col], errors="coerce").fillna(0).astype(int)
+        )
 
     for col in list(df_s.columns):
       if col == "سعر الكيلو":
         df_s.rename(columns={col: "السعر"}, inplace=True)
         continue
       if col == "السعر":
-        df_s["السعر"] = pd.to_numeric(df_s["السعر"], errors="coerce").fillna(0.0)
+        df_s["السعر"] = pd.to_numeric(df_s["السعر"], errors="coerce").fillna(
+            0.0
+        )
         continue
       if "سعر" in str(col) and col != "السعر":
         df_s.rename(columns={col: "السعر"}, inplace=True)
-        df_s["السعر"] = pd.to_numeric(df_s["السعر"], errors="coerce").fillna(0.0)
+        df_s["السعر"] = pd.to_numeric(df_s["السعر"], errors="coerce").fillna(
+            0.0
+        )
         break
 
     return df_s
@@ -580,25 +586,58 @@ if active_data_file is not None and active_template_file is not None:
         name = "عميل غير محدد"
 
       weight = (
-          float(pd.to_numeric(pd.Series([row_data.get(weight_col, 0)]), errors="coerce").iloc[0] or 0)
-          if weight_col else 0.0
+          float(
+              pd.to_numeric(
+                  pd.Series([row_data.get(weight_col, 0)]), errors="coerce"
+              ).iloc[0]
+              or 0
+          )
+          if weight_col
+          else 0.0
       )
       cbm_value = (
-          float(pd.to_numeric(pd.Series([row_data.get(cbm_col, 0)]), errors="coerce").iloc[0] or 0)
-          if cbm_col and cbm_col in row_data else 0.0
+          float(
+              pd.to_numeric(
+                  pd.Series([row_data.get(cbm_col, 0)]), errors="coerce"
+              ).iloc[0]
+              or 0
+          )
+          if cbm_col and cbm_col in row_data
+          else 0.0
       )
       packages = (
-          int(float(pd.to_numeric(pd.Series([row_data.get(packages_col, 0)]), errors="coerce").iloc[0] or 0))
-          if packages_col and packages_col in row_data else 0
+          int(
+              float(
+                  pd.to_numeric(
+                      pd.Series([row_data.get(packages_col, 0)]),
+                      errors="coerce",
+                  ).iloc[0]
+                  or 0
+              )
+          )
+          if packages_col and packages_col in row_data
+          else 0
       )
       price_per_kg = (
-          float(pd.to_numeric(pd.Series([row_data.get(price_col, 0)]), errors="coerce").iloc[0] or 0)
-          if price_col else 0.0
+          float(
+              pd.to_numeric(
+                  pd.Series([row_data.get(price_col, 0)]), errors="coerce"
+              ).iloc[0]
+              or 0
+          )
+          if price_col
+          else 0.0
       )
 
       total_sales = (
-          float(pd.to_numeric(pd.Series([row_data.get(sales_col, 0)]), errors="coerce").iloc[0] or 0)
-          if sales_col and sales_col in row_data else 0.0
+          float(
+              pd.to_numeric(
+                  pd.Series([row_data.get(sales_col, 0)]), errors="coerce"
+              ).iloc[0]
+              or 0
+          )
+          if sales_col and sales_col in row_data
+          else 0.0
       )
       if total_sales == 0 and price_per_kg > 0 and weight > 0:
         total_sales = weight * price_per_kg
@@ -772,13 +811,19 @@ if active_data_file is not None and active_template_file is not None:
     else:
       df_grouped = df.copy()
 
-    if sales_col and sales_col in df_grouped.columns:
-      df_grouped[sales_col] = pd.to_numeric(df_grouped[sales_col], errors="coerce").fillna(0.0).apply(
-          lambda x: f"{float(x):,.1f}"
+    # --- إنشاء نسخ عرض منفصلة تماماً (البيانات الأصلية تبقى رقمية خام لعمليات التصدير والحساب) ---
+    df_grouped_display = df_grouped.copy()
+    if sales_col and sales_col in df_grouped_display.columns:
+      df_grouped_display[sales_col] = (
+          pd.to_numeric(df_grouped_display[sales_col], errors="coerce")
+          .fillna(0.0)
+          .apply(lambda x: f"{float(x):,.1f}")
       )
-    if price_col and price_col in df_grouped.columns:
-      df_grouped[price_col] = pd.to_numeric(df_grouped[price_col], errors="coerce").fillna(0.0).apply(
-          lambda x: f"{float(x):,.1f}"
+    if price_col and price_col in df_grouped_display.columns:
+      df_grouped_display[price_col] = (
+          pd.to_numeric(df_grouped_display[price_col], errors="coerce")
+          .fillna(0.0)
+          .apply(lambda x: f"{float(x):,.1f}")
       )
 
     st.markdown(
@@ -890,23 +935,37 @@ if active_data_file is not None and active_template_file is not None:
 
       df_city_summary.rename(columns=rename_mapping, inplace=True)
 
-      if "إجمالي الديون / المبيعات ($)" in df_city_summary.columns:
-        df_city_summary["إجمالي الديون / المبيعات ($)"] = pd.to_numeric(
-            df_city_summary["إجمالي الديون / المبيعات ($)"], errors="coerce"
-        ).fillna(0.0).apply(lambda x: f"{float(x):,.1f}")
-      if "إجمالي الحجم (CBM)" in df_city_summary.columns:
-        df_city_summary["إجمالي الحجم (CBM)"] = pd.to_numeric(
-            df_city_summary["إجمالي الحجم (CBM)"], errors="coerce"
-        ).fillna(0.0).apply(lambda x: f"{float(x):,.1f}")
+      # --- إنشاء نسخة عرض مستقلة لجدول المحافظات لمنع تداخل الأنواع ---
+      df_city_summary_display = df_city_summary.copy()
+      if "إجمالي الديون / المبيعات ($)" in df_city_summary_display.columns:
+        df_city_summary_display["إجمالي الديون / المبيعات ($)"] = (
+            pd.to_numeric(
+                df_city_summary_display["إجمالي الديون / المبيعات ($)"],
+                errors="coerce",
+            )
+            .fillna(0.0)
+            .apply(lambda x: f"{float(x):,.1f}")
+        )
+      if "إجمالي الحجم (CBM)" in df_city_summary_display.columns:
+        df_city_summary_display["إجمالي الحجم (CBM)"] = (
+            pd.to_numeric(
+                df_city_summary_display["إجمالي الحجم (CBM)"], errors="coerce"
+            )
+            .fillna(0.0)
+            .apply(lambda x: f"{float(x):,.1f}")
+        )
 
-      df_city_summary.insert(0, "التسلسل", range(1, len(df_city_summary) + 1))
-      city_table_html = df_city_summary.to_html(
+      df_city_summary_display.insert(
+          0, "التسلسل", range(1, len(df_city_summary_display) + 1)
+      )
+      city_table_html = df_city_summary_display.to_html(
           classes="custom-table", index=False, escape=False
       )
       st.html(f"""<div class="custom-table-container">{city_table_html}</div>""")
     else:
       city_table_html = "<p>لا توجد بيانات كافية لعرض ملخص المحافظات.</p>"
       df_city_summary = pd.DataFrame()
+      df_city_summary_display = pd.DataFrame()
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader(
@@ -914,7 +973,7 @@ if active_data_file is not None and active_template_file is not None:
         f" [{selected_type_filter}]"
     )
 
-    display_table_df = df_grouped.copy()
+    display_table_df = df_grouped_display.copy()
     display_table_df.insert(0, "التسلسل", range(1, len(display_table_df) + 1))
     table_html = display_table_df.to_html(
         classes="custom-table", index=False, escape=False
@@ -970,31 +1029,36 @@ if active_data_file is not None and active_template_file is not None:
     """
     st.html(custom_table_styling)
 
-    # --- تجهيز ملفات التصدير ---
+    # --- ملفات التصدير تعتمد على البيانات الأصلية (خام) ---
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
-      display_table_df.to_excel(writer, sheet_name="تفاصيل الشحنات", index=False)
+      export_excel_df = df_grouped.copy()
+      export_excel_df.insert(0, "التسلسل", range(1, len(export_excel_df) + 1))
+      export_excel_df.to_excel(
+          writer, sheet_name="تفاصيل الشحنات", index=False
+      )
       if not df_city_summary.empty:
-        df_city_summary.to_excel(writer, sheet_name="ملخص المحافظات", index=False)
+        export_city_df = df_city_summary.copy()
+        export_city_df.insert(0, "التسلسل", range(1, len(export_city_df) + 1))
+        export_city_df.to_excel(writer, sheet_name="ملخص المحافظات", index=False)
     excel_buffer.seek(0)
 
-    # --- تجهيز جرد الساحة ---
     yard_inventory_buffer = io.BytesIO()
     with pd.ExcelWriter(yard_inventory_buffer, engine="openpyxl") as writer:
       yard_df = pd.DataFrame()
       yard_df["التسلسل"] = range(1, len(display_table_df) + 1)
 
       extracted_code = (
-          display_table_df[code_col]
-          if code_col and code_col in display_table_df.columns
-          else [""] * len(display_table_df)
+          df_grouped[code_col]
+          if code_col and code_col in df_grouped.columns
+          else [""] * len(df_grouped)
       )
       yard_df["الكود"] = extracted_code
 
       address_col_name = next(
           (
               c
-              for c in display_table_df.columns
+              for c in df_grouped.columns
               if "عنوان" in c
               or "address" in c.lower()
               or "البض" in c
@@ -1003,15 +1067,15 @@ if active_data_file is not None and active_template_file is not None:
           None,
       )
       yard_df["العنوان"] = (
-          display_table_df[address_col_name]
-          if address_col_name and address_col_name in display_table_df.columns
+          df_grouped[address_col_name]
+          if address_col_name and address_col_name in df_grouped.columns
           else ""
       )
 
       extracted_packages = (
-          display_table_df[packages_col]
-          if packages_col and packages_col in display_table_df.columns
-          else [0] * len(display_table_df)
+          df_grouped[packages_col]
+          if packages_col and packages_col in df_grouped.columns
+          else [0] * len(df_grouped)
       )
       yard_df["عدد الطرود"] = extracted_packages
       yard_df["الجرد الفعلي"] = ""
@@ -1022,15 +1086,15 @@ if active_data_file is not None and active_template_file is not None:
     yard_display_df = pd.DataFrame()
     yard_display_df["التسلسل"] = range(1, len(display_table_df) + 1)
     yard_display_df["الكود"] = (
-        display_table_df[code_col]
-        if code_col and code_col in display_table_df.columns
+        df_grouped[code_col]
+        if code_col and code_col in df_grouped.columns
         else ""
     )
 
     address_col_name = next(
         (
             c
-            for c in display_table_df.columns
+            for c in df_grouped.columns
             if "عنوان" in c
             or "address" in c.lower()
             or "البض" in c
@@ -1039,14 +1103,14 @@ if active_data_file is not None and active_template_file is not None:
         None,
     )
     yard_display_df["العنوان"] = (
-        display_table_df[address_col_name]
-        if address_col_name and address_col_name in display_table_df.columns
+        df_grouped[address_col_name]
+        if address_col_name and address_col_name in df_grouped.columns
         else ""
     )
 
     yard_display_df["عدد الطرود"] = (
-        display_table_df[packages_col]
-        if packages_col and packages_col in display_table_df.columns
+        df_grouped[packages_col]
+        if packages_col and packages_col in df_grouped.columns
         else 0
     )
     yard_display_df["الجرد الفعلي"] = ""
@@ -1372,16 +1436,34 @@ if active_data_file is not None and active_template_file is not None:
         name = "عميل غير محدد"
 
       weight = (
-          float(pd.to_numeric(pd.Series([row.get(weight_col, 0)]), errors="coerce").iloc[0] or 0)
-          if weight_col else 0.0
+          float(
+              pd.to_numeric(
+                  pd.Series([row.get(weight_col, 0)]), errors="coerce"
+              ).iloc[0]
+              or 0
+          )
+          if weight_col
+          else 0.0
       )
       price_per_kg = (
-          float(pd.to_numeric(pd.Series([row.get(price_col, 0)]), errors="coerce").iloc[0] or 0)
-          if price_col else 0.0
+          float(
+              pd.to_numeric(
+                  pd.Series([row.get(price_col, 0)]), errors="coerce"
+              ).iloc[0]
+              or 0
+          )
+          if price_col
+          else 0.0
       )
       sales_col_val = (
-          float(pd.to_numeric(pd.Series([row.get(sales_col, 0)]), errors="coerce").iloc[0] or 0)
-          if sales_col and sales_col in row else 0.0
+          float(
+              pd.to_numeric(
+                  pd.Series([row.get(sales_col, 0)]), errors="coerce"
+              ).iloc[0]
+              or 0
+          )
+          if sales_col and sales_col in row
+          else 0.0
       )
       if sales_col_val == 0 and price_per_kg > 0 and weight > 0:
         sales_col_val = weight * price_per_kg
