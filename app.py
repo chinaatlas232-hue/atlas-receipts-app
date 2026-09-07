@@ -317,6 +317,16 @@ with st.sidebar:
       except Exception:
         pass
 
+    # التأكد من وجود عميل "الكفيل" وتعامل آمن معه
+    guarantor_col = next(
+        (c for c in df_s.columns if "كفيل" in str(c) or "guarantor" in str(c).lower()),
+        None,
+    )
+    if guarantor_col:
+      df_s[guarantor_col] = df_s[guarantor_col].fillna("").astype(str).str.strip()
+    else:
+      df_s["الكفيل"] = ""
+
     for col in df_s.columns:
       if "وزن" in str(col) or "cbm" in str(col).lower() or "حجم" in str(col):
         df_s[col] = pd.to_numeric(df_s[col], errors="coerce").fillna(0.0)
@@ -436,7 +446,6 @@ active_logo = logo_path if os.path.exists(logo_path) else None
 if app_page == "موافقة إخراج البضائع":
   st.title("📄 موافقة إخراج البضائع")
 
-  # جلب قائمة الشحنات الفعلية المتاحة في البيانات إن وجدت
   full_approval_df = load_and_merge_data(ship_mtime, cust_mtime)
   available_shipments = ["اختر رقم الشحنة"]
   if full_approval_df is not None and not full_approval_df.empty:
@@ -476,7 +485,6 @@ if app_page == "موافقة إخراج البضائع":
 
     st.divider()
 
-    # إذا كانت البيانات محملة، يتم فلترتها وتجهيز جدول يطابق الهيكل المطلوب
     if full_approval_df is not None and not full_approval_df.empty:
       ship_col_app = next(
           (
@@ -523,8 +531,11 @@ if app_page == "موافقة إخراج البضائع":
           ),
           "المحافظة",
       )
+      g_col = next(
+          (c for c in subset_df.columns if "كفيل" in str(c) or "guarantor" in str(c).lower()),
+          "الكفيل",
+      )
 
-      # بناء جدول منسق بالأعمدة المطلوبة
       formatted_data = []
       for idx, row in enumerate(subset_df.iterrows(), start=1):
         r_data = row[1]
@@ -534,18 +545,12 @@ if app_page == "موافقة إخراج البضائع":
             "الاسم": str(r_data.get(n_col, "")),
             "العنوان": str(r_data.get(a_col, "")),
             "المحافظة": str(r_data.get(ct_col, "غير محدد")),
+            "الكفيل": str(r_data.get(g_col, "")),
         })
       df_approval_display = pd.DataFrame(formatted_data)
     else:
-      # بيانات تجريبية افتراضية في حال عدم توفر داتا
       data = [
-          {"التسلسل": 1, "الكود": "B1020", "الاسم": "إبراهيم قاسم", "العنوان": "المنطقة التجارية", "المحافظة": "بغداد"},
-          {"التسلسل": 2, "الكود": "B11", "الاسم": "محمد حيدر", "العنوان": "شارع الرشيد", "المحافظة": "بغداد"},
-          {"التسلسل": 3, "الكود": "B12", "الاسم": "علي وليد محمد", "العنوان": "السعدون", "المحافظة": "بغداد"},
-          {"التسلسل": 4, "الكود": "B1984", "الاسم": "عمر محمد البكرى", "العنوان": "العصور", "المحافظة": "نينوى"},
-          {"التسلسل": 5, "الكود": "B44", "الاسم": "كرار كريم قاسم", "العنوان": "الزهور", "المحافظة": "البصرة"},
-          {"التسلسل": 6, "الكود": "B4458", "الاسم": "إبراهيم محمد عبد سلطان", "العنوان": "الحسين", "المحافظة": "كركوك"},
-          {"التسلسل": 7, "الكود": "B4719", "الاسم": "لؤي عبدالرزاق قاسم", "العنوان": "المثنى", "المحافظة": "السماوة"}
+          {"التسلسل": 1, "الكود": "B1020", "الاسم": "إبراهيم قاسم", "العنوان": "المنطقة التجارية", "المحافظة": "بغداد", "الكفيل": ""},
       ]
       df_approval_display = pd.DataFrame(data)
 
@@ -592,6 +597,10 @@ elif app_page == "الصفحة الرئيسية":
           ),
           "المدينة",
       )
+      guarantor_col_name = next(
+          (c for c in df.columns if "كفيل" in str(c) or "guarantor" in str(c).lower()),
+          None,
+      )
 
       df[ship_col] = (
           df[ship_col]
@@ -614,6 +623,8 @@ elif app_page == "الصفحة الرئيسية":
         df[city_col_name] = (
             df[city_col_name].fillna("غير محدد").astype(str).str.strip()
         )
+      if guarantor_col_name and guarantor_col_name in df.columns:
+        df[guarantor_col_name] = df[guarantor_col_name].fillna("").astype(str).str.strip()
 
       if selected_shipment_filter != "الكل":
         df = df[df[ship_col] == selected_shipment_filter]
@@ -716,6 +727,14 @@ elif app_page == "الصفحة الرئيسية":
         )
         if name in ["nan", "None", ""]:
           name = "عميل غير محدد"
+
+        guarantor = (
+            str(row_data.get(guarantor_col_name, "")).strip()
+            if guarantor_col_name and guarantor_col_name in row_data
+            else ""
+        )
+        if guarantor in ["nan", "None"]:
+          guarantor = ""
 
         weight = (
             float(
@@ -851,6 +870,12 @@ elif app_page == "الصفحة الرئيسية":
             else ""
         )
 
+        guarantor_row_html = (
+            f'<tr><td style="padding: 5px; border: 1px solid #bcccdc;" colspan="2"><strong>الكفيل:</strong> <span style="color: #102a43; font-weight: bold;">{guarantor}</span></td></tr>'
+            if guarantor
+            else ""
+        )
+
         return f"""
               <div class="receipt-page" style="padding: 15px; font-family: 'Tahoma', Arial, sans-serif; direction: rtl; border: 2px solid #102a43; width: 100%; max-width: 148mm; margin: auto auto 20px auto; background: #ffffff; color: #102a43; box-sizing: border-box; page-break-after: always; break-after: page;">
                   <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px; border-collapse: collapse;">
@@ -879,6 +904,7 @@ elif app_page == "الصفحة الرئيسية":
                           <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
                           <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{combined_phones}</span></td>
                       </tr>
+                      {guarantor_row_html}
                       <tr style="background-color: #f0f4f8;">
                           <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
                           <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> 📦 {packages} طرد</td>
@@ -921,6 +947,7 @@ elif app_page == "الصفحة الرئيسية":
               name_col_for_clients,
               type_col_name,
               city_col_name,
+              guarantor_col_name,
           ]
           if c and c in df.columns
       ]
