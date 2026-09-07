@@ -357,6 +357,16 @@ with st.sidebar:
         )
         break
 
+    # نقل عمود "الكفيل" ليصبح قبل الأخير (أو أقصى اليسار قبل الأعمدة الإضافية)
+    if guarantor_col and guarantor_col in df_s.columns:
+      cols = [c for c in df_s.columns if c != guarantor_col]
+      cols.insert(len(cols) - 1, guarantor_col)
+      df_s = df_s[cols]
+    elif "الكفيل" in df_s.columns:
+      cols = [c for c in df_s.columns if c != "الكفيل"]
+      cols.insert(len(cols) - 1, "الكفيل")
+      df_s = df_s[cols]
+
     return df_s
 
 
