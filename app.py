@@ -9,6 +9,23 @@ import streamlit as st
 
 st.set_page_config(page_title="وصل تسليم بضاعة - أطلس", layout="wide")
 
+# --- فرض اتجاه الصفحة من اليمين لليسار (RTL) ---
+st.markdown(
+    """
+    <style>
+    html, body, [data-testid="stAppViewContainer"] {
+        direction: rtl;
+        text-align: right;
+    }
+    .stSelectbox, .stTextInput, .stNumberInput {
+        direction: rtl;
+        text-align: right;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
+
 # --- معرفات الملفات من Google Drive ---
 SHIPMENT_FILE_ID = "1IESujqsd6-4RbEfr9cnx8xeYNq-WvTUj"
 TEMPLATE_FILE_ID = "1_DxNo3KIWWdSQ-Q4r_hatsYZ0sYT8ier"
@@ -68,6 +85,8 @@ st.markdown(
     [data-testid="stSidebar"] {
         background-color: #334155;
         color: #f8fafc;
+        direction: rtl;
+        text-align: right;
     }
     [data-testid="stSidebar"] h1, 
     [data-testid="stSidebar"] h2, 
@@ -75,6 +94,7 @@ st.markdown(
     [data-testid="stSidebar"] label, 
     [data-testid="stSidebar"] .stMarkdown {
         color: #f8fafc !important;
+        text-align: right !important;
     }
     [data-testid="stSidebar"] button[kind="secondary"] {
         background-color: #991b1b !important;
@@ -85,6 +105,335 @@ st.markdown(
     </style>
 """,
     unsafe_allow_html=True,
+)
+
+
+@st.cache_data(show_spinner=False)
+def load_and_merge_data(s_time, c_time):
+  if not os.path.exists(shipment_path):
+    return None
+
+  try:
+    df_s = pd.read_excel(shipment_path)
+  except Exception:
+    return None
+
+  df_s.columns = df_s.columns.astype(str).str.strip()
+
+  if os.path.exists(customer_info_path):
+    try:
+      if customer_info_path.endswith(".csv"):
+        df_c = pd.read_csv(customer_info_path)
+      else:
+        df_c = pd.read_excel(customer_info_path)
+
+      df_c.columns = df_c.columns.astype(str).str.strip()
+
+      ship_code_col = next(
+          (c for c in df_s.columns if "كود" in c or "code" in c.lower()), "الكود"
+      )
+      cust_code_col = next(
+          (c for c in df_c.columns if "كود" in c or "code" in c.lower()), "الكود"
+      )
+
+      if ship_code_col in df_s.columns and cust_code_col in df_c.columns:
+        df_s["__s_code__"] = (
+            df_s[ship_code_col]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+            .str.replace(".0", "", regex=False)
+        )
+        df_c["__c_code__"] = (
+            df_c[cust_code_col]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+            .str.replace(".0", "", regex=False)
+        )
+
+        c_name_col = next(
+            (
+                c
+                for c in df_c.columns
+                if "الاسم" in c or "name" in c.lower() or "اسم" in c
+            ),
+            None,
+        )
+        c_phone_col = next(
+            (
+                c
+                for c in df_c.columns
+                if ("هاتف" in c or "عاتف" in c or "phone" in c.lower())
+                and "2" not in c
+            ),
+            None,
+        )
+        c_phone2_col = next(
+            (
+                c
+                for c in df_c.columns
+                if ("هاتف" in c or "عاتف" in c or "phone" in c.lower())
+                and "2" in c
+            ),
+            None,
+        )
+        c_addr_col = next(
+            (
+                c
+                for c in df_c.columns
+                if "عنوان" in c
+                or "address" in c.lower()
+                or "البض" in c
+                or "البظ" in c
+            ),
+            None,
+        )
+        c_city_col = next(
+            (
+                c
+                for c in df_c.columns
+                if "مدينة" in c or "محافظ" in c or "city" in c.lower()
+            ),
+            None,
+        )
+
+        name_dict = (
+            dict(zip(df_c["__c_code__"], df_c[c_name_col]))
+            if c_name_col
+            else {}
+        )
+        phone_dict = (
+            dict(zip(df_c["__c_code__"], df_c[c_phone_col]))
+            if c_phone_col
+            else {}
+        )
+        phone2_dict = (
+            dict(zip(df_c["__c_code__"], df_c[c_phone2_col]))
+            if c_phone2_col
+            else {}
+        )
+        addr_dict = (
+            dict(zip(df_c["__c_code__"], df_c[c_addr_col]))
+            if c_addr_col
+            else {}
+        )
+        city_dict = (
+            dict(zip(df_c["__c_code__"], df_c[c_city_col]))
+            if c_city_col
+            else {}
+        )
+
+        s_name_col = next(
+            (c for c in df_s.columns if "الاسم" in c and c != "__s_code__"),
+            "الاسم",
+        )
+        s_phone_col = next(
+            (
+                c
+                for c in df_s.columns
+                if ("هاتف" in c or "عاتف" in c) and "2" not in c
+            ),
+            "رقم الهاتف",
+        )
+        s_phone2_col = next(
+            (
+                c
+                for c in df_s.columns
+                if ("هاتف" in c or "عاتف" in c) and "2" in c
+            ),
+            "رقم الهاتف 2",
+        )
+        s_addr_col = next(
+            (
+                c
+                for c in df_s.columns
+                if "عنوان" in c or "البض" in c or "البظ" in c
+            ),
+            "عنوان استلام البضاعة",
+        )
+        s_city_col = next(
+            (c for c in df_s.columns if "مدينة" in c or "محافظ" in c), "المدينة"
+        )
+
+        if s_city_col not in df_s.columns:
+          df_s[s_city_col] = "غير محدد"
+        if s_addr_col not in df_s.columns:
+          df_s[s_addr_col] = ""
+
+        df_s[s_name_col] = (
+            df_s["__s_code__"].map(name_dict).fillna(df_s.get(s_name_col))
+        )
+        df_s[s_phone_col] = (
+            df_s["__s_code__"].map(phone_dict).fillna(df_s.get(s_phone_col))
+        )
+        if c_phone2_col:
+          if s_phone2_col not in df_s.columns:
+            df_s[s_phone2_col] = ""
+          df_s[s_phone2_col] = (
+              df_s["__s_code__"].map(phone2_dict).fillna(df_s.get(s_phone2_col))
+          )
+
+        mapped_addrs = df_s["__s_code__"].map(addr_dict)
+        original_addrs = df_s.get(s_addr_col, pd.Series([""] * len(df_s)))
+        df_s[s_addr_col] = mapped_addrs.combine_first(original_addrs).fillna("")
+
+        df_s[s_city_col] = (
+            df_s["__s_code__"]
+            .map(city_dict)
+            .fillna(df_s.get(s_city_col, "غير محدد"))
+        )
+
+        df_s.drop(columns=["__s_code__"], errors="ignore", inplace=True)
+    except Exception:
+      pass
+
+  guarantor_col = next(
+      (
+          c
+          for c in df_s.columns
+          if "كفيل" in str(c) or "guarantor" in str(c).lower()
+      ),
+      None,
+  )
+  if guarantor_col:
+    df_s[guarantor_col] = df_s[guarantor_col].fillna("").astype(str).str.strip()
+  else:
+    df_s["الكفيل"] = ""
+
+  for col in df_s.columns:
+    if "وزن" in str(col) or "cbm" in str(col).lower() or "حجم" in str(col):
+      df_s[col] = pd.to_numeric(df_s[col], errors="coerce").fillna(0.0)
+    if "طرود" in str(col) or "packages" in str(col).lower():
+      df_s[col] = pd.to_numeric(df_s[col], errors="coerce").fillna(0).astype(int)
+
+  for col in list(df_s.columns):
+    if col == "سعر الكيلو":
+      df_s.rename(columns={col: "السعر"}, inplace=True)
+      continue
+    if col == "السعر":
+      df_s["السعر"] = pd.to_numeric(df_s["السعر"], errors="coerce").fillna(0.0)
+      continue
+    if "سعر" in str(col) and col != "السعر":
+      df_s.rename(columns={col: "السعر"}, inplace=True)
+      df_s["السعر"] = pd.to_numeric(df_s["السعر"], errors="coerce").fillna(0.0)
+      break
+
+  c_ship = next(
+      (
+          c
+          for c in df_s.columns
+          if "شحنة" in str(c) or "shipment" in str(c).lower()
+      ),
+      None,
+  )
+  c_code = next(
+      (c for c in df_s.columns if "كود" in str(c) or "code" in str(c).lower()),
+      None,
+  )
+  c_name = next(
+      (c for c in df_s.columns if "الاسم" in str(c) or "name" in str(c).lower()),
+      None,
+  )
+  c_guarantor = next(
+      (
+          c
+          for c in df_s.columns
+          if "كفيل" in str(c) or "guarantor" in str(c).lower()
+      ),
+      None,
+  )
+  c_weight = next(
+      (c for c in df_s.columns if "وزن" in str(c) or "weight" in str(c).lower()),
+      None,
+  )
+  c_cbm = next(
+      (c for c in df_s.columns if "cbm" in str(c).lower() or "حجم" in str(c)),
+      None,
+  )
+  c_packages = next(
+      (
+          c
+          for c in df_s.columns
+          if "طرود" in str(c) or "packages" in str(c).lower()
+      ),
+      None,
+  )
+  c_price = next(
+      (c for c in df_s.columns if c == "السعر" or "سعر" in str(c)), None
+  )
+  c_sales = next(
+      (
+          c
+          for c in df_s.columns
+          if "مبيعات" in str(c) or "اجمالي" in str(c) or "total" in str(c).lower()
+      ),
+      None,
+  )
+  c_phone1 = next(
+      (
+          c
+          for c in df_s.columns
+          if ("هاتف" in str(c) or "عاتف" in str(c)) and "2" not in str(c)
+      ),
+      None,
+  )
+  c_phone2 = next(
+      (
+          c
+          for c in df_s.columns
+          if ("هاتف" in str(c) or "عاتف" in str(c)) and "2" in str(c)
+      ),
+      None,
+  )
+  c_addr = next(
+      (
+          c
+          for c in df_s.columns
+          if "عنوان" in str(c) or "البض" in str(c) or "البظ" in str(c)
+      ),
+      None,
+  )
+  c_city = next(
+      (c for c in df_s.columns if "مدينة" in str(c) or "محافظ" in str(c)), None
+  )
+  c_type = next(
+      (c for c in df_s.columns if "نوع" in str(c) or "type" in str(c).lower()),
+      None,
+  )
+
+  desired_order = [
+      c_ship,
+      c_code,
+      c_name,
+      c_guarantor,
+      c_weight,
+      c_cbm,
+      c_packages,
+      c_price,
+      c_sales,
+      c_phone1,
+      c_phone2,
+      c_addr,
+      c_city,
+      c_type,
+  ]
+
+  valid_order = [c for c in desired_order if c and c in df_s.columns]
+  remaining_cols = [c for c in df_s.columns if c not in valid_order]
+
+  df_s = df_s[valid_order + remaining_cols]
+
+  return df_s
+
+
+ship_mtime = (
+    os.path.getmtime(shipment_path) if os.path.exists(shipment_path) else 0
+)
+cust_mtime = (
+    os.path.getmtime(customer_info_path)
+    if os.path.exists(customer_info_path)
+    else 0
 )
 
 with st.sidebar:
@@ -115,360 +464,6 @@ with st.sidebar:
     st.cache_data.clear()
     download_files_from_drive()
     st.rerun()
-
-  ship_mtime = (
-      os.path.getmtime(shipment_path) if os.path.exists(shipment_path) else 0
-  )
-  cust_mtime = (
-      os.path.getmtime(customer_info_path)
-      if os.path.exists(customer_info_path)
-      else 0
-  )
-
-
-  @st.cache_data(show_spinner=False)
-  def load_and_merge_data(s_time, c_time):
-    if not os.path.exists(shipment_path):
-      return None
-
-    try:
-      df_s = pd.read_excel(shipment_path)
-    except Exception:
-      return None
-
-    df_s.columns = df_s.columns.astype(str).str.strip()
-
-    if os.path.exists(customer_info_path):
-      try:
-        if customer_info_path.endswith(".csv"):
-          df_c = pd.read_csv(customer_info_path)
-        else:
-          df_c = pd.read_excel(customer_info_path)
-
-        df_c.columns = df_c.columns.astype(str).str.strip()
-
-        ship_code_col = next(
-            (c for c in df_s.columns if "كود" in c or "code" in c.lower()),
-            "الكود",
-        )
-        cust_code_col = next(
-            (c for c in df_c.columns if "كود" in c or "code" in c.lower()),
-            "الكود",
-        )
-
-        if ship_code_col in df_s.columns and cust_code_col in df_c.columns:
-          df_s["__s_code__"] = (
-              df_s[ship_code_col]
-              .astype(str)
-              .str.strip()
-              .str.upper()
-              .str.replace(".0", "", regex=False)
-          )
-          df_c["__c_code__"] = (
-              df_c[cust_code_col]
-              .astype(str)
-              .str.strip()
-              .str.upper()
-              .str.replace(".0", "", regex=False)
-          )
-
-          c_name_col = next(
-              (
-                  c
-                  for c in df_c.columns
-                  if "الاسم" in c or "name" in c.lower() or "اسم" in c
-              ),
-              None,
-          )
-          c_phone_col = next(
-              (
-                  c
-                  for c in df_c.columns
-                  if ("هاتف" in c or "عاتف" in c or "phone" in c.lower())
-                  and "2" not in c
-              ),
-              None,
-          )
-          c_phone2_col = next(
-              (
-                  c
-                  for c in df_c.columns
-                  if ("هاتف" in c or "عاتف" in c or "phone" in c.lower())
-                  and "2" in c
-              ),
-              None,
-          )
-          c_addr_col = next(
-              (
-                  c
-                  for c in df_c.columns
-                  if "عنوان" in c
-                  or "address" in c.lower()
-                  or "البض" in c
-                  or "البظ" in c
-              ),
-              None,
-          )
-          c_city_col = next(
-              (
-                  c
-                  for c in df_c.columns
-                  if "مدينة" in c or "محافظ" in c or "city" in c.lower()
-              ),
-              None,
-          )
-
-          name_dict = (
-              dict(zip(df_c["__c_code__"], df_c[c_name_col]))
-              if c_name_col
-              else {}
-          )
-          phone_dict = (
-              dict(zip(df_c["__c_code__"], df_c[c_phone_col]))
-              if c_phone_col
-              else {}
-          )
-          phone2_dict = (
-              dict(zip(df_c["__c_code__"], df_c[c_phone2_col]))
-              if c_phone2_col
-              else {}
-          )
-          addr_dict = (
-              dict(zip(df_c["__c_code__"], df_c[c_addr_col]))
-              if c_addr_col
-              else {}
-          )
-          city_dict = (
-              dict(zip(df_c["__c_code__"], df_c[c_city_col]))
-              if c_city_col
-              else {}
-          )
-
-          s_name_col = next(
-              (
-                  c
-                  for c in df_s.columns
-                  if "الاسم" in c and c != "__s_code__"
-              ),
-              "الاسم",
-          )
-          s_phone_col = next(
-              (
-                  c
-                  for c in df_s.columns
-                  if ("هاتف" in c or "عاتف" in c) and "2" not in c
-              ),
-              "رقم الهاتف",
-          )
-          s_phone2_col = next(
-              (
-                  c
-                  for c in df_s.columns
-                  if ("هاتف" in c or "عاتف" in c) and "2" in c
-              ),
-              "رقم الهاتف 2",
-          )
-          s_addr_col = next(
-              (
-                  c
-                  for c in df_s.columns
-                  if "عنوان" in c or "البض" in c or "البظ" in c
-              ),
-              "عنوان استلام البضاعة",
-          )
-          s_city_col = next(
-              (c for c in df_s.columns if "مدينة" in c or "محافظ" in c),
-              "المدينة",
-          )
-
-          if s_city_col not in df_s.columns:
-            df_s[s_city_col] = "غير محدد"
-          if s_addr_col not in df_s.columns:
-            df_s[s_addr_col] = ""
-
-          df_s[s_name_col] = (
-              df_s["__s_code__"].map(name_dict).fillna(df_s.get(s_name_col))
-          )
-          df_s[s_phone_col] = (
-              df_s["__s_code__"].map(phone_dict).fillna(df_s.get(s_phone_col))
-          )
-          if c_phone2_col:
-            if s_phone2_col not in df_s.columns:
-              df_s[s_phone2_col] = ""
-            df_s[s_phone2_col] = (
-                df_s["__s_code__"]
-                .map(phone2_dict)
-                .fillna(df_s.get(s_phone2_col))
-            )
-
-          mapped_addrs = df_s["__s_code__"].map(addr_dict)
-          original_addrs = df_s.get(s_addr_col, pd.Series([""] * len(df_s)))
-          df_s[s_addr_col] = mapped_addrs.combine_first(original_addrs).fillna(
-              ""
-          )
-
-          df_s[s_city_col] = (
-              df_s["__s_code__"]
-              .map(city_dict)
-              .fillna(df_s.get(s_city_col, "غير محدد"))
-          )
-
-          df_s.drop(columns=["__s_code__"], errors="ignore", inplace=True)
-      except Exception:
-        pass
-
-    guarantor_col = next(
-        (
-            c
-            for c in df_s.columns
-            if "كفيل" in str(c) or "guarantor" in str(c).lower()
-        ),
-        None,
-    )
-    if guarantor_col:
-      df_s[guarantor_col] = (
-          df_s[guarantor_col].fillna("").astype(str).str.strip()
-      )
-    else:
-      df_s["الكفيل"] = ""
-
-    for col in df_s.columns:
-      if "وزن" in str(col) or "cbm" in str(col).lower() or "حجم" in str(col):
-        df_s[col] = pd.to_numeric(df_s[col], errors="coerce").fillna(0.0)
-      if "طرود" in str(col) or "packages" in str(col).lower():
-        df_s[col] = (
-            pd.to_numeric(df_s[col], errors="coerce").fillna(0).astype(int)
-        )
-
-    for col in list(df_s.columns):
-      if col == "سعر الكيلو":
-        df_s.rename(columns={col: "السعر"}, inplace=True)
-        continue
-      if col == "السعر":
-        df_s["السعر"] = pd.to_numeric(df_s["السعر"], errors="coerce").fillna(
-            0.0
-        )
-        continue
-      if "سعر" in str(col) and col != "السعر":
-        df_s.rename(columns={col: "السعر"}, inplace=True)
-        df_s["السعر"] = pd.to_numeric(df_s["السعر"], errors="coerce").fillna(
-            0.0
-        )
-        break
-
-    c_ship = next(
-        (
-            c
-            for c in df_s.columns
-            if "شحنة" in str(c) or "shipment" in str(c).lower()
-        ),
-        None,
-    )
-    c_code = next(
-        (c for c in df_s.columns if "كود" in str(c) or "code" in str(c).lower()),
-        None,
-    )
-    c_name = next(
-        (c for c in df_s.columns if "الاسم" in str(c) or "name" in str(c).lower()),
-        None,
-    )
-    c_guarantor = next(
-        (
-            c
-            for c in df_s.columns
-            if "كفيل" in str(c) or "guarantor" in str(c).lower()
-        ),
-        None,
-    )
-    c_weight = next(
-        (c for c in df_s.columns if "وزن" in str(c) or "weight" in str(c).lower()),
-        None,
-    )
-    c_cbm = next(
-        (
-            c
-            for c in df_s.columns
-            if "cbm" in str(c).lower() or "حجم" in str(c)
-        ),
-        None,
-    )
-    c_packages = next(
-        (
-            c
-            for c in df_s.columns
-            if "طرود" in str(c) or "packages" in str(c).lower()
-        ),
-        None,
-    )
-    c_price = next(
-        (c for c in df_s.columns if c == "السعر" or "سعر" in str(c)), None
-    )
-    c_sales = next(
-        (
-            c
-            for c in df_s.columns
-            if "مبيعات" in str(c)
-            or "اجمالي" in str(c)
-            or "total" in str(c).lower()
-        ),
-        None,
-    )
-    c_phone1 = next(
-        (
-            c
-            for c in df_s.columns
-            if ("هاتف" in str(c) or "عاتف" in str(c)) and "2" not in str(c)
-        ),
-        None,
-    )
-    c_phone2 = next(
-        (
-            c
-            for c in df_s.columns
-            if ("هاتف" in str(c) or "عاتف" in str(c)) and "2" in str(c)
-        ),
-        None,
-    )
-    c_addr = next(
-        (
-            c
-            for c in df_s.columns
-            if "عنوان" in str(c) or "البض" in str(c) or "البظ" in str(c)
-        ),
-        None,
-    )
-    c_city = next(
-        (c for c in df_s.columns if "مدينة" in str(c) or "محافظ" in str(c)), None
-    )
-    c_type = next(
-        (c for c in df_s.columns if "نوع" in str(c) or "type" in str(c).lower()),
-        None,
-    )
-
-    desired_order = [
-        c_ship,
-        c_code,
-        c_name,
-        c_guarantor,
-        c_weight,
-        c_cbm,
-        c_packages,
-        c_price,
-        c_sales,
-        c_phone1,
-        c_phone2,
-        c_addr,
-        c_city,
-        c_type,
-    ]
-
-    valid_order = [c for c in desired_order if c and c in df_s.columns]
-    remaining_cols = [c for c in df_s.columns if c not in valid_order]
-
-    df_s = df_s[valid_order + remaining_cols]
-
-    return df_s
-
 
   st.markdown("---")
   st.header("🔍 فلتر الشحنات")
@@ -614,6 +609,46 @@ if app_page == "موافقة إخراج البضائع":
       "اختر رقم الشحنة", available_shipments
   )
 
+  # فلتر الكفيل المرتبط بالشحنة المختارة فقط
+  selected_approval_guarantor = "الكل"
+  if selected_approval_shipment != "اختر رقم الشحنة" and full_approval_df is not None:
+    ship_col_app = next(
+        (
+            c
+            for c in full_approval_df.columns
+            if "شحنة" in str(c) or "shipment" in str(c).lower()
+        ),
+        full_approval_df.columns[0],
+    )
+    ship_filtered_df = full_approval_df[
+        full_approval_df[ship_col_app]
+        .astype(str)
+        .str.replace(".0", "", regex=False)
+        == selected_approval_shipment
+    ].copy()
+
+    guarantor_col_app = next(
+        (
+            c
+            for c in ship_filtered_df.columns
+            if "كفيل" in str(c) or "guarantor" in str(c).lower()
+        ),
+        None,
+    )
+    if guarantor_col_app:
+      ship_filtered_df[guarantor_col_app] = (
+          ship_filtered_df[guarantor_col_app]
+          .fillna("بدون كفيل")
+          .astype(str)
+          .str.strip()
+      )
+      guarantor_options = ["الكل"] + sorted(
+          [g for g in ship_filtered_df[guarantor_col_app].unique() if g != ""]
+      )
+      selected_approval_guarantor = st.selectbox(
+          "اختر الكفيل (اختياري)", guarantor_options
+      )
+
   if selected_approval_shipment != "اختر رقم الشحنة":
     company_name = "شركة أطلس المحيط"
     check_date = pd.Timestamp.now().strftime("%Y-%m-%d")
@@ -687,6 +722,16 @@ if app_page == "موافقة إخراج البضائع":
           "الكفيل",
       )
 
+      if (
+          selected_approval_guarantor != "الكل"
+          and g_col
+          and g_col in subset_df.columns
+      ):
+        subset_df = subset_df[
+            subset_df[g_col].astype(str).str.strip()
+            == selected_approval_guarantor
+        ]
+
       formatted_data = []
       for idx, row in enumerate(subset_df.iterrows(), start=1):
         r_data = row[1]
@@ -710,7 +755,10 @@ if app_page == "موافقة إخراج البضائع":
       }]
       df_approval_display = pd.DataFrame(data)
 
-    st.subheader(f"تفاصيل الشحنة: {selected_approval_shipment}")
+    st.subheader(
+        f"تفاصيل الشحنة: {selected_approval_shipment} | الكفيل:"
+        f" {selected_approval_guarantor}"
+    )
     st.dataframe(df_approval_display, use_container_width=True, hide_index=True)
     st.info("جاهز لتلقي التعليمات الإضافية أو الشروط المعقدة الخاصة بهذا الجدول.")
 
@@ -1052,8 +1100,8 @@ elif app_page == "الصفحة الرئيسية":
         )
 
         return f"""
-              <div class="receipt-page" style="padding: 15px; font-family: 'Tahoma', Arial, sans-serif; direction: rtl; border: 2px solid #102a43; width: 100%; max-width: 148mm; margin: auto auto 20px auto; background: #ffffff; color: #102a43; box-sizing: border-box; page-break-after: always; break-after: page;">
-                  <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px; border-collapse: collapse;">
+              <div class="receipt-page" style="padding: 15px; font-family: 'Tahoma', Arial, sans-serif; direction: rtl; border: 2px solid #102a43; width: 100%; max-width: 148mm; margin: auto auto 20px auto; background: #ffffff; color: #102a43; box-sizing: border-box; page-break-after: always; break-after: page; text-align: right;">
+                  <table style="width: 100%; border-bottom: 2px solid #102a43; padding-bottom: 8px; margin-bottom: 12px; border-collapse: collapse; direction: rtl;">
                       <tr>
                           <td style="text-align: right; vertical-align: middle;">
                               <div style="display: flex; align-items: center;">
@@ -1070,41 +1118,41 @@ elif app_page == "الصفحة الرئيسية":
                           </td>
                       </tr>
                   </table>
-                  <table style="width: 100%; font-size: 11px; border-collapse: collapse; margin-bottom: 10px;">
+                  <table style="width: 100%; font-size: 11px; border-collapse: collapse; margin-bottom: 10px; direction: rtl;">
                       <tr style="background-color: #f0f4f8;">
-                          <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{display_code}</span></td>
-                          <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{display_shipment}</span></td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%; text-align: right;"><strong>كود العميل:</strong> <span style="color: #b45309; font-weight: bold;">{display_code}</span></td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; width: 50%; text-align: right;"><strong>رقم الشحنة:</strong> <span style="color: #b45309; font-weight: bold;">{display_shipment}</span></td>
                       </tr>
                       <tr>
-                          <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
-                          <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{combined_phones}</span></td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; text-align: right;"><strong>اسم العميل:</strong> <span style="font-weight: bold;">{name}</span></td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; text-align: right;"><strong>رقم الهاتف:</strong> <span style="direction: ltr; display: inline-block; font-weight: bold;">{combined_phones}</span></td>
                       </tr>
                       {guarantor_row_html}
                       <tr style="background-color: #f0f4f8;">
-                          <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
-                          <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>عدد الطرود:</strong> 📦 {packages} طرد</td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; text-align: right;"><strong>عنوان الاستلام:</strong> <span style="color: #486581; font-weight: bold;">{address}</span></td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; text-align: right;"><strong>عدد الطرود:</strong> 📦 {packages} طرد</td>
                       </tr>
                       <tr>
-                          <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
-                          <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>الوزن الإجمالي:</strong> <span style="color: #102a43; font-weight: bold;">{weight} كغ</span></td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; text-align: right;"><strong>تاريخ الإصدار:</strong> <span style="color: #b45309; font-weight: bold;">{today_date}</span></td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; text-align: right;"><strong>الوزن الإجمالي:</strong> <span style="color: #102a43; font-weight: bold;">{weight} كغ</span></td>
                       </tr>
                       <tr style="background-color: #f0f4f8;">
-                          <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
-                          <td style="padding: 5px; border: 1px solid #bcccdc;"><strong>حجم الشحنة (CBM):</strong> <span style="color: #b45309; font-weight: bold;">{cbm_value:,.1f}</span></td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; text-align: right;"><strong>نوع الشحنة:</strong> {shipment_type}</td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; text-align: right;"><strong>حجم الشحنة (CBM):</strong> <span style="color: #b45309; font-weight: bold;">{cbm_value:,.1f}</span></td>
                       </tr>
                       <tr>
-                          <td style="padding: 5px; border: 1px solid #bcccdc;" colspan="2"><strong>السعر:</strong> {price_per_kg:,.1f} $</td>
+                          <td style="padding: 5px; border: 1px solid #bcccdc; text-align: right;" colspan="2"><strong>السعر:</strong> {price_per_kg:,.1f} $</td>
                       </tr>
                       <tr style="background-color: #fef3c7;">
-                          <td style="padding: 5px; border: 1px solid #f59e0b;" colspan="2"><strong>إجمالي المبيعات (الديون):</strong> <span style="color: #b45309; font-weight: bold; font-size: 12px;">{total_sales:,.1f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
+                          <td style="padding: 5px; border: 1px solid #f59e0b; text-align: right;" colspan="2"><strong>إجمالي المبيعات (الديون):</strong> <span style="color: #b45309; font-weight: bold; font-size: 12px;">{total_sales:,.1f} $</span> &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; <strong>طريقة الدفع:</strong> [ &nbsp; ] نقداً &nbsp;&nbsp; [ &nbsp; ] أجل</td>
                       </tr>
                   </table>
-                  <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 6px; border-radius: 4px; margin-bottom: 10px;">
+                  <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 6px; border-radius: 4px; margin-bottom: 10px; text-align: right;">
                       <p style="margin: 0; font-size: 10px; color: #92400e; line-height: 1.3;"><strong>إقرار الاستلام:</strong><br>أقر أنا الموقع أدناه، بأنني استلمت البضاعة والشحنة المذكورة أعلاه كاملة، وبحالة سليمة وممتازة، ومطابقة لكافة الأوزان والأوصاف المدونة.</p>
                   </div>
-                  <table style="width: 100%; font-size: 11px; margin-top: 5px; margin-bottom: 10px;">
+                  <table style="width: 100%; font-size: 11px; margin-top: 5px; margin-bottom: 10px; direction: rtl;">
                       <tr>
-                          <td style="width: 50%; padding: 2px;"><strong>اسم المستلم:</strong><br><br>............................................</td>
+                          <td style="width: 50%; padding: 2px; text-align: right;"><strong>اسم المستلم:</strong><br><br>............................................</td>
                           <td style="width: 50%; padding: 2px; text-align: left;"><strong>توقيع وختم المستلم:</strong><br><br>............................................</td>
                       </tr>
                   </table>
@@ -1465,6 +1513,7 @@ elif app_page == "الصفحة الرئيسية":
               border-radius: 8px;
               box-shadow: 0 2px 4px rgba(0,0,0,0.05);
               margin-bottom: 20px;
+              direction: rtl;
           }}
           .custom-table {{
               width: 100%;
@@ -1474,11 +1523,12 @@ elif app_page == "الصفحة الرئيسية":
               direction: rtl;
               background-color: #ffffff;
               color: #102a43;
+              text-align: right;
           }}
           .custom-table th {{
               background-color: #102a43 !important;
               color: #ffffff !important;
-              text-align: right;
+              text-align: right !important;
               padding: 12px 10px;
               font-weight: bold;
               border-bottom: 2px solid #0b1e33;
@@ -1490,7 +1540,7 @@ elif app_page == "الصفحة الرئيسية":
           .custom-table td {{
               padding: 10px 10px;
               border-bottom: 1px solid #e2e8f0;
-              text-align: right;
+              text-align: right !important;
           }}
           .custom-table tr:nth-child(even) {{
               background-color: #f8fafc;
@@ -1598,40 +1648,6 @@ elif app_page == "الصفحة الرئيسية":
           classes="custom-table yard-table", index=False, escape=False
       )
 
-      st.markdown(
-          """
-          <style>
-          div.stButton > button, div.stDownloadButton > button {
-              min-height: 48px !important;
-              height: 48px !important;
-              max-height: 48px !important;
-              padding: 0px 15px !important;
-              margin: 0px !important;
-              display: flex !important;
-              align-items: center !important;
-              justify-content: center !important;
-              width: 100% !important;
-              box-sizing: border-box !important;
-              line-height: 1.2 !important;
-          }
-          div[data-testid="column"]:nth-of-type(2) div.stDownloadButton > button,
-          div[data-testid="column"]:nth-of-type(2) div.stDownloadButton button,
-          div[data-testid="column"]:nth-of-type(2) button {
-              background-color: #64748b !important;
-              color: #ffffff !important;
-              font-weight: bold !important;
-              border: 1px solid #475569 !important;
-          }
-          div[data-testid="column"]:nth-of-type(2) div.stDownloadButton > button:hover,
-          div[data-testid="column"]:nth-of-type(2) div.stDownloadButton button:hover {
-              background-color: #475569 !important;
-              color: #ffffff !important;
-          }
-          </style>
-          """,
-          unsafe_allow_html=True,
-      )
-
       col_btn1, col_btn_yard, col_btn2 = st.columns(3)
 
       with col_btn1:
@@ -1667,7 +1683,7 @@ elif app_page == "الصفحة الرئيسية":
               <meta charset="UTF-8">
               <style>
                   @page {{ size: A4 landscape; margin: 10mm; }}
-                  body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 0; background: transparent; }}
+                  body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 0; background: transparent; text-align: right; }}
                   .export-btn {{
                       background-color: #102a43;
                       color: white;
@@ -1714,9 +1730,9 @@ elif app_page == "الصفحة الرئيسية":
                               <title>تقرير جدول الشحنات والمحافظات - أطلس</title>
                               <style>
                                   @page {{ size: A4 landscape; margin: 5mm; }}
-                                  body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 5px; }}
-                                  h3 {{ color: #102a43; margin-top: 10px; font-size: 13px; border-bottom: 2px solid #102a43; padding-bottom: 3px; }}
-                                  .metrics-grid {{ display: flex; justify-content: space-between; gap: 5mm; margin-bottom: 10px; }}
+                                  body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 5px; text-align: right; }}
+                                  h3 {{ color: #102a43; margin-top: 10px; font-size: 13px; border-bottom: 2px solid #102a43; padding-bottom: 3px; text-align: right; }}
+                                  .metrics-grid {{ display: flex; justify-content: space-between; gap: 5mm; margin-bottom: 10px; direction: rtl; }}
                                   .metric-box {{ flex: 1; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid #cbd5e1; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                   .box-1 {{ background-color: #eff6ff !important; border-color: #bfdbfe; color: #1e40af; }}
                                   .box-2 {{ background-color: #f0fdf4 !important; border-color: #bbf7d0; color: #166534; }}
@@ -1725,8 +1741,8 @@ elif app_page == "الصفحة الرئيسية":
                                   .box-5 {{ background-color: #fdf2f8 !important; border-color: #fbcfe8; color: #9d174d; }}
                                   .metric-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; }}
                                   .metric-val {{ font-size: 12px; font-weight: bold; margin: 0; }}
-                                  table {{ width: 100% !important; border-collapse: collapse; font-size: 8.5px !important; margin-top: 5px; table-layout: fixed; }}
-                                  th, td {{ padding: 4px 3px !important; border: 1px solid #cbd5e1; text-align: right; overflow: hidden; word-wrap: break-word; }}
+                                  table {{ width: 100% !important; border-collapse: collapse; font-size: 8.5px !important; margin-top: 5px; table-layout: fixed; direction: rtl; }}
+                                  th, td {{ padding: 4px 3px !important; border: 1px solid #cbd5e1; text-align: right !important; overflow: hidden; word-wrap: break-word; }}
                                   th {{ background-color: #102a43 !important; color: #ffffff !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                                   tr:nth-child(even) {{ background-color: #f8fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
                               </style>
@@ -1766,7 +1782,7 @@ elif app_page == "الصفحة الرئيسية":
               <meta charset="UTF-8">
               <style>
                   @page {{ size: A4 portrait; margin: 15mm; }}
-                  body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 0; background: transparent; }}
+                  body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; color: #102a43; margin: 0; padding: 0; background: transparent; text-align: right; }}
                   .yard-btn {{
                       background-color: #b45309;
                       color: white;
@@ -1808,13 +1824,13 @@ elif app_page == "الصفحة الرئيسية":
                               <title>ورقة جرد الساحة - أطلس المحيط</title>
                               <style>
                                   @page {{ size: A4 portrait; margin: 10mm; }}
-                                  body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 10px; }}
+                                  body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #102a43; padding: 10px; text-align: right; }}
                                   .header-box {{ text-align: center; border-bottom: 2px solid #102a43; padding-bottom: 10px; margin-bottom: 15px; }}
                                   h2 {{ margin: 0; font-size: 18px; color: #102a43; }}
                                   p {{ margin: 5px 0 0; font-size: 12px; color: #627d98; }}
                                   .info-bar {{ font-size: 13px; font-weight: bold; margin-bottom: 15px; background: #f0f4f8; padding: 8px; border: 1px solid #bcccdc; border-radius: 4px; }}
-                                  table {{ width: 100% !important; border-collapse: collapse; font-size: 12px !important; margin-top: 5px; table-layout: fixed; }}
-                                  th, td {{ padding: 8px 6px !important; border: 1px solid #94a3b8; text-align: right; overflow: hidden; }}
+                                  table {{ width: 100% !important; border-collapse: collapse; font-size: 12px !important; margin-top: 5px; table-layout: fixed; direction: rtl; }}
+                                  th, td {{ padding: 8px 6px !important; border: 1px solid #94a3b8; text-align: right !important; overflow: hidden; }}
                                   th:nth-child(1), td:nth-child(1) {{ width: 8%; text-align: center; }}
                                   th:nth-child(2), td:nth-child(2) {{ width: 15%; }}
                                   th:nth-child(3), td:nth-child(3) {{ width: 38%; }}
@@ -1864,7 +1880,7 @@ elif app_page == "الصفحة الرئيسية":
               <meta charset="UTF-8">
               <style>
                   @page {{ size: A5; margin: 5mm; }}
-                  body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; margin: 0; padding: 0; background: transparent; }}
+                  body {{ font-family: 'Tahoma', Arial, sans-serif; direction: rtl; margin: 0; padding: 0; background: transparent; text-align: right; }}
                   .batch-btn {{
                       background-color: #b45309;
                       color: white;
@@ -1891,7 +1907,7 @@ elif app_page == "الصفحة الرئيسية":
                   const masterContent = `{all_html_batch.replace('`', '\\`').replace('$', '\\$')}`;
                   function printAllBatch() {{
                       var w = window.open('', '', 'height=900,width=800');
-                      w.document.write('<html><head><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma; }}</style></head><body>' + masterContent + '</body></html>');
+                      w.document.write('<html><head><style>@page {{ size: A5; margin: 5mm; }} body {{ direction: rtl; font-family: Tahoma; text-align: right; }}</style></head><body>' + masterContent + '</body></html>');
                       w.document.close();
                       w.focus();
                       setTimeout(() => {{ w.print(); w.close(); }}, 600);
@@ -2043,7 +2059,7 @@ elif app_page == "الصفحة الرئيسية":
           )
           st.markdown("<br>", unsafe_allow_html=True)
           st.components.v1.html(
-              f"""<div style="direction:rtl">{single_html}</div><button style="background:#102a43;color:white;padding:12px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin-top:15px;" onclick="window.print()">🖨️ طباعة هذا الوصل</button>""",
+              f"""<div style="direction:rtl; text-align:right;">{single_html}</div><button style="background:#102a43;color:white;padding:12px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin-top:15px;" onclick="window.print()">🖨️ طباعة هذا الوصل</button>""",
               height=700,
               scrolling=True,
           )
@@ -2056,4 +2072,3 @@ elif app_page == "الصفحة الرئيسية":
         "الرجاء التأكد من صلاحية الوصول للملفات والضغط على زر (تحديث البيانات و"
         "سحبها من درايف)."
     )
-
